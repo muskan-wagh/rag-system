@@ -1,8 +1,7 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
   Table,
@@ -12,45 +11,66 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { Users, TrendingUp, Award, Target } from "lucide-react"
-
-const summaryStats = [
-  { title: "Total Candidates", value: "20", icon: Users, change: "+5 added" },
-  { title: "Avg Match Score", value: "67%", icon: TrendingUp, change: "+4% this week" },
-  { title: "Top Skill", value: "Python", icon: Award, change: "12 candidates" },
-  { title: "Most Searched", value: "Full-Stack", icon: Target, change: "8 searches" },
-]
-
-const skillDistribution = [
-  { skill: "Python", count: 8, pct: 40 },
-  { skill: "JavaScript/TypeScript", count: 7, pct: 35 },
-  { skill: "React", count: 5, pct: 25 },
-  { skill: "Node.js", count: 5, pct: 25 },
-  { skill: "Docker", count: 4, pct: 20 },
-  { skill: "AWS", count: 4, pct: 20 },
-  { skill: "SQL", count: 4, pct: 20 },
-  { skill: "Kubernetes", count: 3, pct: 15 },
-  { skill: "Machine Learning", count: 3, pct: 15 },
-  { skill: "Java", count: 2, pct: 10 },
-]
-
-const experienceDistribution = [
-  { range: "0-2 years", count: 2 },
-  { range: "3-5 years", count: 5 },
-  { range: "6-8 years", count: 7 },
-  { range: "9-11 years", count: 4 },
-  { range: "12+ years", count: 2 },
-]
-
-const educationLevels = [
-  { level: "PhD", count: 2 },
-  { level: "Master's", count: 9 },
-  { level: "Bachelor's", count: 8 },
-  { level: "Diploma", count: 1 },
-]
+import { Skeleton } from "@/components/ui/skeleton"
+import { Users, TrendingUp, Award, Code2 } from "lucide-react"
+import { getAnalytics, type AnalyticsData } from "@/lib/api"
 
 export default function AnalyticsPage() {
+  const [data, setData] = useState<AnalyticsData | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState("")
   const [tab, setTab] = useState("skills")
+
+  useEffect(() => {
+    async function load() {
+      try {
+        const res = await getAnalytics()
+        if (res.success && res.data) {
+          setData(res.data)
+        } else {
+          setError(res.error || "Failed to load analytics")
+        }
+      } catch {
+        setError("Failed to connect to server")
+      } finally {
+        setLoading(false)
+      }
+    }
+    load()
+  }, [])
+
+  if (loading) {
+    return (
+      <div className="flex-1 space-y-6 p-6 md:p-8 pt-6">
+        <Skeleton className="h-8 w-48" />
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Skeleton key={i} className="h-28" />
+          ))}
+        </div>
+        <Skeleton className="h-64" />
+      </div>
+    )
+  }
+
+  if (error || !data) {
+    return (
+      <div className="flex-1 p-6 md:p-8 pt-6">
+        <Card>
+          <CardContent className="pt-6 text-center text-muted-foreground py-12">
+            {error || "No data available"}
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
+
+  const summaryStats = [
+    { title: "Total Candidates", value: String(data.totalCandidates), icon: Users, change: `${data.skills.length} unique skills` },
+    { title: "Avg Experience", value: `${data.avgExperience}y`, icon: TrendingUp, change: "across all candidates" },
+    { title: "Top Skill", value: data.topSkills[0]?.skill || "N/A", icon: Award, change: `${data.topSkills[0]?.count || 0} candidates` },
+    { title: "Total Skills", value: String(data.skills.length), icon: Code2, change: "across database" },
+  ]
 
   return (
     <div className="flex-1 space-y-6 p-6 md:p-8 pt-6">
@@ -100,7 +120,7 @@ export default function AnalyticsPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {skillDistribution.map((row) => (
+                  {data.skills.map((row) => (
                     <TableRow key={row.skill}>
                       <TableCell className="font-medium">{row.skill}</TableCell>
                       <TableCell>{row.count}</TableCell>
@@ -109,10 +129,10 @@ export default function AnalyticsPage() {
                           <div className="h-2 flex-1 rounded-full bg-muted overflow-hidden">
                             <div
                               className="h-full rounded-full bg-primary"
-                              style={{ width: `${row.pct}%` }}
+                              style={{ width: `${row.percentage}%` }}
                             />
                           </div>
-                          <span className="text-xs text-muted-foreground w-8">{row.pct}%</span>
+                          <span className="text-xs text-muted-foreground w-8">{row.percentage}%</span>
                         </div>
                       </TableCell>
                     </TableRow>
@@ -138,9 +158,9 @@ export default function AnalyticsPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {experienceDistribution.map((row) => {
-                    const maxCount = Math.max(...experienceDistribution.map((r) => r.count))
-                    const pct = (row.count / maxCount) * 100
+                  {data.experienceDistribution.map((row) => {
+                    const maxCount = Math.max(...data.experienceDistribution.map((r) => r.count))
+                    const pct = maxCount > 0 ? (row.count / maxCount) * 100 : 0
                     return (
                       <TableRow key={row.range}>
                         <TableCell className="font-medium">{row.range}</TableCell>
@@ -177,9 +197,9 @@ export default function AnalyticsPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {educationLevels.map((row) => {
-                    const maxCount = Math.max(...educationLevels.map((r) => r.count))
-                    const pct = (row.count / maxCount) * 100
+                  {data.educationDistribution.map((row) => {
+                    const maxCount = Math.max(...data.educationDistribution.map((r) => r.count))
+                    const pct = maxCount > 0 ? (row.count / maxCount) * 100 : 0
                     return (
                       <TableRow key={row.level}>
                         <TableCell className="font-medium">{row.level}</TableCell>

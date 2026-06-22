@@ -98,6 +98,46 @@ export async function compareCandidates(
   )
 }
 
+export async function getCandidate(id: string) {
+  return request<Candidate>(`/candidates/${id}`, { method: "GET" })
+}
+
+export async function batchCandidates(ids: string[]) {
+  return request<Candidate[]>("/candidates/batch", {
+    method: "POST",
+    body: JSON.stringify({ ids }),
+  })
+}
+
+export interface SkillCount {
+  skill: string
+  count: number
+  percentage: number
+}
+
+export interface ExperienceBucket {
+  range: string
+  count: number
+}
+
+export interface EducationBucket {
+  level: string
+  count: number
+}
+
+export interface AnalyticsData {
+  totalCandidates: number
+  avgExperience: number
+  skills: SkillCount[]
+  topSkills: SkillCount[]
+  experienceDistribution: ExperienceBucket[]
+  educationDistribution: EducationBucket[]
+}
+
+export async function getAnalytics() {
+  return request<AnalyticsData>("/analytics", { method: "GET" })
+}
+
 export async function sendChatMessage(
   message: string,
   context?: { jdText?: string; candidateIds?: string[] },

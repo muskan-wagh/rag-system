@@ -24,28 +24,28 @@ export async function searchCandidates(
 
   if (filters?.minExperience !== undefined) {
     filterConditions.push({
-      field: 'experience',
-      match: { gte: filters.minExperience },
+      key: 'experience',
+      range: { gte: filters.minExperience },
     });
   }
 
   if (filters?.maxExperience !== undefined) {
     filterConditions.push({
-      field: 'experience',
-      match: { lte: filters.maxExperience },
+      key: 'experience',
+      range: { lte: filters.maxExperience },
     });
   }
 
   if (filters?.skills && filters.skills.length > 0) {
     filterConditions.push({
-      field: 'skills',
+      key: 'skills',
       match: { any: filters.skills },
     });
   }
 
   if (filters?.educationLevel) {
     filterConditions.push({
-      field: 'education.level',
+      key: 'education.level',
       match: { value: filters.educationLevel },
     });
   }

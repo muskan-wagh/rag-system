@@ -12,26 +12,34 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { Users, Search, Star, Clock } from "lucide-react"
+import { Skeleton } from "@/components/ui/skeleton"
+import { Users, Award, TrendingUp, Code2 } from "lucide-react"
 import Link from "next/link"
 import { ROUTES } from "@/lib/constants"
-
-const stats = [
-  { title: "Total Candidates", value: "20", icon: Users, change: "+5 this week" },
-  { title: "Searches Today", value: "3", icon: Search, change: "Last: 2 hours ago" },
-  { title: "Avg Match Score", value: "67%", icon: Star, change: "+4% vs last week" },
-  { title: "Top Role", value: "Full-Stack", icon: Clock, change: "Most searched" },
-]
-
-const recentSearches = [
-  { role: "Senior Full-Stack Engineer", candidates: 8, topScore: "73%", time: "2h ago" },
-  { role: "Data Scientist - NLP", candidates: 5, topScore: "81%", time: "5h ago" },
-  { role: "DevOps/SRE Engineer", candidates: 6, topScore: "68%", time: "1d ago" },
-]
+import { getAnalytics, type AnalyticsData } from "@/lib/api"
 
 export default function DashboardPage() {
-  const [mounted, setMounted] = useState(false)
-  useEffect(() => { setMounted(true) }, [])
+  const [data, setData] = useState<AnalyticsData | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState("")
+
+  useEffect(() => {
+    async function load() {
+      try {
+        const res = await getAnalytics()
+        if (res.success && res.data) {
+          setData(res.data)
+        } else {
+          setError(res.error || "Failed to load data")
+        }
+      } catch {
+        setError("Failed to connect to server")
+      } finally {
+        setLoading(false)
+      }
+    }
+    load()
+  }, [])
 
   return (
     <div className="flex-1 space-y-6 p-6 md:p-8 pt-6">
@@ -42,58 +50,94 @@ export default function DashboardPage() {
         </Link>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        {stats.map((stat) => (
-          <Card key={stat.title}>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                {stat.title}
-              </CardTitle>
-              <stat.icon className="h-4 w-4 text-muted-foreground" />
+      {loading ? (
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Skeleton key={i} className="h-28" />
+          ))}
+        </div>
+      ) : error || !data ? (
+        <Card>
+          <CardContent className="pt-6 text-center text-muted-foreground py-12">
+            {error || "No data available"}
+          </CardContent>
+        </Card>
+      ) : (
+        <>
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">Total Candidates</CardTitle>
+                <Users className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{data.totalCandidates}</div>
+                <p className="text-xs text-muted-foreground mt-1">{data.skills.length} unique skills</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">Avg Experience</CardTitle>
+                <TrendingUp className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{data.avgExperience} years</div>
+                <p className="text-xs text-muted-foreground mt-1">across {data.totalCandidates} candidates</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">Top Skill</CardTitle>
+                <Award className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{data.topSkills[0]?.skill || "N/A"}</div>
+                <p className="text-xs text-muted-foreground mt-1">{data.topSkills[0]?.count || 0} candidates</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">Total Skills</CardTitle>
+                <Code2 className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{data.skills.length}</div>
+                <p className="text-xs text-muted-foreground mt-1">in database</p>
+              </CardContent>
+            </Card>
+          </div>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Top Skills</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stat.value}</div>
-              <p className="text-xs text-muted-foreground mt-1">{stat.change}</p>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Skill</TableHead>
+                    <TableHead>Candidates</TableHead>
+                    <TableHead>Coverage</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {data.topSkills.map((row) => (
+                    <TableRow key={row.skill}>
+                      <TableCell className="font-medium">{row.skill}</TableCell>
+                      <TableCell>{row.count}</TableCell>
+                      <TableCell>
+                        <Badge variant={row.percentage >= 30 ? "default" : "secondary"}>
+                          {row.percentage}%
+                        </Badge>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
             </CardContent>
           </Card>
-        ))}
-      </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Recent Searches</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {!mounted ? (
-            <div className="h-32 flex items-center justify-center text-muted-foreground">Loading...</div>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Role</TableHead>
-                  <TableHead>Candidates Found</TableHead>
-                  <TableHead>Top Score</TableHead>
-                  <TableHead>Time</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {recentSearches.map((row) => (
-                  <TableRow key={row.role}>
-                    <TableCell className="font-medium">{row.role}</TableCell>
-                    <TableCell>{row.candidates}</TableCell>
-                    <TableCell>
-                      <Badge variant={parseInt(row.topScore) >= 70 ? "default" : "secondary"}>
-                        {row.topScore}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">{row.time}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
-        </CardContent>
-      </Card>
+        </>
+      )}
     </div>
   )
 }
