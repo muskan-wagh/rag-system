@@ -21,7 +21,26 @@ export async function createCollection(): Promise<void> {
     },
   });
 
-  logger.info(`Collection "${collectionName}" created`, {
+  await Promise.all([
+    client.createPayloadIndex(collectionName, {
+      field_name: 'id',
+      field_schema: 'keyword',
+    }),
+    client.createPayloadIndex(collectionName, {
+      field_name: 'experience',
+      field_schema: 'integer',
+    }),
+    client.createPayloadIndex(collectionName, {
+      field_name: 'skills',
+      field_schema: 'keyword',
+    }),
+    client.createPayloadIndex(collectionName, {
+      field_name: 'education.level',
+      field_schema: 'keyword',
+    }),
+  ]);
+
+  logger.info(`Collection "${collectionName}" created with payload indexes`, {
     vectorSize: config.qdrant.vectorSize,
     distance: config.qdrant.distance,
   });

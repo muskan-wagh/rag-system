@@ -1,8 +1,13 @@
 "use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.parseJD = parseJD;
+const crypto_1 = __importDefault(require("crypto"));
 const client_1 = require("./client");
 const logger_1 = require("@/utils/logger");
+const cache_1 = require("@/utils/cache");
 const SYSTEM_PROMPT = `You are a job description parser. Extract structured information from job descriptions.
 Return ONLY valid JSON with this exact shape:
 {
@@ -22,12 +27,19 @@ Rules:
 - For education field: the field of study
 - If information is not present, use empty strings or arrays`;
 async function parseJD(jdText) {
+    const cacheKey = `jd:${crypto_1.default.createHash('md5').update(jdText).digest('hex')}`;
+    const cached = (0, cache_1.getCached)(cacheKey);
+    if (cached) {
+        logger_1.logger.info('Returning cached JD parse result', { title: cached.title });
+        return cached;
+    }
     logger_1.logger.info('Parsing job description', { textLength: jdText.length });
     const response = await (0, client_1.chatCompletion)([
         { role: 'system', content: SYSTEM_PROMPT },
         { role: 'user', content: jdText },
     ], { temperature: 0.1 });
     const parsed = JSON.parse(response.content);
+    (0, cache_1.setCache)(cacheKey, parsed, 300000);
     logger_1.logger.info('JD parsed successfully', {
         title: parsed.title,
         skillCount: parsed.skills.length,

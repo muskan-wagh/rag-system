@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { asyncHandler } from '@/utils/asyncHandler';
 import { parseJD } from '@/services/llm/parseJD';
 import { searchCandidates } from '@/services/qdrant/searchCandidates';
+import { retrieveCandidateById, retrieveCandidatesByIds } from '@/services/qdrant/retrieveCandidates';
 import { rankCandidates } from '@/services/ranking/finalRanker';
 import { compareCandidates } from '@/services/llm/compareCandidates';
 import { Candidate } from '@/types';
@@ -52,6 +53,41 @@ export const searchCandidatesHandler = asyncHandler(async (req: Request, res: Re
   });
 });
 
+export const getCandidateHandler = asyncHandler(async (req: Request, res: Response) => {
+  const id = req.params.id as string;
+
+  if (!id) {
+    res.status(400).json({ success: false, error: 'Candidate ID is required' });
+    return;
+  }
+
+  logger.info('Get candidate by ID', { candidateId: id });
+
+  const candidate = await retrieveCandidateById(id);
+
+  if (!candidate) {
+    res.status(404).json({ success: false, error: 'Candidate not found' });
+    return;
+  }
+
+  res.status(200).json({ success: true, data: candidate });
+});
+
+export const batchCandidatesHandler = asyncHandler(async (req: Request, res: Response) => {
+  const { ids } = req.body;
+
+  if (!Array.isArray(ids) || ids.length === 0) {
+    res.status(400).json({ success: false, error: 'ids must be a non-empty array' });
+    return;
+  }
+
+  logger.info('Batch get candidates', { count: ids.length });
+
+  const candidates = await retrieveCandidatesByIds(ids);
+
+  res.status(200).json({ success: true, data: candidates });
+});
+
 export const compareCandidatesHandler = asyncHandler(async (req: Request, res: Response) => {
   const { jdText, candidateIds } = req.body;
 
@@ -75,26 +111,7 @@ export const compareCandidatesHandler = asyncHandler(async (req: Request, res: R
 
   const jd = await parseJD(jdText);
 
-  const queryText = [
-    `Job: ${jd.title}`,
-    `Skills: ${jd.skills.join(', ')}`,
-    `Experience: ${jd.experience.min}-${jd.experience.max} years`,
-    `Education: ${jd.education.level} in ${jd.education.field}`,
-  ].join('. ');
-
-  const rawResults = await searchCandidates(queryText, candidateIds.length, {
-    skills: jd.skills,
-  });
-
-  const candidateMap = new Map(rawResults.map((r) => [r.candidate.id, r.candidate]));
-  const candidates: Candidate[] = [];
-
-  for (const id of candidateIds) {
-    const candidate = candidateMap.get(id);
-    if (candidate) {
-      candidates.push(candidate);
-    }
-  }
+  const candidates = await retrieveCandidatesByIds(candidateIds);
 
   if (candidates.length < 2) {
     throw new AppError('Could not find all specified candidates', 404);

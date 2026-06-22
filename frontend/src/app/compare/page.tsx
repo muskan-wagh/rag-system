@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Skeleton } from "@/components/ui/skeleton"
 import { GitCompare, Trash2, Plus } from "lucide-react"
-import { compareCandidates, searchCandidates, type Candidate } from "@/lib/api"
+import { compareCandidates, batchCandidates, type Candidate } from "@/lib/api"
 
 export default function ComparePage() {
   const [jdText, setJdText] = useState("")
@@ -42,16 +42,11 @@ export default function ComparePage() {
     setError("")
 
     try {
-      const res = await searchCandidates(jdText, candidateIds.length)
+      const batchRes = await batchCandidates(candidateIds)
       const nameMap = new Map<string, Candidate>()
-      if (res.success && res.data) {
-        for (const id of candidateIds) {
-          const found = id.startsWith("cand-")
-            ? res.data.results.find((r) => r.candidate.id === id)
-            : res.data.results.find(
-                (r) => r.candidate.name.toLowerCase().includes(id.toLowerCase()),
-              )
-          if (found) nameMap.set(id, found.candidate)
+      if (batchRes.success && batchRes.data) {
+        for (const candidate of batchRes.data) {
+          nameMap.set(candidate.id, candidate)
         }
       }
       setFoundCandidates(nameMap)
