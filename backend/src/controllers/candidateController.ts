@@ -1,13 +1,16 @@
+import crypto from 'crypto';
 import { Request, Response } from 'express';
 import { asyncHandler } from '@/utils/asyncHandler';
 import { parseJD } from '@/services/llm/parseJD';
-import { searchCandidates } from '@/services/qdrant/searchCandidates';
+import { generateEmbedding } from '@/services/llm/client';
+import { searchByEmbedding } from '@/services/qdrant/searchCandidates';
 import { retrieveCandidateById, retrieveCandidatesByIds } from '@/services/qdrant/retrieveCandidates';
 import { rankCandidates } from '@/services/ranking/finalRanker';
 import { compareCandidates } from '@/services/llm/compareCandidates';
 import { Candidate } from '@/types';
 import { logger } from '@/utils/logger';
 import { AppError } from '@/middleware/errorHandler';
+import { getCached, setCache } from '@/utils/cache';
 
 export const searchCandidatesHandler = asyncHandler(async (req: Request, res: Response) => {
   const { jdText, limit = 20, filters } = req.body;
@@ -22,23 +25,25 @@ export const searchCandidatesHandler = asyncHandler(async (req: Request, res: Re
 
   logger.info('Search candidates request', { textLength: jdText.length, limit });
 
-  const jd = await parseJD(jdText);
+  const cacheKey = `search:${crypto.createHash('md5').update(jdText).digest('hex')}:${limit}:${JSON.stringify(filters ?? {})}`;
+  const cached = getCached<{ results: import('@/types').RankingResult[]; query: import('@/types').ParsedJD }>(cacheKey);
+  if (cached) {
+    logger.info('Returning cached search results', { resultCount: cached.results.length });
+    res.status(200).json({ success: true, data: cached });
+    return;
+  }
 
-  const queryText = [
-    `Job: ${jd.title}`,
-    `Skills: ${jd.skills.join(', ')}`,
-    `Experience: ${jd.experience.min}-${jd.experience.max} years`,
-    `Education: ${jd.education.level} in ${jd.education.field}`,
-    `Requirements: ${jd.requirements.join(', ')}`,
-  ].join('. ');
+  const [jd, embedding] = await Promise.all([
+    parseJD(jdText),
+    generateEmbedding(jdText),
+  ]);
 
-  const rawResults = await searchCandidates(queryText, limit, filters);
+  const rawResults = await searchByEmbedding(embedding, limit, filters);
 
   if (rawResults.length === 0) {
-    res.status(200).json({
-      success: true,
-      data: { results: [], query: jd },
-    });
+    const data = { results: [], query: jd };
+    setCache(cacheKey, data, 300000);
+    res.status(200).json({ success: true, data });
     return;
   }
 
@@ -46,11 +51,11 @@ export const searchCandidatesHandler = asyncHandler(async (req: Request, res: Re
 
   const rankedResults = await rankCandidates(candidates, jd);
 
+  const data = { results: rankedResults, query: jd };
+  setCache(cacheKey, data, 300000);
+
   logger.info('Sending search response', { resultCount: rankedResults.length });
-  res.status(200).json({
-    success: true,
-    data: { results: rankedResults, query: jd },
-  });
+  res.status(200).json({ success: true, data });
 });
 
 export const getCandidateHandler = asyncHandler(async (req: Request, res: Response) => {

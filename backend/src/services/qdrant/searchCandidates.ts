@@ -4,7 +4,7 @@ import { Candidate, SearchFilters } from '@/types';
 import { config } from '@/config';
 import { logger } from '@/utils/logger';
 
-interface SearchResult {
+export interface SearchResult {
   candidate: Candidate;
   score: number;
 }
@@ -17,6 +17,16 @@ export async function searchCandidates(
   logger.info('Searching candidates', { queryLength: queryText.length, limit });
 
   const embedding = await generateEmbedding(queryText);
+
+  return searchByEmbedding(embedding, limit, filters);
+}
+
+export async function searchByEmbedding(
+  embedding: number[],
+  limit: number = 10,
+  filters?: SearchFilters,
+): Promise<SearchResult[]> {
+  logger.info('Searching candidates by embedding', { limit });
 
   const client = getQdrantClient();
 

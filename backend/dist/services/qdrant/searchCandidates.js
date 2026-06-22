@@ -1,6 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.searchCandidates = searchCandidates;
+exports.searchByEmbedding = searchByEmbedding;
 const client_1 = require("./client");
 const client_2 = require("@/services/llm/client");
 const config_1 = require("@/config");
@@ -8,6 +9,10 @@ const logger_1 = require("@/utils/logger");
 async function searchCandidates(queryText, limit = 10, filters) {
     logger_1.logger.info('Searching candidates', { queryLength: queryText.length, limit });
     const embedding = await (0, client_2.generateEmbedding)(queryText);
+    return searchByEmbedding(embedding, limit, filters);
+}
+async function searchByEmbedding(embedding, limit = 10, filters) {
+    logger_1.logger.info('Searching candidates by embedding', { limit });
     const client = (0, client_1.getQdrantClient)();
     const filterConditions = [];
     if (filters?.minExperience !== undefined) {

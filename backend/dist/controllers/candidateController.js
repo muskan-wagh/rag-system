@@ -1,14 +1,20 @@
 "use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.compareCandidatesHandler = exports.batchCandidatesHandler = exports.getCandidateHandler = exports.searchCandidatesHandler = void 0;
+const crypto_1 = __importDefault(require("crypto"));
 const asyncHandler_1 = require("@/utils/asyncHandler");
 const parseJD_1 = require("@/services/llm/parseJD");
+const client_1 = require("@/services/llm/client");
 const searchCandidates_1 = require("@/services/qdrant/searchCandidates");
 const retrieveCandidates_1 = require("@/services/qdrant/retrieveCandidates");
 const finalRanker_1 = require("@/services/ranking/finalRanker");
 const compareCandidates_1 = require("@/services/llm/compareCandidates");
 const logger_1 = require("@/utils/logger");
 const errorHandler_1 = require("@/middleware/errorHandler");
+const cache_1 = require("@/utils/cache");
 exports.searchCandidatesHandler = (0, asyncHandler_1.asyncHandler)(async (req, res) => {
     const { jdText, limit = 20, filters } = req.body;
     if (!jdText || typeof jdText !== 'string') {
@@ -19,29 +25,30 @@ exports.searchCandidatesHandler = (0, asyncHandler_1.asyncHandler)(async (req, r
         return;
     }
     logger_1.logger.info('Search candidates request', { textLength: jdText.length, limit });
-    const jd = await (0, parseJD_1.parseJD)(jdText);
-    const queryText = [
-        `Job: ${jd.title}`,
-        `Skills: ${jd.skills.join(', ')}`,
-        `Experience: ${jd.experience.min}-${jd.experience.max} years`,
-        `Education: ${jd.education.level} in ${jd.education.field}`,
-        `Requirements: ${jd.requirements.join(', ')}`,
-    ].join('. ');
-    const rawResults = await (0, searchCandidates_1.searchCandidates)(queryText, limit, filters);
+    const cacheKey = `search:${crypto_1.default.createHash('md5').update(jdText).digest('hex')}:${limit}:${JSON.stringify(filters ?? {})}`;
+    const cached = (0, cache_1.getCached)(cacheKey);
+    if (cached) {
+        logger_1.logger.info('Returning cached search results', { resultCount: cached.results.length });
+        res.status(200).json({ success: true, data: cached });
+        return;
+    }
+    const [jd, embedding] = await Promise.all([
+        (0, parseJD_1.parseJD)(jdText),
+        (0, client_1.generateEmbedding)(jdText),
+    ]);
+    const rawResults = await (0, searchCandidates_1.searchByEmbedding)(embedding, limit, filters);
     if (rawResults.length === 0) {
-        res.status(200).json({
-            success: true,
-            data: { results: [], query: jd },
-        });
+        const data = { results: [], query: jd };
+        (0, cache_1.setCache)(cacheKey, data, 300000);
+        res.status(200).json({ success: true, data });
         return;
     }
     const candidates = rawResults.map((r) => r.candidate);
     const rankedResults = await (0, finalRanker_1.rankCandidates)(candidates, jd);
+    const data = { results: rankedResults, query: jd };
+    (0, cache_1.setCache)(cacheKey, data, 300000);
     logger_1.logger.info('Sending search response', { resultCount: rankedResults.length });
-    res.status(200).json({
-        success: true,
-        data: { results: rankedResults, query: jd },
-    });
+    res.status(200).json({ success: true, data });
 });
 exports.getCandidateHandler = (0, asyncHandler_1.asyncHandler)(async (req, res) => {
     const id = req.params.id;
