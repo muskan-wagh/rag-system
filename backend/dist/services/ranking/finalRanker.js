@@ -4,14 +4,12 @@ exports.rankCandidates = rankCandidates;
 const skillMatcher_1 = require("./skillMatcher");
 const experienceMatcher_1 = require("./experienceMatcher");
 const educationMatcher_1 = require("./educationMatcher");
-const explainRanking_1 = require("@/services/llm/explainRanking");
 const logger_1 = require("@/utils/logger");
 const WEIGHTS = {
     skill: 0.4,
     experience: 0.35,
     education: 0.25,
 };
-const LLM_EXPLAIN_TOP_N = 5;
 function computeCandidateScore(candidate, jd) {
     const skillScore = (0, skillMatcher_1.computeSkillScore)(candidate, jd);
     const experienceScore = (0, experienceMatcher_1.computeExperienceScore)(candidate, jd);
@@ -34,24 +32,14 @@ async function rankCandidates(candidates, jd) {
         ...computeCandidateScore(candidate, jd),
     }));
     scored.sort((a, b) => b.scores.overall - a.scores.overall);
-    const results = await Promise.all(scored.map((item, i) => {
-        if (i < LLM_EXPLAIN_TOP_N) {
-            return (0, explainRanking_1.explainRanking)(item.candidate, jd, item.scores).then((explanation) => ({
-                candidate: item.candidate,
-                scores: item.scores,
-                explanation,
-            }));
-        }
-        return {
-            candidate: item.candidate,
-            scores: item.scores,
-            explanation: `**Match Score: ${(item.scores.overall * 100).toFixed(0)}%**\n\nSkill match: ${(item.scores.skill * 100).toFixed(0)}%, Experience match: ${(item.scores.experience * 100).toFixed(0)}%, Education match: ${(item.scores.education * 100).toFixed(0)}%`,
-        };
+    const results = scored.map((item) => ({
+        candidate: item.candidate,
+        scores: item.scores,
+        explanation: `**Match Score: ${(item.scores.overall * 100).toFixed(0)}%**\n\nSkill match: ${(item.scores.skill * 100).toFixed(0)}%, Experience match: ${(item.scores.experience * 100).toFixed(0)}%, Education match: ${(item.scores.education * 100).toFixed(0)}%`,
     }));
     logger_1.logger.info('Ranking complete', {
         topScore: results[0]?.scores.overall,
         bottomScore: results[results.length - 1]?.scores.overall,
-        llmExplanations: Math.min(LLM_EXPLAIN_TOP_N, results.length),
     });
     return results;
 }
