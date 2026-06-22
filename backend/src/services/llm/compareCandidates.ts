@@ -1,0 +1,61 @@
+import { chatCompletion } from './client';
+import { Candidate, ParsedJD } from '@/types';
+import { logger } from '@/utils/logger';
+
+const SYSTEM_PROMPT = `You are a recruitment analyst comparing candidates for a job. Given a job description and multiple candidate profiles, provide a detailed comparison.
+
+Return ONLY valid JSON with this exact shape:
+{
+  "comparisons": [
+    {
+      "candidateId": "string",
+      "advantages": ["string"],
+      "disadvantages": ["string"],
+      "verdict": "string"
+    }
+  ],
+  "recommendation": "string (which candidate is best and why)",
+  "summary": "string (overall comparison summary)"
+}
+
+Be objective and data-driven.`;
+
+export async function compareCandidates(
+  candidates: Candidate[],
+  jd: ParsedJD,
+): Promise<string> {
+  logger.info('Comparing candidates', {
+    candidateCount: candidates.length,
+    jdTitle: jd.title,
+  });
+
+  const candidatesText = candidates.map((c, i) => `
+Candidate ${i + 1} (ID: ${c.id}):
+Name: ${c.name}
+Skills: ${c.skills.join(', ')}
+Experience: ${c.experience} years
+Education: ${c.education.level} in ${c.education.field}
+Summary: ${c.summary}
+`).join('\n---\n');
+
+  const prompt = `Job Description Title: ${jd.title}
+Required Skills: ${jd.skills.join(', ')}
+Required Experience: ${jd.experience.min}-${jd.experience.max} years
+Required Education: ${jd.education.level} in ${jd.education.field}
+Responsibilities: ${jd.responsibilities.join(', ')}
+Requirements: ${jd.requirements.join(', ')}
+
+Candidates:
+${candidatesText}
+
+Compare these candidates for this role.`;
+
+  const response = await chatCompletion([
+    { role: 'system', content: SYSTEM_PROMPT },
+    { role: 'user', content: prompt },
+  ], { temperature: 0.3, maxTokens: 2048 });
+
+  logger.info('Candidate comparison generated');
+
+  return response.content;
+}
