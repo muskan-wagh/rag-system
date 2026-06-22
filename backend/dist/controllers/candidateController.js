@@ -36,6 +36,7 @@ exports.searchCandidatesHandler = (0, asyncHandler_1.asyncHandler)(async (req, r
     }
     const candidates = rawResults.map((r) => r.candidate);
     const rankedResults = await (0, finalRanker_1.rankCandidates)(candidates, jd);
+    logger_1.logger.info('Sending search response', { resultCount: rankedResults.length });
     res.status(200).json({
         success: true,
         data: { results: rankedResults, query: jd },

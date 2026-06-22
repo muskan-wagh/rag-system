@@ -7,6 +7,14 @@ import { errorHandler } from '@/middleware/errorHandler';
 import { createCollection } from '@/services/qdrant/createCollection';
 import routes from '@/routes';
 
+process.on('unhandledRejection', (reason) => {
+  logger.error('Unhandled rejection', { reason: reason instanceof Error ? reason.message : reason });
+});
+
+process.on('uncaughtException', (error) => {
+  logger.error('Uncaught exception', { error: error.message, stack: error.stack });
+});
+
 const app = express();
 
 app.use(cors({
@@ -25,18 +33,19 @@ app.use('/api', routes);
 
 app.use(errorHandler);
 
+const server = app.listen(config.port, () => {
+  logger.info(`Server running on port ${config.port} in ${config.nodeEnv} mode`);
+  logger.info(`Health check: http://localhost:${config.port}/health`);
+});
+
+server.timeout = 120000;
+
 async function start(): Promise<void> {
   try {
     await createCollection();
     logger.info('Qdrant collection ready');
-
-    app.listen(config.port, () => {
-      logger.info(`Server running on port ${config.port} in ${config.nodeEnv} mode`);
-      logger.info(`Health check: http://localhost:${config.port}/health`);
-    });
   } catch (error) {
-    logger.error('Failed to start server', { error });
-    process.exit(1);
+    logger.error('Failed to initialize Qdrant collection', { error });
   }
 }
 

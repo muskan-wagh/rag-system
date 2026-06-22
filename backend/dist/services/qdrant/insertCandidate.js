@@ -1,7 +1,11 @@
 "use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.insertCandidate = insertCandidate;
 exports.insertCandidates = insertCandidates;
+const crypto_1 = __importDefault(require("crypto"));
 const client_1 = require("./client");
 const client_2 = require("@/services/llm/client");
 const config_1 = require("@/config");
@@ -26,7 +30,7 @@ async function insertCandidate(candidate) {
     await client.upsert(config_1.config.qdrant.collectionName, {
         points: [
             {
-                id: candidate.id,
+                id: crypto_1.default.randomUUID(),
                 vector: embedding,
                 payload: candidate,
             },
@@ -40,7 +44,7 @@ async function insertCandidates(candidates) {
         const text = buildCandidateText(candidate);
         const embedding = await (0, client_2.generateEmbedding)(text);
         return {
-            id: candidate.id,
+            id: crypto_1.default.randomUUID(),
             vector: embedding,
             payload: candidate,
         };

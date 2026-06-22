@@ -11,6 +11,12 @@ const logger_2 = require("@/middleware/logger");
 const errorHandler_1 = require("@/middleware/errorHandler");
 const createCollection_1 = require("@/services/qdrant/createCollection");
 const routes_1 = __importDefault(require("@/routes"));
+process.on('unhandledRejection', (reason) => {
+    logger_1.logger.error('Unhandled rejection', { reason: reason instanceof Error ? reason.message : reason });
+});
+process.on('uncaughtException', (error) => {
+    logger_1.logger.error('Uncaught exception', { error: error.message, stack: error.stack });
+});
 const app = (0, express_1.default)();
 app.use((0, cors_1.default)({
     origin: config_1.config.clientUrl,
@@ -23,18 +29,18 @@ app.get('/health', (_req, res) => {
 });
 app.use('/api', routes_1.default);
 app.use(errorHandler_1.errorHandler);
+const server = app.listen(config_1.config.port, () => {
+    logger_1.logger.info(`Server running on port ${config_1.config.port} in ${config_1.config.nodeEnv} mode`);
+    logger_1.logger.info(`Health check: http://localhost:${config_1.config.port}/health`);
+});
+server.timeout = 120000;
 async function start() {
     try {
         await (0, createCollection_1.createCollection)();
         logger_1.logger.info('Qdrant collection ready');
-        app.listen(config_1.config.port, () => {
-            logger_1.logger.info(`Server running on port ${config_1.config.port} in ${config_1.config.nodeEnv} mode`);
-            logger_1.logger.info(`Health check: http://localhost:${config_1.config.port}/health`);
-        });
     }
     catch (error) {
-        logger_1.logger.error('Failed to start server', { error });
-        process.exit(1);
+        logger_1.logger.error('Failed to initialize Qdrant collection', { error });
     }
 }
 start();
