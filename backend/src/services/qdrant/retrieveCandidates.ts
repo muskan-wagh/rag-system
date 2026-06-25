@@ -31,5 +31,7 @@ export async function retrieveCandidatesByIds(ids: string[]): Promise<Candidate[
     with_payload: true,
   });
 
-  return result.points.map((p) => p.payload as unknown as Candidate);
+  return result.points
+    .filter((p): p is typeof p & { payload: Record<string, unknown> } => p.payload !== null && p.payload !== undefined)
+    .map((p) => p.payload as unknown as Candidate);
 }

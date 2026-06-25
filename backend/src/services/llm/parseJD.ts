@@ -3,6 +3,7 @@ import { chatCompletion } from './client';
 import { ParsedJD } from '@/types';
 import { logger } from '@/utils/logger';
 import { getCached, setCache } from '@/utils/cache';
+import { AppError } from '@/middleware/errorHandler';
 
 const SYSTEM_PROMPT = `You are a job description parser. Extract structured information from job descriptions.
 Return ONLY valid JSON with this exact shape:
@@ -23,6 +24,14 @@ Rules:
 - For education field: the field of study
 - If information is not present, use empty strings or arrays`;
 
+function tryParseJSON(raw: string): ParsedJD | null {
+  try {
+    return JSON.parse(raw) as ParsedJD;
+  } catch {
+    return null;
+  }
+}
+
 export async function parseJD(jdText: string): Promise<ParsedJD> {
   const cacheKey = `jd:${crypto.createHash('md5').update(jdText).digest('hex')}`;
   const cached = getCached<ParsedJD>(cacheKey);
@@ -33,20 +42,27 @@ export async function parseJD(jdText: string): Promise<ParsedJD> {
 
   logger.info('Parsing job description', { textLength: jdText.length });
 
-  const response = await chatCompletion([
-    { role: 'system', content: SYSTEM_PROMPT },
-    { role: 'user', content: jdText },
-  ], { temperature: 0.1 });
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const response = await chatCompletion([
+      { role: 'system', content: SYSTEM_PROMPT },
+      { role: 'user', content: jdText },
+    ], { temperature: 0.1 });
 
-  const parsed: ParsedJD = JSON.parse(response.content);
+    const parsed = tryParseJSON(response.content);
+    if (parsed) {
+      setCache(cacheKey, parsed, 300000);
 
-  setCache(cacheKey, parsed, 300000);
+      logger.info('JD parsed successfully', {
+        title: parsed.title,
+        skillCount: parsed.skills.length,
+        experienceRange: `${parsed.experience.min}-${parsed.experience.max}`,
+      });
 
-  logger.info('JD parsed successfully', {
-    title: parsed.title,
-    skillCount: parsed.skills.length,
-    experienceRange: `${parsed.experience.min}-${parsed.experience.max}`,
-  });
+      return parsed;
+    }
 
-  return parsed;
+    logger.warn(`JD parse attempt ${attempt + 1} returned invalid JSON, retrying`);
+  }
+
+  throw new AppError('Failed to parse JD: LLM returned invalid JSON after 3 attempts', 502);
 }

@@ -20,6 +20,63 @@ Return ONLY valid JSON with this exact shape:
 
 Be objective and data-driven.`;
 
+interface CompareJson {
+  comparisons: Array<{
+    candidateId: string;
+    advantages: string[];
+    disadvantages: string[];
+    verdict: string;
+  }>;
+  recommendation: string;
+  summary: string;
+}
+
+function tryParseCompare(raw: string): CompareJson | null {
+  try {
+    const parsed = JSON.parse(raw) as CompareJson;
+    if (
+      Array.isArray(parsed.comparisons) &&
+      typeof parsed.recommendation === 'string' &&
+      typeof parsed.summary === 'string'
+    ) {
+      return parsed;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+function formatComparison(data: CompareJson): string {
+  const lines: string[] = [];
+
+  for (const c of data.comparisons) {
+    const candidateName = c.candidateId;
+    lines.push(`## ${candidateName}`);
+    lines.push('');
+    lines.push('### Advantages');
+    for (const a of c.advantages) {
+      lines.push(`- ${a}`);
+    }
+    lines.push('');
+    lines.push('### Disadvantages');
+    for (const d of c.disadvantages) {
+      lines.push(`- ${d}`);
+    }
+    lines.push('');
+    lines.push(`**Verdict:** ${c.verdict}`);
+    lines.push('');
+    lines.push('---');
+    lines.push('');
+  }
+
+  lines.push(`## Recommendation\n\n${data.recommendation}`);
+  lines.push('');
+  lines.push(`## Summary\n\n${data.summary}`);
+
+  return lines.join('\n');
+}
+
 export async function compareCandidates(
   candidates: Candidate[],
   jd: ParsedJD,
@@ -50,12 +107,21 @@ ${candidatesText}
 
 Compare these candidates for this role.`;
 
-  const response = await chatCompletion([
-    { role: 'system', content: SYSTEM_PROMPT },
-    { role: 'user', content: prompt },
-  ], { temperature: 0.3, maxTokens: 2048 });
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const response = await chatCompletion([
+      { role: 'system', content: SYSTEM_PROMPT },
+      { role: 'user', content: prompt },
+    ], { temperature: 0.3, maxTokens: 2048 });
 
-  logger.info('Candidate comparison generated');
+    const parsed = tryParseCompare(response.content);
+    if (parsed) {
+      logger.info('Candidate comparison generated');
+      return formatComparison(parsed);
+    }
 
-  return response.content;
+    logger.warn(`Compare parse attempt ${attempt + 1} failed, retrying`);
+  }
+
+  logger.warn('Falling back to raw comparison output after failed parses');
+  return 'Comparison could not be generated. Please try again.';
 }

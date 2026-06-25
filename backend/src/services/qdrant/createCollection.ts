@@ -2,6 +2,23 @@ import { getQdrantClient } from './client';
 import { config } from '@/config';
 import { logger } from '@/utils/logger';
 
+async function ensurePayloadIndex(
+  collectionName: string,
+  fieldName: string,
+  fieldSchema: 'keyword' | 'integer',
+): Promise<void> {
+  try {
+    await getQdrantClient().createPayloadIndex(collectionName, {
+      field_name: fieldName,
+      field_schema: fieldSchema,
+      wait: false,
+    });
+    logger.debug(`Payload index created for "${fieldName}"`);
+  } catch {
+    logger.debug(`Payload index already exists for "${fieldName}"`);
+  }
+}
+
 export async function createCollection(): Promise<void> {
   const client = getQdrantClient();
   const collectionName = config.qdrant.collectionName;
@@ -22,22 +39,10 @@ export async function createCollection(): Promise<void> {
   }
 
   await Promise.all([
-    client.createPayloadIndex(collectionName, {
-      field_name: 'id',
-      field_schema: 'keyword',
-    }),
-    client.createPayloadIndex(collectionName, {
-      field_name: 'experience',
-      field_schema: 'integer',
-    }),
-    client.createPayloadIndex(collectionName, {
-      field_name: 'skills',
-      field_schema: 'keyword',
-    }),
-    client.createPayloadIndex(collectionName, {
-      field_name: 'education.level',
-      field_schema: 'keyword',
-    }),
+    ensurePayloadIndex(collectionName, 'id', 'keyword'),
+    ensurePayloadIndex(collectionName, 'experience', 'integer'),
+    ensurePayloadIndex(collectionName, 'skills', 'keyword'),
+    ensurePayloadIndex(collectionName, 'education.level', 'keyword'),
   ]);
 
   logger.info(`Payload indexes ensured for "${collectionName}"`, {
