@@ -64,13 +64,6 @@ async function request<T>(
   return res.json() as Promise<ApiResponse<T>>
 }
 
-export async function parseJD(jdText: string) {
-  return request<{ parsed: ParsedJD }>("/jd/parse", {
-    method: "POST",
-    body: JSON.stringify({ jdText }),
-  })
-}
-
 export async function searchCandidates(
   jdText: string,
   limit = 10,
@@ -109,41 +102,4 @@ export async function batchCandidates(ids: string[]) {
   })
 }
 
-export interface SkillCount {
-  skill: string
-  count: number
-  percentage: number
-}
 
-export interface ExperienceBucket {
-  range: string
-  count: number
-}
-
-export interface EducationBucket {
-  level: string
-  count: number
-}
-
-export interface AnalyticsData {
-  totalCandidates: number
-  avgExperience: number
-  skills: SkillCount[]
-  topSkills: SkillCount[]
-  experienceDistribution: ExperienceBucket[]
-  educationDistribution: EducationBucket[]
-}
-
-export async function getAnalytics() {
-  return request<AnalyticsData>("/analytics", { method: "GET" })
-}
-
-export async function sendChatMessage(
-  message: string,
-  context?: { jdText?: string; candidateIds?: string[] },
-) {
-  return request<{ reply: string }>("/chat", {
-    method: "POST",
-    body: JSON.stringify({ message, context }),
-  })
-}

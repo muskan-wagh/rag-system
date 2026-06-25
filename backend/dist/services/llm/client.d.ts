@@ -16,12 +16,7 @@ interface LLMResponse {
         totalTokens: number;
     };
 }
-declare class AppError extends Error {
-    statusCode: number;
-    details?: unknown | undefined;
-    constructor(message: string, statusCode?: number, details?: unknown | undefined);
-}
 export declare function chatCompletion(messages: LLMMessage[], options?: LLMRequestOptions): Promise<LLMResponse>;
 export declare function generateEmbedding(text: string): Promise<number[]>;
-export { AppError };
+export {};
 //# sourceMappingURL=client.d.ts.map

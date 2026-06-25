@@ -46,10 +46,6 @@ export interface CompareResult {
     }>;
     summary: string;
 }
-export interface ChatMessage {
-    role: 'user' | 'assistant' | 'system';
-    content: string;
-}
 export interface SearchFilters {
     minExperience?: number;
     maxExperience?: number;
@@ -84,15 +80,5 @@ export interface CompareCandidatesRequest {
 export interface CompareCandidatesResponse {
     comparison: CompareResult;
     query: ParsedJD;
-}
-export interface ChatRequest {
-    message: string;
-    context?: {
-        jdText?: string;
-        candidateIds?: string[];
-    };
-}
-export interface ChatResponse {
-    reply: string;
 }
 //# sourceMappingURL=index.d.ts.map

@@ -1,5 +1,6 @@
 import { config } from '@/config';
 import { logger } from '@/utils/logger';
+import { AppError } from '@/middleware/errorHandler';
 
 interface LLMMessage {
   role: 'system' | 'user' | 'assistant';
@@ -47,17 +48,6 @@ interface EmbeddingResponse {
 }
 
 const BASE_URL = config.openai.baseUrl;
-
-class AppError extends Error {
-  constructor(
-    message: string,
-    public statusCode: number = 500,
-    public details?: unknown,
-  ) {
-    super(message);
-    this.name = 'AppError';
-  }
-}
 
 async function fetchWithRetry(
   url: string,
@@ -174,4 +164,4 @@ export async function generateEmbedding(text: string): Promise<number[]> {
   return data.data[0].embedding;
 }
 
-export { AppError };
+

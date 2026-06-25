@@ -1,22 +1,11 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.AppError = void 0;
 exports.chatCompletion = chatCompletion;
 exports.generateEmbedding = generateEmbedding;
 const config_1 = require("@/config");
 const logger_1 = require("@/utils/logger");
+const errorHandler_1 = require("@/middleware/errorHandler");
 const BASE_URL = config_1.config.openai.baseUrl;
-class AppError extends Error {
-    statusCode;
-    details;
-    constructor(message, statusCode = 500, details) {
-        super(message);
-        this.statusCode = statusCode;
-        this.details = details;
-        this.name = 'AppError';
-    }
-}
-exports.AppError = AppError;
 async function fetchWithRetry(url, options, retries = 3) {
     for (let attempt = 0; attempt < retries; attempt++) {
         try {
@@ -37,7 +26,7 @@ async function fetchWithRetry(url, options, retries = 3) {
             await new Promise((resolve) => setTimeout(resolve, delay));
         }
     }
-    throw new AppError('Max retries exceeded', 503);
+    throw new errorHandler_1.AppError('Max retries exceeded', 503);
 }
 async function chatCompletion(messages, options = {}) {
     const { temperature = 0.1, maxTokens = 4096, stream = false } = options;
@@ -60,7 +49,7 @@ async function chatCompletion(messages, options = {}) {
     });
     if (!response.ok) {
         const errorBody = await response.text().catch(() => '');
-        throw new AppError(`LLM request failed: ${response.status} ${response.statusText}`, response.status, errorBody);
+        throw new errorHandler_1.AppError(`LLM request failed: ${response.status} ${response.statusText}`, response.status, errorBody);
     }
     const data = (await response.json());
     const duration = Date.now() - startTime;
@@ -95,7 +84,7 @@ async function generateEmbedding(text) {
     });
     if (!response.ok) {
         const errorBody = await response.text().catch(() => '');
-        throw new AppError(`Embedding request failed: ${response.status} ${response.statusText}`, response.status, errorBody);
+        throw new errorHandler_1.AppError(`Embedding request failed: ${response.status} ${response.statusText}`, response.status, errorBody);
     }
     const data = (await response.json());
     const duration = Date.now() - startTime;
