@@ -13,6 +13,28 @@ Return ONLY valid JSON with this shape:
 
 Focus on concrete skills and experience gaps. Be honest about weaknesses.`;
 
+interface ExplanationJson {
+  strengths: string[];
+  weaknesses: string[];
+  summary: string;
+}
+
+function tryParseExplanation(raw: string): ExplanationJson | null {
+  try {
+    const parsed = JSON.parse(raw) as ExplanationJson;
+    if (
+      Array.isArray(parsed.strengths) &&
+      Array.isArray(parsed.weaknesses) &&
+      typeof parsed.summary === 'string'
+    ) {
+      return parsed;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 export async function explainRanking(
   candidate: Candidate,
   jd: ParsedJD,
@@ -42,30 +64,43 @@ Scores (0-1):
 
 Provide a ranking explanation.`;
 
-  const response = await chatCompletion([
-    { role: 'system', content: SYSTEM_PROMPT },
-    { role: 'user', content: prompt },
-  ], { temperature: 0.3, maxTokens: 512 });
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const response = await chatCompletion([
+      { role: 'system', content: SYSTEM_PROMPT },
+      { role: 'user', content: prompt },
+    ], { temperature: 0.3, maxTokens: 512 });
 
-  const parsed = JSON.parse(response.content);
+    const parsed = tryParseExplanation(response.content);
+    if (parsed) {
+      const explanation = [
+        `**Match Score: ${(scores.overall * 100).toFixed(0)}%**`,
+        '',
+        '**Strengths:**',
+        ...parsed.strengths.map((s: string) => `- ${s}`),
+        '',
+        '**Weaknesses:**',
+        ...parsed.weaknesses.map((w: string) => `- ${w}`),
+        '',
+        '**Summary:**',
+        parsed.summary,
+      ].join('\n');
 
-  const explanation = [
+      logger.info('Ranking explanation generated', {
+        strengthsCount: parsed.strengths.length,
+        weaknessesCount: parsed.weaknesses.length,
+      });
+
+      return explanation;
+    }
+
+    logger.warn(`Explanation parse attempt ${attempt + 1} failed, retrying`);
+  }
+
+  return [
     `**Match Score: ${(scores.overall * 100).toFixed(0)}%**`,
     '',
-    '**Strengths:**',
-    ...parsed.strengths.map((s: string) => `- ${s}`),
-    '',
-    '**Weaknesses:**',
-    ...parsed.weaknesses.map((w: string) => `- ${w}`),
-    '',
-    '**Summary:**',
-    parsed.summary,
+    `Skill match: ${(scores.skill * 100).toFixed(0)}%`,
+    `Experience match: ${(scores.experience * 100).toFixed(0)}%`,
+    `Education match: ${(scores.education * 100).toFixed(0)}%`,
   ].join('\n');
-
-  logger.info('Ranking explanation generated', {
-    strengthsCount: parsed.strengths.length,
-    weaknessesCount: parsed.weaknesses.length,
-  });
-
-  return explanation;
 }

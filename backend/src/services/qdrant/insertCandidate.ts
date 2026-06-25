@@ -1,4 +1,3 @@
-import crypto from 'crypto';
 import { getQdrantClient } from './client';
 import { generateEmbedding } from '@/services/llm/client';
 import { Candidate } from '@/types';
@@ -18,6 +17,9 @@ function buildCandidateText(candidate: Candidate): string {
     .join('. ');
 }
 
+const BATCH_SIZE = 5;
+const BATCH_DELAY_MS = 1000;
+
 export async function insertCandidate(candidate: Candidate): Promise<void> {
   logger.info('Inserting candidate', { candidateId: candidate.id });
 
@@ -29,7 +31,7 @@ export async function insertCandidate(candidate: Candidate): Promise<void> {
   await client.upsert(config.qdrant.collectionName, {
     points: [
       {
-        id: crypto.randomUUID(),
+        id: candidate.id,
         vector: embedding,
         payload: candidate as unknown as Record<string, unknown>,
       },
@@ -39,24 +41,37 @@ export async function insertCandidate(candidate: Candidate): Promise<void> {
   logger.info('Candidate inserted successfully', { candidateId: candidate.id });
 }
 
+async function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 export async function insertCandidates(candidates: Candidate[]): Promise<void> {
   logger.info(`Inserting ${candidates.length} candidates`);
 
-  const points = await Promise.all(
-    candidates.map(async (candidate) => {
-      const text = buildCandidateText(candidate);
-      const embedding = await generateEmbedding(text);
-      return {
-        id: crypto.randomUUID(),
-        vector: embedding,
-        payload: candidate as unknown as Record<string, unknown>,
-      };
-    }),
-  );
+  for (let i = 0; i < candidates.length; i += BATCH_SIZE) {
+    const batch = candidates.slice(i, i + BATCH_SIZE);
 
-  const client = getQdrantClient();
+    const points = await Promise.all(
+      batch.map(async (candidate) => {
+        const text = buildCandidateText(candidate);
+        const embedding = await generateEmbedding(text);
+        return {
+          id: candidate.id,
+          vector: embedding,
+          payload: candidate as unknown as Record<string, unknown>,
+        };
+      }),
+    );
 
-  await client.upsert(config.qdrant.collectionName, { points });
+    const client = getQdrantClient();
+    await client.upsert(config.qdrant.collectionName, { points });
+
+    logger.info(`Inserted batch ${Math.floor(i / BATCH_SIZE) + 1}: ${batch.length} candidates`);
+
+    if (i + BATCH_SIZE < candidates.length) {
+      await delay(BATCH_DELAY_MS);
+    }
+  }
 
   logger.info(`Inserted ${candidates.length} candidates`);
 }
