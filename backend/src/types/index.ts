@@ -51,11 +51,6 @@ export interface CompareResult {
   summary: string;
 }
 
-export interface ChatMessage {
-  role: 'user' | 'assistant' | 'system';
-  content: string;
-}
-
 export interface SearchFilters {
   minExperience?: number;
   maxExperience?: number;
@@ -99,14 +94,4 @@ export interface CompareCandidatesResponse {
   query: ParsedJD;
 }
 
-export interface ChatRequest {
-  message: string;
-  context?: {
-    jdText?: string;
-    candidateIds?: string[];
-  };
-}
 
-export interface ChatResponse {
-  reply: string;
-}

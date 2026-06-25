@@ -2,7 +2,7 @@ import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Search, GitCompare, MessageSquare, BarChart3, ArrowRight } from "lucide-react"
+import { Search, GitCompare, ArrowRight } from "lucide-react"
 import { ROUTES } from "@/lib/constants"
 
 const features = [
@@ -19,20 +19,6 @@ const features = [
     icon: GitCompare,
     href: ROUTES.compare,
     badges: ["Head-to-Head", "Score Breakdown"],
-  },
-  {
-    title: "Recruiter Chat",
-    description: "Get recruitment advice, interpret results, and refine your search with AI assistance.",
-    icon: MessageSquare,
-    href: ROUTES.recruiterChat,
-    badges: ["AI Assistant", "Context-Aware"],
-  },
-  {
-    title: "Analytics & Insights",
-    description: "Track your hiring pipeline, view search history, and identify skill gaps across candidates.",
-    icon: BarChart3,
-    href: ROUTES.analytics,
-    badges: ["Metrics", "Trends"],
   },
 ]
 
@@ -56,11 +42,6 @@ export default function Home() {
                   Search Candidates <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
               </Link>
-              <Link href={ROUTES.dashboard}>
-                <Button variant="outline" size="lg">
-                  View Dashboard
-                </Button>
-              </Link>
             </div>
           </div>
         </div>
@@ -68,7 +49,7 @@ export default function Home() {
 
       <section className="w-full py-12 md:py-20 bg-muted/50">
         <div className="container px-4 md:px-6">
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-2">
             {features.map((feature) => (
               <Link key={feature.title} href={feature.href} className="group">
                 <Card className="h-full transition-colors hover:bg-muted/50">

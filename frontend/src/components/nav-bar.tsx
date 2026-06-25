@@ -12,16 +12,13 @@ import {
   navigationMenuTriggerStyle,
 } from "@/components/ui/navigation-menu"
 import { Sheet, SheetTrigger, SheetContent } from "@/components/ui/sheet"
-import { Menu, Search, BarChart3, MessageSquare, GitCompare, LayoutDashboard } from "lucide-react"
+import { Menu, Search, GitCompare } from "lucide-react"
 import { ROUTES } from "@/lib/constants"
 import { useState } from "react"
 
 const navItems = [
-  { href: ROUTES.dashboard, label: "Dashboard", icon: LayoutDashboard },
   { href: ROUTES.candidates, label: "Candidates", icon: Search },
   { href: ROUTES.compare, label: "Compare", icon: GitCompare },
-  { href: ROUTES.analytics, label: "Analytics", icon: BarChart3 },
-  { href: ROUTES.recruiterChat, label: "Chat", icon: MessageSquare },
 ]
 
 export function NavBar() {
