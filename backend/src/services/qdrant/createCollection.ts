@@ -11,15 +11,15 @@ export async function createCollection(): Promise<void> {
 
   if (exists) {
     logger.info(`Collection "${collectionName}" already exists`);
-    return;
+  } else {
+    await client.createCollection(collectionName, {
+      vectors: {
+        size: config.qdrant.vectorSize,
+        distance: config.qdrant.distance,
+      },
+    });
+    logger.info(`Collection "${collectionName}" created`);
   }
-
-  await client.createCollection(collectionName, {
-    vectors: {
-      size: config.qdrant.vectorSize,
-      distance: config.qdrant.distance,
-    },
-  });
 
   await Promise.all([
     client.createPayloadIndex(collectionName, {
@@ -40,7 +40,7 @@ export async function createCollection(): Promise<void> {
     }),
   ]);
 
-  logger.info(`Collection "${collectionName}" created with payload indexes`, {
+  logger.info(`Payload indexes ensured for "${collectionName}"`, {
     vectorSize: config.qdrant.vectorSize,
     distance: config.qdrant.distance,
   });

@@ -11,14 +11,16 @@ async function createCollection() {
     const exists = collections.collections.some((c) => c.name === collectionName);
     if (exists) {
         logger_1.logger.info(`Collection "${collectionName}" already exists`);
-        return;
     }
-    await client.createCollection(collectionName, {
-        vectors: {
-            size: config_1.config.qdrant.vectorSize,
-            distance: config_1.config.qdrant.distance,
-        },
-    });
+    else {
+        await client.createCollection(collectionName, {
+            vectors: {
+                size: config_1.config.qdrant.vectorSize,
+                distance: config_1.config.qdrant.distance,
+            },
+        });
+        logger_1.logger.info(`Collection "${collectionName}" created`);
+    }
     await Promise.all([
         client.createPayloadIndex(collectionName, {
             field_name: 'id',
@@ -37,7 +39,7 @@ async function createCollection() {
             field_schema: 'keyword',
         }),
     ]);
-    logger_1.logger.info(`Collection "${collectionName}" created with payload indexes`, {
+    logger_1.logger.info(`Payload indexes ensured for "${collectionName}"`, {
         vectorSize: config_1.config.qdrant.vectorSize,
         distance: config_1.config.qdrant.distance,
     });
