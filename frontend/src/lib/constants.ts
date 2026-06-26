@@ -5,4 +5,5 @@ export const ROUTES = {
   candidates: "/candidates",
   candidateDetail: (id: string) => `/candidates/${id}`,
   compare: "/compare",
+  howItWorks: "/how-it-works",
 } as const

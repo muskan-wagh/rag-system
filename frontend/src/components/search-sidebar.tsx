@@ -1,40 +1,35 @@
 "use client"
 
-import { useState } from "react"
 import { motion } from "framer-motion"
 import { Button } from "@/components/ui/button"
 import { SlidersHorizontal, X } from "lucide-react"
+import { useSearchStore } from "@/lib/search-store"
 import type { SearchFilters } from "@/lib/api"
 
 interface SearchSidebarProps {
-  onFiltersChange: (filters: SearchFilters) => void
   className?: string
 }
 
-export function SearchSidebar({ onFiltersChange, className }: SearchSidebarProps) {
-  const [minExp, setMinExp] = useState("")
-  const [maxExp, setMaxExp] = useState("")
-  const [education, setEducation] = useState("")
-  const [skills, setSkills] = useState("")
+export function SearchSidebar({ className }: SearchSidebarProps) {
+  const filterFormValues = useSearchStore((s) => s.filterFormValues)
+  const setFilterFormValues = useSearchStore((s) => s.setFilterFormValues)
+  const setFilters = useSearchStore((s) => s.setFilters)
 
   function applyFilters() {
     const filters: SearchFilters = {}
-    if (minExp) filters.minExperience = parseInt(minExp)
-    if (maxExp) filters.maxExperience = parseInt(maxExp)
-    if (education) filters.educationLevel = education
-    if (skills.trim()) filters.skills = skills.split(",").map(s => s.trim()).filter(Boolean)
-    onFiltersChange(filters)
+    if (filterFormValues.minExp) filters.minExperience = parseInt(filterFormValues.minExp)
+    if (filterFormValues.maxExp) filters.maxExperience = parseInt(filterFormValues.maxExp)
+    if (filterFormValues.education) filters.educationLevel = filterFormValues.education
+    if (filterFormValues.skills.trim()) filters.skills = filterFormValues.skills.split(",").map(s => s.trim()).filter(Boolean)
+    setFilters(filters)
   }
 
   function clearFilters() {
-    setMinExp("")
-    setMaxExp("")
-    setEducation("")
-    setSkills("")
-    onFiltersChange({})
+    setFilterFormValues({ minExp: "", maxExp: "", education: "", skills: "" })
+    setFilters({})
   }
 
-  const hasFilters = minExp || maxExp || education || skills
+  const hasFilters = filterFormValues.minExp || filterFormValues.maxExp || filterFormValues.education || filterFormValues.skills
 
   return (
     <motion.aside
@@ -62,16 +57,16 @@ export function SearchSidebar({ onFiltersChange, className }: SearchSidebarProps
               <input
                 type="number"
                 placeholder="Min"
-                value={minExp}
-                onChange={(e) => setMinExp(e.target.value)}
+                value={filterFormValues.minExp}
+                onChange={(e) => setFilterFormValues({ ...filterFormValues, minExp: e.target.value })}
                 className="w-full bg-white rounded-lg border border-border px-3 py-1.5 text-xs text-foreground placeholder-muted-foreground/50 outline-none focus:border-primary/30 transition-colors"
               />
               <span className="text-xs text-muted-foreground">to</span>
               <input
                 type="number"
                 placeholder="Max"
-                value={maxExp}
-                onChange={(e) => setMaxExp(e.target.value)}
+                value={filterFormValues.maxExp}
+                onChange={(e) => setFilterFormValues({ ...filterFormValues, maxExp: e.target.value })}
                 className="w-full bg-white rounded-lg border border-border px-3 py-1.5 text-xs text-foreground placeholder-muted-foreground/50 outline-none focus:border-primary/30 transition-colors"
               />
             </div>
@@ -80,8 +75,8 @@ export function SearchSidebar({ onFiltersChange, className }: SearchSidebarProps
           <div>
             <label className="text-xs font-medium text-muted-foreground block mb-1.5">Education Level</label>
             <select
-              value={education}
-              onChange={(e) => setEducation(e.target.value)}
+              value={filterFormValues.education}
+              onChange={(e) => setFilterFormValues({ ...filterFormValues, education: e.target.value })}
               className="w-full bg-white rounded-lg border border-border px-3 py-1.5 text-xs text-foreground outline-none focus:border-primary/30 transition-colors"
             >
               <option value="">Any</option>
@@ -97,8 +92,8 @@ export function SearchSidebar({ onFiltersChange, className }: SearchSidebarProps
             <label className="text-xs font-medium text-muted-foreground block mb-1.5">Required Skills</label>
             <input
               placeholder="React, TypeScript, AWS..."
-              value={skills}
-              onChange={(e) => setSkills(e.target.value)}
+              value={filterFormValues.skills}
+              onChange={(e) => setFilterFormValues({ ...filterFormValues, skills: e.target.value })}
               className="w-full bg-white rounded-lg border border-border px-3 py-1.5 text-xs text-foreground placeholder-muted-foreground/50 outline-none focus:border-primary/30 transition-colors"
             />
             <p className="text-[10px] text-muted-foreground mt-1">Comma-separated list</p>
