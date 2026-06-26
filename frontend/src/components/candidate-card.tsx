@@ -4,7 +4,7 @@ import { motion } from "framer-motion"
 import { Badge } from "@/components/ui/badge"
 import { ProgressBar } from "@/components/ui/progress-bar"
 import { ScoreRing } from "@/components/ui/score-ring"
-import { ExternalLink, Bookmark, GitCompare, Eye, CheckCircle2, XCircle } from "lucide-react"
+import { Bookmark, GitCompare, Eye, CheckCircle2, XCircle } from "lucide-react"
 import Link from "next/link"
 import { ROUTES } from "@/lib/constants"
 import type { RankingResult } from "@/lib/api"
@@ -35,7 +35,6 @@ const sampleMissingSkills = ["GraphQL", "Docker", "Kubernetes"]
 
 export function CandidateCard({ result, index }: { result: RankingResult; index: number }) {
   const { candidate, scores } = result
-  const pct = Math.round(scores.overall * 100)
 
   return (
     <motion.div

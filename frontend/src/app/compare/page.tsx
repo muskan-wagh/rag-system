@@ -183,7 +183,6 @@ export default function ComparePage() {
         {comparison && !loading && (
           <div className="mt-6">
             <ComparisonView
-              jdText={jdText}
               comparison={comparison}
               candidates={foundCandidates}
               candidateIds={candidateIds}

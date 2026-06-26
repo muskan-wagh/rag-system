@@ -1,7 +1,7 @@
 "use client"
 
 import { motion, AnimatePresence } from "framer-motion"
-import { X, Mail, Phone, GraduationCap, Briefcase, Wrench, Sparkles, Award, TrendingUp, Target, Bookmark } from "lucide-react"
+import { X, Mail, Phone, GraduationCap, Briefcase, Wrench, Sparkles, Award, Target, Bookmark } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { ProgressBar } from "@/components/ui/progress-bar"

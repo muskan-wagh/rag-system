@@ -7,13 +7,12 @@ import { Trophy, CheckCircle2, XCircle } from "lucide-react"
 import type { Candidate } from "@/lib/api"
 
 interface ComparisonViewProps {
-  jdText: string
   comparison: string
   candidates: Map<string, Candidate>
   candidateIds: string[]
 }
 
-export function ComparisonView({ jdText, comparison, candidates, candidateIds }: ComparisonViewProps) {
+export function ComparisonView({ comparison, candidates, candidateIds }: ComparisonViewProps) {
   const ids = candidateIds.filter(Boolean)
   const candidateA = ids[0] ? candidates.get(ids[0]) : null
   const candidateB = ids[1] ? candidates.get(ids[1]) : null
