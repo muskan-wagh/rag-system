@@ -37,3 +37,5 @@ jobs:
       - run: npm ci
       - run: npm run lint
       - run: npm run build
+        env:
+          NEXT_PUBLIC_API_URL: https://rag-system-backend.up.railway.app/
