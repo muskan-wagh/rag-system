@@ -1,8 +1,7 @@
 "use client"
 
 import { motion } from "framer-motion"
-import { Lightbulb, Target, TrendingUp, Award, Users, Brain } from "lucide-react"
-import { ProgressBar } from "@/components/ui/progress-bar"
+import { Lightbulb, TrendingUp, Award, Users, Brain } from "lucide-react"
 import type { RankingResult } from "@/lib/api"
 
 interface AiInsightsPanelProps {
@@ -97,7 +96,6 @@ export function AiInsightsPanel({ results, jdText }: AiInsightsPanelProps) {
             { label: "60-80%", count: results.filter(r => r.scores.overall >= 0.6 && r.scores.overall < 0.8).length, color: "bg-accent/50" },
             { label: "80-100%", count: results.filter(r => r.scores.overall >= 0.8).length, color: "bg-primary/50" },
           ].map((bin) => {
-            const maxBinCount = Math.max(...results.length > 0 ? [1] : [])
             return (
               <div key={bin.label} className="flex items-center gap-2 text-xs">
                 <span className="text-muted-foreground w-12">{bin.label}</span>

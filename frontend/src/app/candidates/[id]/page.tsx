@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import { ProgressBar } from "@/components/ui/progress-bar"
 import { ScoreRing } from "@/components/ui/score-ring"
-import { ArrowLeft, Mail, Phone, ExternalLink, GraduationCap, Briefcase, Wrench, Sparkles, Award, Target, CheckCircle2, XCircle, Bookmark, ChevronDown } from "lucide-react"
+import { ArrowLeft, Mail, Phone, ExternalLink, GraduationCap, Briefcase, Wrench, Sparkles, Award, CheckCircle2, XCircle, Bookmark } from "lucide-react"
 import { getCandidate, type Candidate } from "@/lib/api"
 import { ROUTES } from "@/lib/constants"
 

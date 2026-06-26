@@ -6,7 +6,7 @@ import { FeatureCard } from "@/components/feature-card"
 import { HowItWorks } from "@/components/how-it-works"
 import { AiArchitecture } from "@/components/ai-architecture"
 import { Button } from "@/components/ui/button"
-import { Brain, Search, BarChart3, Bot, ArrowRight } from "lucide-react"
+import { Brain, ArrowRight } from "lucide-react"
 import Link from "next/link"
 import { ROUTES } from "@/lib/constants"
 

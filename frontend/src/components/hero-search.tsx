@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { Search, Sparkles, Command, ArrowRight, Clock, TrendingUp, Users, FileText, MessageSquare, Code } from "lucide-react"
+import { Search, Sparkles, Command, Clock, TrendingUp, Users, FileText, MessageSquare, Code } from "lucide-react"
 import { ROUTES } from "@/lib/constants"
 import { LoadingDots } from "@/components/ui/loading-dots"
 

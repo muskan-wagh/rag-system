@@ -27,7 +27,7 @@ const examplePrompts = [
 
 function CandidatesContent() {
   const searchParams = useSearchParams()
-  const [jdText, setJdText] = useState("")
+  const [jdText, setJdText] = useState(() => searchParams.get("jd") || "")
   const [results, setResults] = useState<RankingResult[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
@@ -40,9 +40,9 @@ function CandidatesContent() {
   useEffect(() => {
     const jd = searchParams.get("jd")
     if (jd) {
-      setJdText(jd)
       performSearch(jd)
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams])
 
   async function performSearch(text: string) {
