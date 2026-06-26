@@ -1,6 +1,6 @@
 "use client"
 
-import { Suspense, useState, useEffect } from "react"
+import { Suspense, useState, useEffect, useCallback } from "react"
 import { useSearchParams } from "next/navigation"
 import { motion, AnimatePresence } from "framer-motion"
 import { Button } from "@/components/ui/button"
@@ -8,15 +8,15 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { ProgressBar } from "@/components/ui/progress-bar"
 import { EmptyState } from "@/components/ui/empty-state"
 import { Search, Sparkles, Loader2, SlidersHorizontal, ListFilter, LayoutGrid, X } from "lucide-react"
-import { searchCandidates, type RankingResult, type SearchFilters } from "@/lib/api"
+import { searchCandidates } from "@/lib/api"
 import { CandidateCard } from "@/components/candidate-card"
 import { AiInsightsPanel } from "@/components/ai-insights-panel"
 import { ResumeDrawer } from "@/components/resume-drawer"
 import { SearchSidebar } from "@/components/search-sidebar"
+import { useSearchStore, isCacheValid } from "@/lib/search-store"
 import type { Candidate } from "@/lib/api"
 
 type Tab = "results" | "analytics"
-type ViewMode = "list" | "grid"
 
 const examplePrompts = [
   "Senior React Developer with TypeScript",
@@ -25,33 +25,34 @@ const examplePrompts = [
   "Product Manager SaaS",
 ]
 
+const SCROLL_KEY = "recruitiq-scroll-candidates"
+
 function CandidatesContent() {
   const searchParams = useSearchParams()
-  const [jdText, setJdText] = useState(() => searchParams.get("jd") || "")
-  const [results, setResults] = useState<RankingResult[]>([])
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState("")
-  const [activeTab, setActiveTab] = useState<Tab>("results")
-  const [viewMode, setViewMode] = useState<ViewMode>("list")
+
   const [selectedCandidate, setSelectedCandidate] = useState<Candidate | null>(null)
-  const [filters, setFilters] = useState<SearchFilters>({})
-  const [showMobileFilters, setShowMobileFilters] = useState(false)
 
-  useEffect(() => {
-    const jd = searchParams.get("jd")
-    if (jd) {
-      performSearch(jd)
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchParams])
+  const jdText = useSearchStore((s) => s.jdText)
+  const setJdText = useSearchStore((s) => s.setJdText)
+  const results = useSearchStore((s) => s.results)
+  const loading = useSearchStore((s) => s.loading)
+  const error = useSearchStore((s) => s.error)
+  const activeTab = useSearchStore((s) => s.activeTab)
+  const setActiveTab = useSearchStore((s) => s.setActiveTab)
+  const viewMode = useSearchStore((s) => s.viewMode)
+  const setViewMode = useSearchStore((s) => s.setViewMode)
+  const showMobileFilters = useSearchStore((s) => s.showMobileFilters)
+  const setShowMobileFilters = useSearchStore((s) => s.setShowMobileFilters)
+  const lastSearchTimestamp = useSearchStore((s) => s.lastSearchTimestamp)
 
-  async function performSearch(text: string) {
+  const performSearch = useCallback(async (text: string) => {
+    const { filters, setLoading, setError, setResults, setActiveTab } = useSearchStore.getState()
     setLoading(true)
     setError("")
     try {
       const res = await searchCandidates(text, 10, filters)
       if (res.success && res.data) {
-        setResults(res.data.results)
+        setResults(res.data.results, res.data.query)
         setActiveTab("results")
       } else {
         setError(res.error || "Search failed")
@@ -61,11 +62,52 @@ function CandidatesContent() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [])
+
+  useEffect(() => {
+    const jdFromUrl = searchParams.get("jd")
+    const hasCachedResults = results.length > 0 && isCacheValid(lastSearchTimestamp)
+
+    if (jdFromUrl && jdFromUrl !== jdText) {
+      setJdText(jdFromUrl)
+      performSearch(jdFromUrl)
+    } else if (!hasCachedResults && jdText) {
+      performSearch(jdText)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  useEffect(() => {
+    const savedY = localStorage.getItem(SCROLL_KEY)
+    if (savedY && results.length > 0) {
+      requestAnimationFrame(() => {
+        window.scrollTo(0, parseInt(savedY, 10))
+      })
+    }
+  }, [results.length])
+
+  useEffect(() => {
+    let ticking = false
+    const handleScroll = () => {
+      if (!ticking) {
+        requestAnimationFrame(() => {
+          localStorage.setItem(SCROLL_KEY, String(window.scrollY))
+          ticking = false
+        })
+        ticking = true
+      }
+    }
+    window.addEventListener("scroll", handleScroll, { passive: true })
+    return () => {
+      localStorage.setItem(SCROLL_KEY, String(window.scrollY))
+      window.removeEventListener("scroll", handleScroll)
+    }
+  }, [])
 
   async function handleSearch() {
-    if (!jdText.trim()) return
-    await performSearch(jdText)
+    const text = useSearchStore.getState().jdText
+    if (!text.trim()) return
+    await performSearch(text)
   }
 
   function handleKeyDown(e: React.KeyboardEvent) {
@@ -73,10 +115,6 @@ function CandidatesContent() {
       e.preventDefault()
       handleSearch()
     }
-  }
-
-  function handleFiltersChange(newFilters: SearchFilters) {
-    setFilters(newFilters)
   }
 
   const tabs: { key: Tab; label: string; count?: number }[] = [
@@ -175,7 +213,6 @@ function CandidatesContent() {
 
         <div className="flex gap-6">
           <SearchSidebar
-            onFiltersChange={handleFiltersChange}
             className="hidden lg:block w-56 shrink-0"
           />
 
@@ -375,7 +412,7 @@ function CandidatesContent() {
                   <X className="h-4 w-4" />
                 </button>
               </div>
-              <SearchSidebar onFiltersChange={handleFiltersChange} className="!block" />
+              <SearchSidebar className="!block" />
             </motion.div>
           </>
         )}
