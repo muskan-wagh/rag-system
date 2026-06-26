@@ -25,6 +25,10 @@ app.use(cors({
 app.use(express.json({ limit: '1mb' }));
 app.use(requestLogger);
 
+app.get('/', (_req, res) => {
+  res.json({ message: 'RAG System API', status: 'running', version: '1.0.0' });
+});
+
 app.get('/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
