@@ -1,6 +1,6 @@
 import { API_BASE } from "./constants"
 
-export interface ApiResponse<T> {
+interface ApiResponse<T> {
   success: boolean
   data?: T
   error?: string
@@ -32,7 +32,7 @@ export interface Candidate {
   summary: string
 }
 
-export interface RankingScore {
+interface RankingScore {
   skill: number
   experience: number
   education: number
