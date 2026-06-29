@@ -14,8 +14,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "RecruitIQ — AI-Powered Candidate Discovery",
-  description: "AI-powered candidate discovery and ranking. Find the right candidate in seconds.",
+  title: "RecruitFlow — AI-Powered Candidate Discovery",
+  description:
+    "AI-powered candidate discovery and ranking. Find the right candidate in seconds.",
 };
 
 export default function RootLayout({

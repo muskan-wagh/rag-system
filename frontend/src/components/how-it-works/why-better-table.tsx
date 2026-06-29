@@ -24,10 +24,10 @@ export function WhyBetterTable() {
           className="text-center mb-12"
         >
           <h2 className="text-2xl md:text-3xl font-semibold text-foreground">
-            Why RecruitIQ is <span className="text-primary">Better</span>
+            Why RecruitFlow is <span className="text-primary">Better</span>
           </h2>
           <p className="mt-3 text-sm text-muted-foreground max-w-lg mx-auto">
-            Traditional systems were built for the resume era. RecruitIQ is built for the intelligence era.
+            Traditional systems were built for the resume era. RecruitFlow is built for the intelligence era.
           </p>
         </motion.div>
 
@@ -42,7 +42,7 @@ export function WhyBetterTable() {
             <div className="px-5 py-4 bg-primary/[0.03]">
               <span className="text-xs font-semibold text-primary uppercase tracking-wider flex items-center gap-1.5">
                 <Sparkles className="h-3 w-3" />
-                RecruitIQ
+                RecruitFlow
               </span>
             </div>
           </div>
