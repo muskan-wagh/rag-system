@@ -20,6 +20,10 @@ exports.config = Object.freeze({
     port: parseInt(optional('PORT', '5000'), 10),
     nodeEnv: optional('NODE_ENV', 'development'),
     clientUrl: optional('CLIENT_URL', 'http://localhost:3000'),
+    allowedOrigins: [
+        'http://localhost:3000',
+        'https://recruitflow-blond.vercel.app',
+    ],
     openai: {
         apiKey: required('OPENAI_API_KEY'),
         model: optional('OPENAI_MODEL', 'gpt-oss-120b'),

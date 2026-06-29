@@ -19,7 +19,14 @@ process.on('uncaughtException', (error) => {
 });
 const app = (0, express_1.default)();
 app.use((0, cors_1.default)({
-    origin: config_1.config.clientUrl,
+    origin: (origin, callback) => {
+        if (!origin || config_1.config.allowedOrigins.includes(origin)) {
+            callback(null, true);
+        }
+        else {
+            callback(new Error('Not allowed by CORS'));
+        }
+    },
     credentials: true,
 }));
 app.use(express_1.default.json({ limit: '1mb' }));

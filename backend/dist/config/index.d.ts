@@ -2,6 +2,7 @@ export declare const config: Readonly<{
     port: number;
     nodeEnv: string;
     clientUrl: string;
+    allowedOrigins: string[];
     openai: {
         apiKey: string;
         model: string;
