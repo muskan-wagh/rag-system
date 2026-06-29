@@ -26,7 +26,7 @@ exports.config = Object.freeze({
     ],
     openai: {
         apiKey: required('OPENAI_API_KEY'),
-        model: optional('OPENAI_MODEL', 'gpt-oss-120b'),
+        model: optional('OPENAI_MODEL', 'qwen/qwen3-next-80b-a3b-instruct'),
         baseUrl: 'https://openrouter.ai/api/v1',
         embeddingModel: 'text-embedding-3-small',
     },
