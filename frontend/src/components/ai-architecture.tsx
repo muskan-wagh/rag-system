@@ -6,7 +6,7 @@ import { Globe, Server, Cpu, Database, GitBranch, BarChart3 } from "lucide-react
 const nodes = [
   { icon: Globe, label: "Next.js"},
   { icon: Server, label: "Express API"},
-  { icon: Cpu, label: "GPT-OSS-120B"},
+  { icon: Cpu, label: "Qwen3 Next 80B A3B"},
   { icon: Database, label: "FastEmbed"},
   { icon: Database, label: "Qdrant"},
   { icon: GitBranch, label: "Hybrid Ranking"},

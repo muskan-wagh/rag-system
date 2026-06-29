@@ -19,7 +19,7 @@ const pipelineSteps: PipelineStep[] = [
   {
     id: "gpt-oss",
     icon: Brain,
-    label: "GPT-OSS-120B",
+    label: "Qwen3 Next 80B A3B",
     purpose: "Reads and understands the job description.",
     extracts: ["Skills", "Experience", "Responsibilities", "Education", "Hiring priorities"],
     details: [
@@ -69,7 +69,7 @@ const pipelineSteps: PipelineStep[] = [
     id: "explainability",
     icon: BarChart3,
     label: "AI Explanation Engine",
-    purpose: "Uses GPT-OSS-120B to explain every recommendation in plain language.",
+    purpose: "Uses Qwen3 Next 80B A3B to explain every recommendation in plain language.",
     why: 'Instead of "Score = 92", RecruitFlow explains WHY.',
     example:
       'Candidate ranked #1 because: Excellent React experience, AWS expertise, Meets experience requirement, Strong education match, High semantic similarity',

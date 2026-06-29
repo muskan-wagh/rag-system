@@ -5,11 +5,11 @@ import { FileText, Brain, Search, BarChart3, GitCompare, Target, Sparkles, Arrow
 
 const steps = [
   { icon: FileText, title: "Job Description", description: "Paste a job description or describe your ideal candidate in natural language." },
-  { icon: Brain, title: "AI Parser", description: "GPT-OSS-120B extracts skills, experience requirements, and responsibilities." },
+  { icon: Brain, title: "AI Parser", description: "Qwen3 Next 80B A3B extracts skills, experience requirements, and responsibilities." },
   { icon: Search, title: "FastEmbed", description: "Converts parsed requirements into high-dimensional semantic vectors." },
   { icon: BarChart3, title: "Qdrant Semantic Search", description: "Vector database finds semantically similar candidates at scale." },
   { icon: GitCompare, title: "Hybrid Ranking Engine", description: "Combines semantic similarity with weighted skill, experience, and education scores." },
-  { icon: Target, title: "GPT-OSS-120B", description: "Large language model generates explainable rankings and hiring insights." },
+  { icon: Target, title: "Qwen3 Next 80B A3B", description: "Large language model generates explainable rankings and hiring insights." },
   { icon: Sparkles, title: "Candidate Rankings", description: "Browse ranked candidates with detailed score breakdowns and AI explanations." },
 ]
 

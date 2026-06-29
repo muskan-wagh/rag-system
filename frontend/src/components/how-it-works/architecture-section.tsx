@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils"
 const layers = [
   { icon: Globe, label: "Next.js Frontend", desc: "React-based UI with Tailwind CSS and Framer Motion" },
   { icon: Server, label: "Express Backend", desc: "REST API with TypeScript and middleware pipeline" },
-  { icon: Brain, label: "GPT-OSS-120B", desc: "LLM for parsing JDs and generating explanations" },
+  { icon: Brain, label: "Qwen3 Next 80B A3B", desc: "LLM for parsing JDs and generating explanations" },
   { icon: Search, label: "FastEmbed", desc: "Local embedding generation for semantic search" },
   { icon: Database, label: "Qdrant", desc: "Vector database for similarity search at scale" },
   { icon: GitBranch, label: "Hybrid Ranking", desc: "Multi-signal scoring: skills, experience, education" },

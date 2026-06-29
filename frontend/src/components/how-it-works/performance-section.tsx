@@ -6,7 +6,7 @@ import { Users, Zap, Brain, BarChart3, Cpu, Smartphone } from "lucide-react"
 const metrics = [
   { icon: Users, label: "Thousands of Candidate Profiles", desc: "Scales to enterprise datasets without performance degradation" },
   { icon: Zap, label: "Millisecond Semantic Search", desc: "Qdrant vector search returns results in milliseconds" },
-  { icon: Brain, label: "AI-Powered Ranking", desc: "GPT-OSS-120B generates intelligent rankings and insights" },
+  { icon: Brain, label: "AI-Powered Ranking", desc: "Qwen3 Next 80B A3B generates intelligent rankings and insights" },
   { icon: BarChart3, label: "Explainable Results", desc: "Every score comes with a plain-language explanation" },
   { icon: Cpu, label: "Modern Architecture", desc: "TypeScript, Next.js 16, and modular service design" },
   { icon: Smartphone, label: "Responsive UI", desc: "Works seamlessly across desktop, tablet, and mobile" },
