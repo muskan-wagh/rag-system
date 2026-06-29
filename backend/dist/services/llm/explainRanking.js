@@ -13,6 +13,20 @@ Return ONLY valid JSON with this shape:
 }
 
 Focus on concrete skills and experience gaps. Be honest about weaknesses.`;
+function tryParseExplanation(raw) {
+    try {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed.strengths) &&
+            Array.isArray(parsed.weaknesses) &&
+            typeof parsed.summary === 'string') {
+            return parsed;
+        }
+        return null;
+    }
+    catch {
+        return null;
+    }
+}
 async function explainRanking(candidate, jd, scores) {
     logger_1.logger.info('Generating ranking explanation', {
         candidateId: candidate.id,
@@ -36,27 +50,39 @@ Scores (0-1):
 - Overall: ${scores.overall.toFixed(2)}
 
 Provide a ranking explanation.`;
-    const response = await (0, client_1.chatCompletion)([
-        { role: 'system', content: SYSTEM_PROMPT },
-        { role: 'user', content: prompt },
-    ], { temperature: 0.3, maxTokens: 512 });
-    const parsed = JSON.parse(response.content);
-    const explanation = [
+    for (let attempt = 0; attempt < 3; attempt++) {
+        const response = await (0, client_1.chatCompletion)([
+            { role: 'system', content: SYSTEM_PROMPT },
+            { role: 'user', content: prompt },
+        ], { temperature: 0.3, maxTokens: 512 });
+        const parsed = tryParseExplanation(response.content);
+        if (parsed) {
+            const explanation = [
+                `**Match Score: ${(scores.overall * 100).toFixed(0)}%**`,
+                '',
+                '**Strengths:**',
+                ...parsed.strengths.map((s) => `- ${s}`),
+                '',
+                '**Weaknesses:**',
+                ...parsed.weaknesses.map((w) => `- ${w}`),
+                '',
+                '**Summary:**',
+                parsed.summary,
+            ].join('\n');
+            logger_1.logger.info('Ranking explanation generated', {
+                strengthsCount: parsed.strengths.length,
+                weaknessesCount: parsed.weaknesses.length,
+            });
+            return explanation;
+        }
+        logger_1.logger.warn(`Explanation parse attempt ${attempt + 1} failed, retrying`);
+    }
+    return [
         `**Match Score: ${(scores.overall * 100).toFixed(0)}%**`,
         '',
-        '**Strengths:**',
-        ...parsed.strengths.map((s) => `- ${s}`),
-        '',
-        '**Weaknesses:**',
-        ...parsed.weaknesses.map((w) => `- ${w}`),
-        '',
-        '**Summary:**',
-        parsed.summary,
+        `Skill match: ${(scores.skill * 100).toFixed(0)}%`,
+        `Experience match: ${(scores.experience * 100).toFixed(0)}%`,
+        `Education match: ${(scores.education * 100).toFixed(0)}%`,
     ].join('\n');
-    logger_1.logger.info('Ranking explanation generated', {
-        strengthsCount: parsed.strengths.length,
-        weaknessesCount: parsed.weaknesses.length,
-    });
-    return explanation;
 }
 //# sourceMappingURL=explainRanking.js.map

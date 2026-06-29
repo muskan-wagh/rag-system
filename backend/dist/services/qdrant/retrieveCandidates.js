@@ -27,6 +27,8 @@ async function retrieveCandidatesByIds(ids) {
         },
         with_payload: true,
     });
-    return result.points.map((p) => p.payload);
+    return result.points
+        .filter((p) => p.payload !== null && p.payload !== undefined)
+        .map((p) => p.payload);
 }
 //# sourceMappingURL=retrieveCandidates.js.map

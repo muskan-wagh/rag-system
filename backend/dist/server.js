@@ -24,6 +24,9 @@ app.use((0, cors_1.default)({
 }));
 app.use(express_1.default.json({ limit: '1mb' }));
 app.use(logger_2.requestLogger);
+app.get('/', (_req, res) => {
+    res.json({ service: 'RAG System API', status: 'running', endpoints: { health: '/health', api: '/api' } });
+});
 app.get('/health', (_req, res) => {
     res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
