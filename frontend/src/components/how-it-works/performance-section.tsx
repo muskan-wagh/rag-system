@@ -1,16 +1,40 @@
-"use client"
+"use client";
 
-import { motion } from "framer-motion"
-import { Users, Zap, Brain, BarChart3, Cpu, Smartphone } from "lucide-react"
+import { motion } from "framer-motion";
+import { Users, Zap, Brain, BarChart3, Cpu, Smartphone } from "lucide-react";
 
 const metrics = [
-  { icon: Users, label: "Thousands of Candidate Profiles", desc: "Scales to enterprise datasets without performance degradation" },
-  { icon: Zap, label: "Millisecond Semantic Search", desc: "Qdrant vector search returns results in milliseconds" },
-  { icon: Brain, label: "AI-Powered Ranking", desc: "Qwen3 Next 80B A3B generates intelligent rankings and insights" },
-  { icon: BarChart3, label: "Explainable Results", desc: "Every score comes with a plain-language explanation" },
-  { icon: Cpu, label: "Modern Architecture", desc: "TypeScript, Next.js 16, and modular service design" },
-  { icon: Smartphone, label: "Responsive UI", desc: "Works seamlessly across desktop, tablet, and mobile" },
-]
+  {
+    icon: Users,
+    label: "Thousands of Candidate Profiles",
+    desc: "Scales to enterprise datasets without performance degradation",
+  },
+  {
+    icon: Zap,
+    label: "Millisecond Semantic Search",
+    desc: "Qdrant vector search returns results in milliseconds",
+  },
+  {
+    icon: Brain,
+    label: "AI-Powered Ranking",
+    desc: "Qwen3 Next 80B A3B generates intelligent rankings and insights",
+  },
+  {
+    icon: BarChart3,
+    label: "Explainable Results",
+    desc: "Every score comes with a plain-language explanation",
+  },
+  {
+    icon: Cpu,
+    label: "Modern Architecture",
+    desc: "TypeScript, Next.js 16, and modular service design",
+  },
+  {
+    icon: Smartphone,
+    label: "Responsive UI",
+    desc: "Works seamlessly across desktop, tablet, and mobile",
+  },
+];
 
 export function PerformanceSection() {
   return (
@@ -23,8 +47,7 @@ export function PerformanceSection() {
           className="text-center mb-12"
         >
           <h2 className="text-2xl md:text-3xl font-semibold text-foreground">
-            Performance &{" "}
-            <span className="text-primary">Capabilities</span>
+            Performance & <span className="text-primary">Capabilities</span>
           </h2>
           <p className="mt-3 text-sm text-muted-foreground max-w-lg mx-auto">
             Built for speed, scale, and reliability
@@ -46,12 +69,16 @@ export function PerformanceSection() {
                   <metric.icon className="h-4.5 w-4.5 text-primary" />
                 </div>
               </div>
-              <h3 className="text-xs md:text-sm font-semibold text-foreground mb-1 leading-snug">{metric.label}</h3>
-              <p className="text-[11px] md:text-xs text-muted-foreground leading-relaxed">{metric.desc}</p>
+              <h3 className="text-xs md:text-sm font-semibold text-foreground mb-1 leading-snug">
+                {metric.label}
+              </h3>
+              <p className="text-[11px] md:text-xs text-muted-foreground leading-relaxed">
+                {metric.desc}
+              </p>
             </motion.div>
           ))}
         </div>
       </div>
     </section>
-  )
+  );
 }
