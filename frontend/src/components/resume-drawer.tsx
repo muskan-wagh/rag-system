@@ -105,9 +105,9 @@ export function ResumeDrawer({ candidate, onClose }: ResumeDrawerProps) {
                     <h4 className="text-xs font-medium text-foreground/70">Education</h4>
                   </div>
                   <p className="text-xs text-foreground/80 capitalize leading-relaxed">
-                    {candidate.education.level} in {candidate.education.field}
+                    {candidate.education?.level ?? "N/A"} in {candidate.education?.field ?? "N/A"}
                   </p>
-                  {candidate.education.details && (
+                  {candidate.education?.details && (
                     <p className="text-[10px] text-muted-foreground mt-0.5">{candidate.education.details}</p>
                   )}
                 </div>

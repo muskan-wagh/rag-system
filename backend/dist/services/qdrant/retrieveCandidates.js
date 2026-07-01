@@ -4,6 +4,7 @@ exports.retrieveCandidateById = retrieveCandidateById;
 exports.retrieveCandidatesByIds = retrieveCandidatesByIds;
 const client_1 = require("./client");
 const config_1 = require("@/config");
+const normalizePayload_1 = require("./normalizePayload");
 async function retrieveCandidateById(id) {
     const client = (0, client_1.getQdrantClient)();
     const result = await client.scroll(config_1.config.qdrant.collectionName, {
@@ -14,9 +15,9 @@ async function retrieveCandidateById(id) {
         with_payload: true,
     });
     const point = result.points[0];
-    if (!point)
+    if (!point || !point.payload)
         return null;
-    return point.payload;
+    return (0, normalizePayload_1.normalizeCandidatePayload)(point.payload);
 }
 async function retrieveCandidatesByIds(ids) {
     const client = (0, client_1.getQdrantClient)();
@@ -29,6 +30,6 @@ async function retrieveCandidatesByIds(ids) {
     });
     return result.points
         .filter((p) => p.payload !== null && p.payload !== undefined)
-        .map((p) => p.payload);
+        .map((p) => (0, normalizePayload_1.normalizeCandidatePayload)(p.payload));
 }
 //# sourceMappingURL=retrieveCandidates.js.map

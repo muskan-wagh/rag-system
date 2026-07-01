@@ -38,10 +38,13 @@ function getLevelRank(level) {
     return LEVEL_RANK[normalized] ?? -1;
 }
 function computeEducationScore(candidate, jd) {
-    const jdLevel = jd.education.level;
-    const jdField = jd.education.field.toLowerCase();
+    const jdLevel = jd.education?.level;
+    const jdField = jd.education?.field?.toLowerCase();
+    if (!candidate.education) {
+        return 0.3;
+    }
     const candidateLevel = candidate.education.level;
-    const candidateField = candidate.education.field.toLowerCase();
+    const candidateField = candidate.education.field?.toLowerCase();
     if (!jdLevel || jdLevel === 'any') {
         return 0.5;
     }

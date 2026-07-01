@@ -2,6 +2,7 @@ import { getQdrantClient } from './client';
 import { Candidate } from '@/types';
 import { config } from '@/config';
 import { logger } from '@/utils/logger';
+import { normalizeCandidatePayload } from './normalizePayload';
 
 export async function retrieveCandidateById(id: string): Promise<Candidate | null> {
   const client = getQdrantClient();
@@ -15,9 +16,9 @@ export async function retrieveCandidateById(id: string): Promise<Candidate | nul
   });
 
   const point = result.points[0];
-  if (!point) return null;
+  if (!point || !point.payload) return null;
 
-  return point.payload as unknown as Candidate;
+  return normalizeCandidatePayload(point.payload as Record<string, unknown>);
 }
 
 export async function retrieveCandidatesByIds(ids: string[]): Promise<Candidate[]> {
@@ -33,5 +34,5 @@ export async function retrieveCandidatesByIds(ids: string[]): Promise<Candidate[
 
   return result.points
     .filter((p): p is typeof p & { payload: Record<string, unknown> } => p.payload !== null && p.payload !== undefined)
-    .map((p) => p.payload as unknown as Candidate);
+    .map((p) => normalizeCandidatePayload(p.payload as Record<string, unknown>));
 }

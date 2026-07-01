@@ -260,9 +260,9 @@ export default function CandidateDetailPage() {
               </div>
               <div>
                 <p className="text-sm font-medium text-foreground capitalize">
-                  {candidate.education.level} in {candidate.education.field}
+                  {candidate.education?.level ?? "N/A"} in {candidate.education?.field ?? "N/A"}
                 </p>
-                {candidate.education.details && (
+                {candidate.education?.details && (
                   <p className="text-xs text-muted-foreground mt-0.5">{candidate.education.details}</p>
                 )}
               </div>

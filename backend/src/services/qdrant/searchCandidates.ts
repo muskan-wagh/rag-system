@@ -3,6 +3,7 @@ import { generateEmbedding } from '@/services/llm/client';
 import { Candidate, SearchFilters } from '@/types';
 import { config } from '@/config';
 import { logger } from '@/utils/logger';
+import { normalizeCandidatePayload } from './normalizePayload';
 
 export interface SearchResult {
   candidate: Candidate;
@@ -68,7 +69,7 @@ export async function searchByEmbedding(
   });
 
   const results: SearchResult[] = searchResult.map((hit) => ({
-    candidate: hit.payload as unknown as Candidate,
+    candidate: hit.payload ? normalizeCandidatePayload(hit.payload as Record<string, unknown>) : {} as Candidate,
     score: hit.score ?? 0,
   }));
 

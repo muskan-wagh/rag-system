@@ -41,11 +41,15 @@ function getLevelRank(level: string): number {
 }
 
 export function computeEducationScore(candidate: Candidate, jd: ParsedJD): number {
-  const jdLevel = jd.education.level;
-  const jdField = jd.education.field.toLowerCase();
+  const jdLevel = jd.education?.level;
+  const jdField = jd.education?.field?.toLowerCase();
+
+  if (!candidate.education) {
+    return 0.3;
+  }
 
   const candidateLevel = candidate.education.level;
-  const candidateField = candidate.education.field.toLowerCase();
+  const candidateField = candidate.education.field?.toLowerCase();
 
   if (!jdLevel || jdLevel === 'any') {
     return 0.5;

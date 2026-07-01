@@ -74,7 +74,7 @@ export function CandidateCard({ result, index }: { result: RankingResult; index:
             <div className="flex items-center gap-3 text-[11px] text-muted-foreground mb-3">
               <span>{candidate.experience} yrs exp</span>
               <span className="text-border">|</span>
-              <span className="capitalize">{candidate.education.level} in {candidate.education.field}</span>
+              <span className="capitalize">{candidate.education?.level ?? "N/A"} in {candidate.education?.field ?? "N/A"}</span>
               <span className="text-border">|</span>
               <span className="flex items-center gap-1">
                 <Eye className="h-3 w-3" />
