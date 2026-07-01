@@ -13,6 +13,7 @@ process.on('unhandledRejection', (reason) => {
 
 process.on('uncaughtException', (error) => {
   logger.error('Uncaught exception', { error: error.message, stack: error.stack });
+  process.exit(1);
 });
 
 const app = express();
@@ -49,6 +50,15 @@ const server = app.listen(config.port, () => {
 });
 
 server.timeout = 120000;
+
+server.on('error', (error: NodeJS.ErrnoException) => {
+  if (error.code === 'EADDRINUSE') {
+    logger.error(`Port ${config.port} is already in use`);
+  } else {
+    logger.error('Server error', { error: error.message });
+  }
+  process.exit(1);
+});
 
 async function start(): Promise<void> {
   try {

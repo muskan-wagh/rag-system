@@ -23,8 +23,12 @@
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
+    "@types/range-parser": "^1.2.7",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@types/set-cookie-parser": "^2.4.10",
+    "@types/statuses": "^2.0.6",
+    "@types/validate-npm-package-name": "^4.0.2",
     "eslint": "^9",
     "eslint-config-next": "16.2.9",
     "tailwindcss": "^4",

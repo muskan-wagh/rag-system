@@ -16,6 +16,7 @@ process.on('unhandledRejection', (reason) => {
 });
 process.on('uncaughtException', (error) => {
     logger_1.logger.error('Uncaught exception', { error: error.message, stack: error.stack });
+    process.exit(1);
 });
 const app = (0, express_1.default)();
 app.use((0, cors_1.default)({
@@ -44,6 +45,15 @@ const server = app.listen(config_1.config.port, () => {
     logger_1.logger.info(`Health check: http://localhost:${config_1.config.port}/health`);
 });
 server.timeout = 120000;
+server.on('error', (error) => {
+    if (error.code === 'EADDRINUSE') {
+        logger_1.logger.error(`Port ${config_1.config.port} is already in use`);
+    }
+    else {
+        logger_1.logger.error('Server error', { error: error.message });
+    }
+    process.exit(1);
+});
 async function start() {
     try {
         await (0, createCollection_1.createCollection)();
