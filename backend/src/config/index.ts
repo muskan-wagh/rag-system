@@ -19,6 +19,11 @@ export const config = Object.freeze({
   nodeEnv: optional('NODE_ENV', 'development'),
   clientUrl: optional('CLIENT_URL', 'http://localhost:3000'),
   allowedOrigins: (() => {
+    // Allow overriding via CORS_ORIGINS env var (comma-separated)
+    const envOrigins = optional('CORS_ORIGINS', '');
+    if (envOrigins) {
+      return envOrigins.split(',').map(s => s.trim());
+    }
     const origins = ['https://recruitflow-blond.vercel.app'];
     if (optional('NODE_ENV', 'development') === 'development') {
       origins.push('http://localhost:3000', 'http://localhost:3001');
