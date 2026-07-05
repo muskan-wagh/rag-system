@@ -1,5 +1,6 @@
 import fs from 'fs';
 import path from 'path';
+import crypto from 'crypto';
 import csvParser from 'csv-parser';
 import { createCollection } from './createCollection';
 import { insertCandidates } from './insertCandidate';
@@ -20,9 +21,14 @@ interface CsvRow {
   [key: string]: string | undefined;
 }
 
+function deterministicUuid(seed: string): string {
+  const hash = crypto.createHash('md5').update(seed).digest('hex');
+  return `${hash.slice(0, 8)}-${hash.slice(8, 12)}-${hash.slice(12, 16)}-${hash.slice(16, 20)}-${hash.slice(20, 32)}`;
+}
+
 function mapRowToCandidate(row: CsvRow, index: number): Candidate {
   return {
-    id: row.id || `candidate-${index}`,
+    id: deterministicUuid(row.email || `candidate-${index}`),
     name: row.name || 'Unknown',
     email: row.email,
     phone: row.phone,

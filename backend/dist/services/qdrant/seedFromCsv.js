@@ -5,13 +5,18 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const fs_1 = __importDefault(require("fs"));
 const path_1 = __importDefault(require("path"));
+const crypto_1 = __importDefault(require("crypto"));
 const csv_parser_1 = __importDefault(require("csv-parser"));
 const createCollection_1 = require("./createCollection");
 const insertCandidate_1 = require("./insertCandidate");
 const logger_1 = require("@/utils/logger");
+function deterministicUuid(seed) {
+    const hash = crypto_1.default.createHash('md5').update(seed).digest('hex');
+    return `${hash.slice(0, 8)}-${hash.slice(8, 12)}-${hash.slice(12, 16)}-${hash.slice(16, 20)}-${hash.slice(20, 32)}`;
+}
 function mapRowToCandidate(row, index) {
     return {
-        id: row.id || `candidate-${index}`,
+        id: deterministicUuid(row.email || `candidate-${index}`),
         name: row.name || 'Unknown',
         email: row.email,
         phone: row.phone,
