@@ -6,7 +6,7 @@ import { FeatureCard } from "@/components/feature-card"
 import { HowItWorks } from "@/components/how-it-works"
 import { AiArchitecture } from "@/components/ai-architecture"
 import { Button } from "@/components/ui/button"
-import { Brain, ArrowRight } from "lucide-react"
+import { Brain, ArrowRight, Link2 } from "lucide-react"
 import Link from "next/link"
 import { ROUTES } from "@/lib/constants"
 
@@ -20,7 +20,16 @@ const features = [
       "Experience timeline reconstruction",
       "Education and certification parsing",
     ],
-
+  },
+  {
+    icon: Link2,
+    title: "One-Click Resume Dropbox",
+    description: "Generate a unique application link and share it anywhere. Candidates upload directly — no manual collection.",
+    benefits: [
+      "Instant application link generation",
+      "Direct-to-storage resume uploads",
+      "Automatic AI parsing on receipt",
+    ],
   },
 ]
 
@@ -76,7 +85,7 @@ export default function Home() {
             </p>
           </motion.div>
 
-          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
             {features.map((feature, i) => (
               <FeatureCard key={feature.title} {...feature} index={i} />
             ))}
@@ -102,14 +111,14 @@ export default function Home() {
               Start finding the best candidates in seconds with AI-powered matching.
             </p>
             <div className="flex flex-col sm:flex-row gap-3 justify-center">
-              <Link href={ROUTES.candidates}>
+              <Link href={ROUTES.dashboard}>
                 <Button className="bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm h-10 px-6">
-                  Start Searching <ArrowRight className="ml-2 h-4 w-4" />
+                  Go to Dashboard <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
               </Link>
-              <Link href={ROUTES.compare}>
+              <Link href={ROUTES.candidates}>
                 <Button variant="outline" className="text-muted-foreground hover:text-foreground h-10 px-6">
-                  Try Comparison
+                  Search Candidates
                 </Button>
               </Link>
             </div>

@@ -5,11 +5,13 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = __importDefault(require("express"));
 const cors_1 = __importDefault(require("cors"));
+const multer_1 = __importDefault(require("multer"));
 const config_1 = require("@/config");
 const logger_1 = require("@/utils/logger");
 const logger_2 = require("@/middleware/logger");
 const errorHandler_1 = require("@/middleware/errorHandler");
 const createCollection_1 = require("@/services/qdrant/createCollection");
+const storage_1 = require("@/services/supabase/storage");
 const routes_1 = __importDefault(require("@/routes"));
 process.on('unhandledRejection', (reason) => {
     logger_1.logger.error('Unhandled rejection', { reason: reason instanceof Error ? reason.message : reason });
@@ -39,6 +41,21 @@ app.get('/health', (_req, res) => {
     res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 app.use('/api', routes_1.default);
+app.use((err, _req, res, next) => {
+    if (err instanceof multer_1.default.MulterError) {
+        if (err.code === 'LIMIT_FILE_SIZE') {
+            res.status(400).json({ success: false, error: 'File too large. Maximum size is 5MB.' });
+            return;
+        }
+        res.status(400).json({ success: false, error: err.message });
+        return;
+    }
+    if (err.message?.includes('Only PDF and DOCX files are allowed')) {
+        res.status(400).json({ success: false, error: err.message });
+        return;
+    }
+    next(err);
+});
 app.use(errorHandler_1.errorHandler);
 const server = app.listen(config_1.config.port, () => {
     logger_1.logger.info(`Server running on port ${config_1.config.port} in ${config_1.config.nodeEnv} mode`);
@@ -61,6 +78,13 @@ async function start() {
     }
     catch (error) {
         logger_1.logger.error('Failed to initialize Qdrant collection', { error });
+    }
+    try {
+        await (0, storage_1.ensureResumeBucket)();
+        logger_1.logger.info('Supabase storage ready');
+    }
+    catch (error) {
+        logger_1.logger.error('Failed to initialize Supabase storage', { error });
     }
 }
 start();

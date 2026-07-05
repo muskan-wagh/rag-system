@@ -3,6 +3,10 @@ export declare const config: Readonly<{
     nodeEnv: string;
     clientUrl: string;
     allowedOrigins: string[];
+    supabase: {
+        url: string;
+        serviceRoleKey: string;
+    };
     openai: {
         apiKey: string;
         model: string;

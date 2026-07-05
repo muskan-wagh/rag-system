@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.compareCandidatesHandler = exports.batchCandidatesHandler = exports.getCandidateHandler = exports.searchCandidatesHandler = void 0;
+exports.compareCandidatesHandler = exports.closingStrategyHandler = exports.screeningQuestionsHandler = exports.batchCandidatesHandler = exports.getCandidateHandler = exports.searchCandidatesHandler = void 0;
 const crypto_1 = __importDefault(require("crypto"));
 const asyncHandler_1 = require("@/utils/asyncHandler");
 const parseJD_1 = require("@/services/llm/parseJD");
@@ -12,6 +12,9 @@ const searchCandidates_1 = require("@/services/qdrant/searchCandidates");
 const retrieveCandidates_1 = require("@/services/qdrant/retrieveCandidates");
 const finalRanker_1 = require("@/services/ranking/finalRanker");
 const compareCandidates_1 = require("@/services/llm/compareCandidates");
+const screeningQuestions_1 = require("@/services/llm/screeningQuestions");
+const closingStrategy_1 = require("@/services/llm/closingStrategy");
+const client_2 = require("@/services/supabase/client");
 const logger_1 = require("@/utils/logger");
 const errorHandler_1 = require("@/middleware/errorHandler");
 const cache_1 = require("@/utils/cache");
@@ -43,8 +46,12 @@ exports.searchCandidatesHandler = (0, asyncHandler_1.asyncHandler)(async (req, r
         res.status(200).json({ success: true, data });
         return;
     }
-    const candidates = rawResults.map((r) => r.candidate);
-    const rankedResults = await (0, finalRanker_1.rankCandidates)(candidates, jd);
+    const semanticScores = new Map();
+    const candidates = rawResults.map((r) => {
+        semanticScores.set(r.candidate.id, r.score);
+        return r.candidate;
+    });
+    const rankedResults = await (0, finalRanker_1.rankCandidates)(candidates, jd, semanticScores);
     const data = { results: rankedResults, query: jd };
     (0, cache_1.setCache)(cacheKey, data, 300000);
     logger_1.logger.info('Sending search response', { resultCount: rankedResults.length });
@@ -73,6 +80,78 @@ exports.batchCandidatesHandler = (0, asyncHandler_1.asyncHandler)(async (req, re
     logger_1.logger.info('Batch get candidates', { count: ids.length });
     const candidates = await (0, retrieveCandidates_1.retrieveCandidatesByIds)(ids);
     res.status(200).json({ success: true, data: candidates });
+});
+exports.screeningQuestionsHandler = (0, asyncHandler_1.asyncHandler)(async (req, res) => {
+    const id = req.params.id;
+    if (!id) {
+        res.status(400).json({ success: false, error: 'Candidate ID is required' });
+        return;
+    }
+    logger_1.logger.info('Generate screening questions', { candidateId: id });
+    const candidate = await (0, retrieveCandidates_1.retrieveCandidateById)(id);
+    if (!candidate) {
+        res.status(404).json({ success: false, error: 'Candidate not found' });
+        return;
+    }
+    const supabase = (0, client_2.getSupabaseClient)();
+    const { data: sessionData } = await supabase
+        .from('candidates')
+        .select('raw_resume_text')
+        .eq('id', id)
+        .single();
+    const { data: sessionRow } = await supabase
+        .from('candidates')
+        .select('upload_session_id')
+        .eq('id', id)
+        .single();
+    let jdText = '';
+    if (sessionRow?.upload_session_id) {
+        const { data: sess } = await supabase
+            .from('upload_sessions')
+            .select('job_description_text')
+            .eq('id', sessionRow.upload_session_id)
+            .single();
+        jdText = sess?.job_description_text || '';
+    }
+    const resumeText = sessionData?.raw_resume_text || candidate.summary || '';
+    const result = await (0, screeningQuestions_1.generateScreeningQuestions)(jdText, resumeText);
+    res.status(200).json({ success: true, data: result });
+});
+exports.closingStrategyHandler = (0, asyncHandler_1.asyncHandler)(async (req, res) => {
+    const id = req.params.id;
+    if (!id) {
+        res.status(400).json({ success: false, error: 'Candidate ID is required' });
+        return;
+    }
+    logger_1.logger.info('Generate closing strategy', { candidateId: id });
+    const candidate = await (0, retrieveCandidates_1.retrieveCandidateById)(id);
+    if (!candidate) {
+        res.status(404).json({ success: false, error: 'Candidate not found' });
+        return;
+    }
+    const supabase = (0, client_2.getSupabaseClient)();
+    const { data: sessionData } = await supabase
+        .from('candidates')
+        .select('raw_resume_text')
+        .eq('id', id)
+        .single();
+    const { data: sessionRow } = await supabase
+        .from('candidates')
+        .select('upload_session_id')
+        .eq('id', id)
+        .single();
+    let jdText = '';
+    if (sessionRow?.upload_session_id) {
+        const { data: sess } = await supabase
+            .from('upload_sessions')
+            .select('job_description_text')
+            .eq('id', sessionRow.upload_session_id)
+            .single();
+        jdText = sess?.job_description_text || '';
+    }
+    const resumeText = sessionData?.raw_resume_text || candidate.summary || '';
+    const result = await (0, closingStrategy_1.generateClosingStrategy)(jdText, resumeText);
+    res.status(200).json({ success: true, data: result });
 });
 exports.compareCandidatesHandler = (0, asyncHandler_1.asyncHandler)(async (req, res) => {
     const { jdText, candidateIds } = req.body;

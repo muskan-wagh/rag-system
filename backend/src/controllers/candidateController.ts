@@ -7,6 +7,9 @@ import { searchByEmbedding } from '@/services/qdrant/searchCandidates';
 import { retrieveCandidateById, retrieveCandidatesByIds } from '@/services/qdrant/retrieveCandidates';
 import { rankCandidates } from '@/services/ranking/finalRanker';
 import { compareCandidates } from '@/services/llm/compareCandidates';
+import { generateScreeningQuestions } from '@/services/llm/screeningQuestions';
+import { generateClosingStrategy } from '@/services/llm/closingStrategy';
+import { getSupabaseClient } from '@/services/supabase/client';
 import { Candidate } from '@/types';
 import { logger } from '@/utils/logger';
 import { AppError } from '@/middleware/errorHandler';
@@ -47,9 +50,13 @@ export const searchCandidatesHandler = asyncHandler(async (req: Request, res: Re
     return;
   }
 
-  const candidates: Candidate[] = rawResults.map((r) => r.candidate);
+  const semanticScores = new Map<string, number>();
+  const candidates: Candidate[] = rawResults.map((r) => {
+    semanticScores.set(r.candidate.id, r.score);
+    return r.candidate;
+  });
 
-  const rankedResults = await rankCandidates(candidates, jd);
+  const rankedResults = await rankCandidates(candidates, jd, semanticScores);
 
   const data = { results: rankedResults, query: jd };
   setCache(cacheKey, data, 300000);
@@ -91,6 +98,96 @@ export const batchCandidatesHandler = asyncHandler(async (req: Request, res: Res
   const candidates = await retrieveCandidatesByIds(ids);
 
   res.status(200).json({ success: true, data: candidates });
+});
+
+export const screeningQuestionsHandler = asyncHandler(async (req: Request, res: Response) => {
+  const id = req.params.id as string;
+
+  if (!id) {
+    res.status(400).json({ success: false, error: 'Candidate ID is required' });
+    return;
+  }
+
+  logger.info('Generate screening questions', { candidateId: id });
+
+  const candidate = await retrieveCandidateById(id);
+  if (!candidate) {
+    res.status(404).json({ success: false, error: 'Candidate not found' });
+    return;
+  }
+
+  const supabase = getSupabaseClient();
+  const { data: sessionData } = await supabase
+    .from('candidates')
+    .select('raw_resume_text')
+    .eq('id', id)
+    .single();
+  const { data: sessionRow } = await supabase
+    .from('candidates')
+    .select('upload_session_id')
+    .eq('id', id)
+    .single();
+
+  let jdText = '';
+  if (sessionRow?.upload_session_id) {
+    const { data: sess } = await supabase
+      .from('upload_sessions')
+      .select('job_description_text')
+      .eq('id', sessionRow.upload_session_id)
+      .single();
+    jdText = sess?.job_description_text || '';
+  }
+
+  const resumeText = sessionData?.raw_resume_text || candidate.summary || '';
+
+  const result = await generateScreeningQuestions(jdText, resumeText);
+
+  res.status(200).json({ success: true, data: result });
+});
+
+export const closingStrategyHandler = asyncHandler(async (req: Request, res: Response) => {
+  const id = req.params.id as string;
+
+  if (!id) {
+    res.status(400).json({ success: false, error: 'Candidate ID is required' });
+    return;
+  }
+
+  logger.info('Generate closing strategy', { candidateId: id });
+
+  const candidate = await retrieveCandidateById(id);
+  if (!candidate) {
+    res.status(404).json({ success: false, error: 'Candidate not found' });
+    return;
+  }
+
+  const supabase = getSupabaseClient();
+  const { data: sessionData } = await supabase
+    .from('candidates')
+    .select('raw_resume_text')
+    .eq('id', id)
+    .single();
+  const { data: sessionRow } = await supabase
+    .from('candidates')
+    .select('upload_session_id')
+    .eq('id', id)
+    .single();
+
+  let jdText = '';
+  if (sessionRow?.upload_session_id) {
+    const { data: sess } = await supabase
+      .from('upload_sessions')
+      .select('job_description_text')
+      .eq('id', sessionRow.upload_session_id)
+      .single();
+    jdText = sess?.job_description_text || '';
+  }
+
+  const resumeText = sessionData?.raw_resume_text || candidate.summary || '';
+
+  const result = await generateClosingStrategy(jdText, resumeText);
+
+  res.status(200).json({ success: true, data: result });
 });
 
 export const compareCandidatesHandler = asyncHandler(async (req: Request, res: Response) => {

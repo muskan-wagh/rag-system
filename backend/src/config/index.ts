@@ -31,6 +31,11 @@ export const config = Object.freeze({
     return origins;
   })(),
 
+  supabase: {
+    url: required("SUPABASE_URL"),
+    serviceRoleKey: required("SUPABASE_SERVICE_ROLE_KEY"),
+  },
+
   openai: {
     apiKey: required("QWEN_API_KEY"),
     model: optional("QWEN_MODEL", "qwen/qwen3-next-80b-a3b-instruct"),

@@ -6,12 +6,13 @@ import { motion } from "framer-motion"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Sheet, SheetTrigger, SheetContent } from "@/components/ui/sheet"
-import { Menu, Search, GitCompare, Home, BookOpen } from "lucide-react"
+import { Menu, Search, GitCompare, Home, BookOpen, LayoutDashboard } from "lucide-react"
 import { ROUTES } from "@/lib/constants"
 import { useState } from "react"
 
 const navItems = [
   { href: ROUTES.home, label: "Home", icon: Home },
+  { href: ROUTES.dashboard, label: "Dashboard", icon: LayoutDashboard },
   { href: ROUTES.candidates, label: "Search", icon: Search },
   { href: ROUTES.compare, label: "Compare", icon: GitCompare },
   { href: ROUTES.howItWorks, label: "How It Works", icon: BookOpen },

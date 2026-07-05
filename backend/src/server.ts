@@ -1,10 +1,12 @@
 import express from 'express';
 import cors from 'cors';
+import multer from 'multer';
 import { config } from '@/config';
 import { logger } from '@/utils/logger';
 import { requestLogger } from '@/middleware/logger';
 import { errorHandler } from '@/middleware/errorHandler';
 import { createCollection } from '@/services/qdrant/createCollection';
+import { ensureResumeBucket } from '@/services/supabase/storage';
 import routes from '@/routes';
 
 process.on('unhandledRejection', (reason) => {
@@ -42,6 +44,22 @@ app.get('/health', (_req, res) => {
 
 app.use('/api', routes);
 
+app.use((err: Error, _req: express.Request, res: express.Response, next: express.NextFunction) => {
+  if (err instanceof multer.MulterError) {
+    if (err.code === 'LIMIT_FILE_SIZE') {
+      res.status(400).json({ success: false, error: 'File too large. Maximum size is 5MB.' });
+      return;
+    }
+    res.status(400).json({ success: false, error: err.message });
+    return;
+  }
+  if (err.message?.includes('Only PDF and DOCX files are allowed')) {
+    res.status(400).json({ success: false, error: err.message });
+    return;
+  }
+  next(err);
+});
+
 app.use(errorHandler);
 
 const server = app.listen(config.port, () => {
@@ -66,6 +84,13 @@ async function start(): Promise<void> {
     logger.info('Qdrant collection ready');
   } catch (error) {
     logger.error('Failed to initialize Qdrant collection', { error });
+  }
+
+  try {
+    await ensureResumeBucket();
+    logger.info('Supabase storage ready');
+  } catch (error) {
+    logger.error('Failed to initialize Supabase storage', { error });
   }
 }
 

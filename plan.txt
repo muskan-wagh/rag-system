@@ -1,0 +1,167 @@
+# RecruitIQ — Implementation Plan
+
+## Current State Assessment
+
+**Backend** (Express/TypeScript) already has:
+- Qdrant vector DB client, collection, insert/search/retrieve
+- Qwen LLM client via OpenRouter
+- JD parsing, candidate ranking (skill/experience/education matchers)
+- Candidate comparison, search with filters
+- Logging, caching, error handling middleware
+- Supabase credentials in `.env`, seed script exists but **no Supabase integration code**
+
+**Frontend** (Next.js 16 App Router) already has:
+- Home page, candidate search, candidate detail, compare, how-it-works pages
+- UI components (cards, badges, sheets, buttons, skeletons)
+- Zustand store with persistence
+- API client module, Next.js proxy rewrites to backend
+
+**Missing entirely** (the 4 Pillars):
+- Supabase Storage/DB client code
+- `upload_sessions` management
+- Public resume upload page
+- Resume PDF/DOCX parsing
+- Flight risk / growth trajectory analysis
+- AI screening questions generation
+- AI closing strategy generation
+- Recruiter dashboard with link generation
+
+---
+
+## Phase 1: Backend Supabase Integration
+
+| # | File | Action | Description |
+|---|------|--------|-------------|
+| 1 | `backend/src/config/index.ts` | Edit | Add `supabase.url` and `supabase.serviceRoleKey` to config |
+| 2 | `backend/src/services/supabase/client.ts` | Create | Singleton Supabase client (admin/service-role) |
+| 3 | `backend/src/services/supabase/database.ts` | Create | `createUploadSession()`, `getSession()`, `insertCandidate()`, `getCandidatesBySession()`, `insertSkills()` |
+| 4 | `backend/src/services/supabase/storage.ts` | Create | `uploadResumeFile()`, `getResumeFileUrl()` (bucket: `resumes`, path: `{uuid}/{file}`) |
+
+**SQL to run in Supabase editor:**
+```sql
+CREATE TABLE upload_sessions (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  job_description_text TEXT NOT NULL,
+  created_at TIMESTAMP DEFAULT NOW()
+);
+
+ALTER TABLE candidates ADD COLUMN IF NOT EXISTS upload_session_id UUID REFERENCES upload_sessions(id);
+ALTER TABLE candidates ADD COLUMN IF NOT EXISTS flight_risk TEXT CHECK (flight_risk IN ('Low','Medium','High'));
+ALTER TABLE candidates ADD COLUMN IF NOT EXISTS growth_trajectory TEXT CHECK (growth_trajectory IN ('Fast-track','Steady','Stagnant'));
+ALTER TABLE candidates ADD COLUMN IF NOT EXISTS parsed_json JSONB;
+```
+
+**Supabase Storage:** Create `resumes` bucket with RLS: allow public inserts (for candidate uploads), allow service_role full access.
+
+---
+
+## Phase 2: Generate Link API + Upload Pipeline
+
+| # | File | Action | Description |
+|---|------|--------|-------------|
+| 5 | `backend/package.json` | Edit | Add `multer`, `pdf-parse`, `mammoth`, `@types/multer` |
+| 6 | `backend/src/controllers/sessionController.ts` | Create | `generateLinkHandler`: POST -> creates `upload_sessions` row, returns `{link: '/upload/' + uuid}` |
+| 7 | `backend/src/controllers/uploadController.ts` | Create | `uploadResumeHandler`: receives file via multer -> saves to Storage -> extracts text -> sends to Qwen -> inserts to DB + Qdrant |
+| 8 | `backend/src/services/resume-parser.ts` | Create | `extractTextFromPdf()` using `pdf-parse`, `extractTextFromDocx()` using `mammoth` |
+| 9 | `backend/src/services/llm/parseResume.ts` | Create | Qwen prompt to extract: name, email, phone, skills, experience, education, companies -> returns structured JSON |
+| 10 | `backend/src/services/llm/flightRisk.ts` | Create | Qwen analyzes tenure per job -> `flight_risk` (Low/Med/High) + `growth_trajectory` (Fast-track/Steady/Stagnant) |
+| 11 | `backend/src/routes/sessionRoutes.ts` | Create | `POST /generate-link`, `GET /sessions/:id` |
+| 12 | `backend/src/routes/uploadRoutes.ts` | Create | `POST /upload/:uuid` (public, no auth, multipart) |
+| 13 | `backend/src/routes/index.ts` | Edit | Mount new route groups |
+| 14 | `backend/src/server.ts` | Edit | Add multer error handling |
+
+**Upload Pipeline Flow:**
+1. Multer receives file -> validates PDF/DOCX
+2. Save to Supabase Storage `resumes/{uuid}/{timestamp}_{filename}`
+3. Extract text: `pdf-parse` for PDF, `mammoth` for DOCX
+4. Call Qwen `parseResume(rawText)` -> structured JSON
+5. Call Qwen `flightRisk(rawText, parsedJson)` -> flight_risk + growth_trajectory
+6. Insert candidate into Supabase `candidates` table
+7. Insert skills into `candidate_skills`
+8. Generate embedding via existing `generateEmbedding()` -> upsert to Qdrant
+9. Return success
+
+---
+
+## Phase 3: AI Co-pilot Features
+
+| # | File | Action | Description |
+|---|------|--------|-------------|
+| 15 | `backend/src/services/llm/screeningQuestions.ts` | Create | Qwen reads JD + resume -> generates 5 personalized verification questions |
+| 16 | `backend/src/services/llm/closingStrategy.ts` | Create | Qwen analyzes candidate's company vs JD -> 3 selling points + 1 major objection |
+| 17 | `backend/src/controllers/candidateController.ts` | Edit | Add `screeningQuestionsHandler` and `closingStrategyHandler` |
+| 18 | `backend/src/routes/candidateRoutes.ts` | Edit | Add `POST /:id/screening-questions` and `POST /:id/closing-strategy` |
+
+---
+
+## Phase 4: Update Ranking Weights
+
+| # | File | Action | Description |
+|---|------|--------|-------------|
+| 19 | `backend/src/services/ranking/finalRanker.ts` | Edit | Change weights to `skill: 0.3, experience: 0.2`; add Qdrant semantic score at `0.5` weight |
+
+Current weights: `skill=0.4, experience=0.35, education=0.25`
+New hybrid formula: `semantic_score * 0.5 + skill_score * 0.3 + experience_score * 0.2`
+
+---
+
+## Phase 5: Frontend - Public Upload Page
+
+| # | File | Action | Description |
+|---|------|--------|-------------|
+| 20 | `frontend/src/app/upload/[uuid]/page.tsx` | Create | Public page: "Apply for Position" - drag-and-drop zone, file input, upload button. Calls `POST /api/upload/[uuid]` with FormData. Shows success/error states. Minimal styling (no nav). |
+| 21 | `frontend/src/components/upload-zone.tsx` | Create | Drag-and-drop file uploader component with visual feedback |
+
+---
+
+## Phase 6: Frontend - Recruiter Dashboard
+
+| # | File | Action | Description |
+|---|------|--------|-------------|
+| 22 | `frontend/src/app/dashboard/page.tsx` | Create | Recruiter dashboard: JD textarea + "Generate Application Link" button at top. Green box with generated URL + "Copy" + "Refresh" buttons below. Candidate table (name, company, match %, flight risk badge, status). |
+| 23 | `frontend/src/components/generate-link-modal.tsx` | Create | Modal showing generated URL, copy button, session stats |
+| 24 | `frontend/src/components/candidate-table.tsx` | Create | Table component with flight risk badges, match scores, action buttons |
+| 25 | `frontend/src/components/flight-risk-badge.tsx` | Create | Color-coded badge: green=Low, amber=Medium, red=High |
+| 26 | `frontend/src/components/candidate-detail-modal.tsx` | Create | Detail modal with tabs: "Parsed Resume", "AI Screening Questions" (with generate button), "Closing Strategy" (with generate button), action buttons (Shortlist/Reject/Move to Interview) |
+| 27 | `frontend/src/lib/api.ts` | Edit | Add: `generateLink()`, `getSession()`, `getScreeningQuestions()`, `getClosingStrategy()`, `uploadResume()` |
+| 28 | `frontend/src/components/nav-bar.tsx` | Edit | Add "Dashboard" nav link |
+| 29 | `frontend/src/app/page.tsx` | Edit | Add CTA linking to dashboard |
+
+---
+
+## Phase 7: Background Queue (Batch Processing)
+
+| # | File | Action | Description |
+|---|------|--------|-------------|
+| 30 | `backend/src/services/queue.ts` | Create | Simple in-memory queue with `setTimeout` batching (no BullMQ dependency). Process up to 5 uploads at a time with 1s delay between batches. |
+
+---
+
+## Dependencies to Install
+
+**Backend:**
+```
+npm install multer pdf-parse mammoth
+npm install -D @types/multer
+```
+
+**Frontend:** No new deps needed (already has all UI primitives).
+
+---
+
+## Mapping: Files Summary (30 total)
+
+| Action | Count | Details |
+|--------|-------|---------|
+| Create (backend) | 17 | services/supabase/*, services/llm/resumeParser, flightRisk, screeningQuestions, closingStrategy, services/resume-parser, services/queue, controllers (session, upload), routes (session, upload) |
+| Edit (backend) | 6 | config/index.ts, routes/index.ts, server.ts, candidateController.ts, candidateRoutes.ts, finalRanker.ts |
+| Create (frontend) | 6 | upload/[uuid]/page.tsx, dashboard/page.tsx, upload-zone, generate-link-modal, candidate-table, candidate-detail-modal, flight-risk-badge |
+| Edit (frontend) | 4 | api.ts, nav-bar.tsx, page.tsx |
+
+---
+
+## Selections Confirmed
+
+- **Embedding model**: Keep existing OpenRouter (`text-embedding-3-small`)
+- **Dashboard route**: New `/dashboard` page
+- **File upload limit**: 5 MB

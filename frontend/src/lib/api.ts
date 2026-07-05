@@ -52,6 +52,23 @@ export interface SearchFilters {
   educationLevel?: string
 }
 
+export interface UploadSession {
+  sessionId: string
+  link: string
+  createdAt: string
+}
+
+export interface ScreeningQuestion {
+  question: string
+  focus_area: string
+  why_this_matters: string
+}
+
+export interface ClosingStrategy {
+  selling_points: Array<{ point: string; detail: string }>
+  major_objection: { objection: string; overcome_strategy: string }
+}
+
 async function request<T>(
   endpoint: string,
   options?: RequestInit,
@@ -100,6 +117,35 @@ export async function batchCandidates(ids: string[]) {
     method: "POST",
     body: JSON.stringify({ ids }),
   })
+}
+
+export async function generateLink(jdText: string) {
+  return request<UploadSession>("/generate-link", {
+    method: "POST",
+    body: JSON.stringify({ jdText }),
+  })
+}
+
+export async function getSession(sessionId: string) {
+  return request<{
+    session: UploadSession
+    candidates: Candidate[]
+    candidateCount: number
+  }>(`/sessions/${sessionId}`, { method: "GET" })
+}
+
+export async function getScreeningQuestions(candidateId: string) {
+  return request<{ questions: ScreeningQuestion[] }>(
+    `/candidates/${candidateId}/screening-questions`,
+    { method: "POST" },
+  )
+}
+
+export async function getClosingStrategy(candidateId: string) {
+  return request<ClosingStrategy>(
+    `/candidates/${candidateId}/closing-strategy`,
+    { method: "POST" },
+  )
 }
 
 
