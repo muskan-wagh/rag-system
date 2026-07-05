@@ -3,7 +3,7 @@
 import { useState, useCallback } from "react"
 import { useParams } from "next/navigation"
 import { motion } from "framer-motion"
-import { Upload, FileText, CheckCircle, AlertCircle, Loader2, ArrowLeft } from "lucide-react"
+import { Upload, FileText, CheckCircle, AlertCircle, Loader2 } from "lucide-react"
 import { UploadZone } from "@/components/upload-zone"
 
 export default function UploadPage() {

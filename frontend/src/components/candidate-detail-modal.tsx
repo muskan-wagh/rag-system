@@ -37,7 +37,6 @@ interface CandidateDetailModalProps {
   open: boolean
   onClose: () => void
   candidate: CandidateDetail | null
-  sessionJdText?: string
 }
 
 type Tab = "screening" | "closing"
@@ -53,7 +52,7 @@ interface ClosingStrategy {
   major_objection: { objection: string; overcome_strategy: string }
 }
 
-export function CandidateDetailModal({ open, onClose, candidate, sessionJdText }: CandidateDetailModalProps) {
+export function CandidateDetailModal({ open, onClose, candidate }: CandidateDetailModalProps) {
   const [activeTab, setActiveTab] = useState<Tab>("screening")
   const [screeningQuestions, setScreeningQuestions] = useState<ScreeningQuestion[] | null>(null)
   const [closingStrategy, setClosingStrategy] = useState<ClosingStrategy | null>(null)

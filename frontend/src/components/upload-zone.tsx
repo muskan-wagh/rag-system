@@ -13,6 +13,15 @@ export function UploadZone({ file, onFileSelect }: UploadZoneProps) {
   const inputRef = useRef<HTMLInputElement>(null)
   const [dragging, setDragging] = useState(false)
 
+  function isValidFile(f: File): boolean {
+    const validTypes = [
+      "application/pdf",
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    ]
+    const validExt = f.name.endsWith(".pdf") || f.name.endsWith(".docx")
+    return validTypes.includes(f.type) || validExt
+  }
+
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault()
     setDragging(true)
@@ -44,15 +53,6 @@ export function UploadZone({ file, onFileSelect }: UploadZoneProps) {
     if (selectedFile && isValidFile(selectedFile)) {
       onFileSelect(selectedFile)
     }
-  }
-
-  function isValidFile(f: File): boolean {
-    const validTypes = [
-      "application/pdf",
-      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-    ]
-    const validExt = f.name.endsWith(".pdf") || f.name.endsWith(".docx")
-    return validTypes.includes(f.type) || validExt
   }
 
   return (

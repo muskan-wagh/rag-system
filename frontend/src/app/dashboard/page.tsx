@@ -38,6 +38,30 @@ export default function DashboardPage() {
   const [showDetailModal, setShowDetailModal] = useState(false)
   const [error, setError] = useState("")
 
+  const fetchCandidates = useCallback(
+    async (sessionId?: string) => {
+      const id = sessionId || session?.sessionId
+      if (!id) return
+
+      setLoadingCandidates(true)
+      try {
+        const res = await fetch(`/api/sessions/${id}`, {
+          headers: { "Content-Type": "application/json" },
+        })
+
+        const data = await res.json()
+        if (data.success) {
+          setCandidates(data.data?.candidates || [])
+        }
+      } catch {
+        // silently fail for refresh
+      } finally {
+        setLoadingCandidates(false)
+      }
+    },
+    [session],
+  )
+
   const generateLink = useCallback(async () => {
     if (!jdText.trim()) return
     setGenerating(true)
@@ -63,31 +87,7 @@ export default function DashboardPage() {
     } finally {
       setGenerating(false)
     }
-  }, [jdText])
-
-  const fetchCandidates = useCallback(
-    async (sessionId?: string) => {
-      const id = sessionId || session?.sessionId
-      if (!id) return
-
-      setLoadingCandidates(true)
-      try {
-        const res = await fetch(`/api/sessions/${id}`, {
-          headers: { "Content-Type": "application/json" },
-        })
-
-        const data = await res.json()
-        if (data.success) {
-          setCandidates(data.data?.candidates || [])
-        }
-      } catch {
-        // silently fail for refresh
-      } finally {
-        setLoadingCandidates(false)
-      }
-    },
-    [session],
-  )
+  }, [jdText, fetchCandidates])
 
   const handleSelectCandidate = (candidate: CandidateRow) => {
     setSelectedCandidate(candidate)
@@ -235,7 +235,6 @@ export default function DashboardPage() {
         open={showDetailModal}
         onClose={() => setShowDetailModal(false)}
         candidate={selectedCandidate}
-        sessionJdText={jdText}
       />
 
       <GenerateLinkModal
