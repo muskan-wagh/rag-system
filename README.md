@@ -15,8 +15,7 @@ A full-stack **Retrieval-Augmented Generation (RAG)** application built for the 
 - [Setup & Installation](#setup--installation)
 - [Environment Variables](#environment-variables)
 - [Scripts](#scripts)
-- [Data Seeding](#data-seeding)
-
+ 
 ---
 
 ## Architecture Overview
@@ -52,20 +51,6 @@ A full-stack **Retrieval-Augmented Generation (RAG)** application built for the 
 ---
 
 ## System Flow
-
-### Data Ingestion (Seeding)
-
-```
-candidates.csv  →  seedFromCsv.ts  →  createCollection.ts  →  insertCandidate.ts
-                                            │                          │
-                                    Qdrant collection          Embedding via LLM
-                                    + payload indexes          + upsert to Qdrant
-```
-
-1. `seedFromCsv.ts` reads the CSV file.
-2. Each row maps to a `Candidate` object.
-3. `createCollection()` ensures the collection exists with payload indexes (`id`, `experience`, `skills`, `education.level`).
-4. `insertCandidates()` builds a text representation (name + summary + skills + experience + education), generates a vector embedding via `generateEmbedding()`, and upserts into Qdrant.
 
 ### Candidate Search (Main User Journey)
 
@@ -169,8 +154,6 @@ rag-system/
 │   ├── package.json                  # Dependencies and scripts
 │   ├── tsconfig.json                 # TypeScript configuration
 │   ├── start.js                      # Production startup (path alias register)
-│   ├── dataset/
-│   │   └── candidates.csv            # 20 sample candidate records
 │   └── src/
 │       ├── server.ts                 # Express entry point
 │       ├── config/
@@ -201,9 +184,7 @@ rag-system/
 │           │   ├── client.ts         # Qdrant DB client singleton
 │           │   ├── createCollection.ts # Auto-create collection + indexes
 │           │   ├── searchCandidates.ts # Vector search with filters
-│           │   ├── retrieveCandidates.ts # Get candidates by ID
-│           │   ├── insertCandidate.ts # Embed + upsert candidates
-│           │   └── seedFromCsv.ts    # CLI CSV → Qdrant seeding script
+│           │   └── retrieveCandidates.ts # Get candidates by ID
 │           └── ranking/
 │               ├── skillMatcher.ts       # Jaccard + coverage skill scoring
 │               ├── experienceMatcher.ts  # Years-of-experience scoring
@@ -245,7 +226,6 @@ rag-system/
 │           └── compare/
 │               └── page.tsx          # Multi-candidate comparison
 │
-├── dataset/                           # (empty — dataset lives in backend/dataset/)
 └── docs/                              # (empty — for future docs)
 ```
 
@@ -345,13 +325,10 @@ cp .env.example .env
 #   QDRANT_URL=https://xxxx.aws.cloud.qdrant.io
 #   QDRANT_API_KEY=eyJhbGci...
 
-# 3. Seed Qdrant with sample data
-npx ts-node src/services/qdrant/seedFromCsv.ts ./dataset/candidates.csv
-
-# 4. Development mode (hot-reload)
+# 3. Development mode (hot-reload)
 npm run dev
 
-# 5. Production mode
+# 4. Production mode
 npm run build
 npm start
 ```
@@ -414,8 +391,6 @@ Both servers must run simultaneously. The frontend proxies `/api/*` requests to 
 | `npm run dev` | `tsnd --respawn src/server.ts` | Dev server with hot-reload |
 | `npm run build` | `tsc` | Compile TypeScript → JavaScript |
 | `npm start` | `node start.js` | Run compiled production server |
-| `npx ts-node src/services/qdrant/seedFromCsv.ts <path>` | — | Seed Qdrant from a CSV file |
-
 ### Frontend
 
 | Script | Command | Description |
@@ -426,26 +401,6 @@ Both servers must run simultaneously. The frontend proxies `/api/*` requests to 
 | `npm run lint` | `next lint` | ESLint check |
 
 ---
-
-## Data Seeding
-
-The CSV file (`backend/dataset/candidates.csv`) contains 20 sample candidate records. Each record includes:
-
-- `id`, `name`, `email`, `phone`
-- `skills` (pipe-delimited)
-- `experience` (years as integer)
-- `education_level`, `education_field`
-- `summary`
-
-### Seed command
-
-```bash
-npx ts-node src/services/qdrant/seedFromCsv.ts ./dataset/candidates.csv
-```
-
-The seeding process:
-1. Creates the Qdrant collection with vector config (1536-d, cosine) and payload indexes.
-2. For each candidate, builds a text representation → generates an embedding → upserts to Qdrant.
 
 ---
 
