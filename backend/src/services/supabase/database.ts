@@ -58,6 +58,35 @@ export async function getSession(sessionId: string): Promise<UploadSession | nul
   return data as UploadSession;
 }
 
+export async function createCandidate(candidate: Omit<CandidateRecord, 'id' | 'created_at'>): Promise<CandidateRecord> {
+  const supabase = getSupabaseClient();
+  const { data, error } = await supabase
+    .from('candidates')
+    .insert(candidate)
+    .select()
+    .single();
+
+  if (error) {
+    logger.error('Failed to create candidate', { error: error.message });
+    throw new AppError('Failed to create candidate', 500);
+  }
+
+  return data as CandidateRecord;
+}
+
+export async function updateCandidate(id: string, updates: Partial<CandidateRecord>): Promise<void> {
+  const supabase = getSupabaseClient();
+  const { error } = await supabase
+    .from('candidates')
+    .update(updates)
+    .eq('id', id);
+
+  if (error) {
+    logger.error('Failed to update candidate', { error: error.message });
+    throw new AppError('Failed to update candidate', 500);
+  }
+}
+
 export async function upsertCandidate(candidate: Omit<CandidateRecord, 'id' | 'created_at'>): Promise<CandidateRecord> {
   const supabase = getSupabaseClient();
   const { data, error } = await supabase

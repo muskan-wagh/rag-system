@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import { asyncHandler } from '@/utils/asyncHandler';
-import { getSession, upsertCandidate, insertSkills } from '@/services/supabase/database';
+import { getSession, createCandidate, updateCandidate, insertSkills } from '@/services/supabase/database';
 import { uploadResumeFile } from '@/services/supabase/storage';
 import { extractResumeText, sanitizeText } from '@/services/resume-parser';
 import { generateEmbedding } from '@/services/llm/client';
@@ -47,74 +47,82 @@ export const uploadResumeHandler = asyncHandler(async (req: Request, res: Respon
   });
 
   try {
-    const storagePath = await uploadResumeFile(uuid, file.originalname, file.buffer, file.mimetype);
+    await uploadResumeFile(uuid, file.originalname, file.buffer, file.mimetype);
 
     const rawText = await extractResumeText(file.buffer, file.mimetype);
     const cleanText = sanitizeText(rawText);
 
-    const parsed = await parseResume(cleanText);
-
-    const candidate = await upsertCandidate({
+    const candidate = await createCandidate({
       upload_session_id: uuid,
-      full_name: parsed.full_name || 'Unknown',
-      email: parsed.email || undefined,
-      phone: parsed.phone || undefined,
-      location: parsed.location || undefined,
-      current_company: parsed.current_company || undefined,
-      total_experience_years: parsed.total_experience_years || 0,
       raw_resume_text: cleanText,
-      parsed_json: parsed as unknown as Record<string, unknown>,
-      flight_risk: parsed.flight_risk,
-      growth_trajectory: parsed.growth_trajectory,
     });
 
-    if (parsed.skills.length > 0) {
-      await insertSkills(candidate.id, parsed.skills);
-    }
-
-    enqueue(`embed-${candidate.id}`, async () => {
+    enqueue(`process-${candidate.id}`, async () => {
       try {
-        const embeddingText = [
-          parsed.full_name,
-          `Skills: ${parsed.skills.join(', ')}`,
-          `Experience: ${parsed.total_experience_years} years`,
-          `Education: ${parsed.education}`,
-          cleanText.slice(0, 3000),
-        ]
-          .filter(Boolean)
-          .join('. ');
+        const parsed = await parseResume(cleanText);
 
-        const embedding = await generateEmbedding(embeddingText);
-        const qdrant = getQdrantClient();
-        await qdrant.upsert(config.qdrant.collectionName, {
-          points: [
-            {
-              id: candidate.id,
-              vector: embedding,
-              payload: {
-                id: candidate.id,
-                name: parsed.full_name,
-                email: parsed.email,
-                skills: parsed.skills,
-                experience: parsed.total_experience_years,
-                education: { level: '', field: '', details: parsed.education },
-                summary: cleanText.slice(0, 500),
-              },
-            },
-          ],
+        await updateCandidate(candidate.id, {
+          full_name: parsed.full_name || 'Unknown',
+          email: parsed.email || undefined,
+          phone: parsed.phone || undefined,
+          location: parsed.location || undefined,
+          current_company: parsed.current_company || undefined,
+          total_experience_years: parsed.total_experience_years || 0,
+          parsed_json: parsed as unknown as Record<string, unknown>,
+          flight_risk: parsed.flight_risk,
+          growth_trajectory: parsed.growth_trajectory,
         });
-        logger.info('Candidate embedded and stored in Qdrant', { candidateId: candidate.id });
+
+        if (parsed.skills.length > 0) {
+          await insertSkills(candidate.id, parsed.skills);
+        }
+
+        try {
+          const embeddingText = [
+            parsed.full_name,
+            `Skills: ${parsed.skills.join(', ')}`,
+            `Experience: ${parsed.total_experience_years} years`,
+            `Education: ${parsed.education}`,
+            cleanText.slice(0, 3000),
+          ]
+            .filter(Boolean)
+            .join('. ');
+
+          const embedding = await generateEmbedding(embeddingText);
+          const qdrant = getQdrantClient();
+          await qdrant.upsert(config.qdrant.collectionName, {
+            points: [
+              {
+                id: candidate.id,
+                vector: embedding,
+                payload: {
+                  id: candidate.id,
+                  name: parsed.full_name,
+                  email: parsed.email,
+                  skills: parsed.skills,
+                  experience: parsed.total_experience_years,
+                  education: { level: '', field: '', details: parsed.education },
+                  summary: cleanText.slice(0, 500),
+                },
+              },
+            ],
+          });
+          logger.info('Candidate embedded and stored in Qdrant', { candidateId: candidate.id });
+        } catch (error) {
+          logger.error('Failed to embed candidate', { candidateId: candidate.id, error });
+        }
+
+        logger.info('Candidate fully processed', { candidateId: candidate.id, name: parsed.full_name });
       } catch (error) {
-        logger.error('Failed to embed candidate', { candidateId: candidate.id, error });
+        logger.error('Failed to process candidate in background', { candidateId: candidate.id, error });
       }
     });
 
     res.status(200).json({
       success: true,
       data: {
-        message: 'Resume uploaded and processed successfully',
+        message: 'Resume uploaded and is being processed',
         candidateId: candidate.id,
-        name: parsed.full_name,
       },
     });
   } catch (error) {

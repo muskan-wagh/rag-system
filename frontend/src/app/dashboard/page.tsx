@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useCallback } from "react"
+import { useState, useCallback, useEffect } from "react"
 import { motion } from "framer-motion"
 import { Sparkles, Link2, RefreshCw, Loader2 } from "lucide-react"
 import { GenerateLinkModal } from "@/components/generate-link-modal"
@@ -28,6 +28,28 @@ interface CandidateRow {
   skills?: string[]
 }
 
+const SESSION_STORAGE_KEY = "rag_dashboard_session"
+
+function loadSavedSession(): { sessionId: string; jdText: string } | null {
+  try {
+    const raw = localStorage.getItem(SESSION_STORAGE_KEY)
+    if (raw) return JSON.parse(raw)
+  } catch {}
+  return null
+}
+
+function saveSession(sessionId: string, jdText: string) {
+  try {
+    localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify({ sessionId, jdText }))
+  } catch {}
+}
+
+function clearSavedSession() {
+  try {
+    localStorage.removeItem(SESSION_STORAGE_KEY)
+  } catch {}
+}
+
 export default function DashboardPage() {
   const [jdText, setJdText] = useState("")
   const [session, setSession] = useState<SessionData | null>(null)
@@ -38,6 +60,38 @@ export default function DashboardPage() {
   const [selectedCandidate, setSelectedCandidate] = useState<CandidateRow | null>(null)
   const [showDetailModal, setShowDetailModal] = useState(false)
   const [error, setError] = useState("")
+  const [initialLoading, setInitialLoading] = useState(true)
+
+  useEffect(() => {
+    const saved = loadSavedSession()
+    if (saved) {
+      setJdText(saved.jdText)
+      setSession({ sessionId: saved.sessionId, link: `/upload/${saved.sessionId}` })
+      fetchSessionData(saved.sessionId)
+    } else {
+      setInitialLoading(false)
+    }
+  }, [])
+
+  const fetchSessionData = useCallback(async (sessionId: string) => {
+    setLoadingCandidates(true)
+    try {
+      const res = await apiFetch(`/api/sessions/${sessionId}`)
+      const data = await res.json()
+      if (data.success) {
+        setCandidates(data.data?.candidates || [])
+        if (data.data?.session?.job_description_text) {
+          setJdText(data.data.session.job_description_text)
+        }
+      }
+    } catch {
+      clearSavedSession()
+      setSession(null)
+    } finally {
+      setLoadingCandidates(false)
+      setInitialLoading(false)
+    }
+  }, [])
 
   const fetchCandidates = useCallback(
     async (sessionId?: string) => {
@@ -47,7 +101,6 @@ export default function DashboardPage() {
       setLoadingCandidates(true)
       try {
         const res = await apiFetch(`/api/sessions/${id}`)
-
         const data = await res.json()
         if (data.success) {
           setCandidates(data.data?.candidates || [])
@@ -74,9 +127,11 @@ export default function DashboardPage() {
 
       const data = await res.json()
       if (data.success) {
-        setSession(data.data)
+        const sessionData = data.data
+        setSession(sessionData)
+        saveSession(sessionData.sessionId, jdText)
         setShowModal(true)
-        fetchCandidates(data.data.sessionId)
+        fetchCandidates(sessionData.sessionId)
       } else {
         setError(data.error || "Failed to generate link")
       }
@@ -87,9 +142,26 @@ export default function DashboardPage() {
     }
   }, [jdText, fetchCandidates])
 
+  const handleNewSession = () => {
+    clearSavedSession()
+    setSession(null)
+    setCandidates([])
+    setJdText("")
+  }
+
   const handleSelectCandidate = (candidate: CandidateRow) => {
     setSelectedCandidate(candidate)
     setShowDetailModal(true)
+  }
+
+  if (initialLoading) {
+    return (
+      <div className="mx-auto max-w-5xl px-4 md:px-6 py-6 md:py-8">
+        <div className="flex items-center justify-center h-64">
+          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -154,19 +226,27 @@ export default function DashboardPage() {
             </button>
 
             {session && (
-              <button
-                onClick={() => fetchCandidates()}
-                disabled={loadingCandidates}
-                className="flex items-center gap-1.5 rounded-xl border border-border px-4 py-2.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
-              >
-                <RefreshCw className={`h-3.5 w-3.5 ${loadingCandidates ? "animate-spin" : ""}`} />
-                Refresh
-                {candidates.length > 0 && (
-                  <span className="ml-1 rounded-full bg-primary/5 px-1.5 py-0.5 text-[10px] text-primary">
-                    {candidates.length}
-                  </span>
-                )}
-              </button>
+              <>
+                <button
+                  onClick={() => fetchCandidates()}
+                  disabled={loadingCandidates}
+                  className="flex items-center gap-1.5 rounded-xl border border-border px-4 py-2.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  <RefreshCw className={`h-3.5 w-3.5 ${loadingCandidates ? "animate-spin" : ""}`} />
+                  Refresh
+                  {candidates.length > 0 && (
+                    <span className="ml-1 rounded-full bg-primary/5 px-1.5 py-0.5 text-[10px] text-primary">
+                      {candidates.length}
+                    </span>
+                  )}
+                </button>
+                <button
+                  onClick={handleNewSession}
+                  className="flex items-center gap-1.5 rounded-xl border border-border px-4 py-2.5 text-xs text-muted-foreground hover:text-foreground transition-colors ml-auto"
+                >
+                  New Session
+                </button>
+              </>
             )}
           </div>
         </div>
