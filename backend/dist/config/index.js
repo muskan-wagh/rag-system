@@ -42,6 +42,7 @@ exports.config = Object.freeze({
         baseUrl: "https://openrouter.ai/api/v1",
         embeddingModel: "text-embedding-3-small",
     },
+    apiKey: optional("API_KEY", ""),
     qdrant: {
         url: required("QDRANT_URL"),
         apiKey: required("QDRANT_API_KEY"),

@@ -17,6 +17,7 @@ import {
   Sparkles,
 } from "lucide-react"
 import { FlightRiskBadge } from "./flight-risk-badge"
+import { apiFetch } from "@/lib/api-fetch"
 
 interface CandidateDetail {
   id: string
@@ -75,9 +76,8 @@ export function CandidateDetailModal({ open, onClose, candidate }: CandidateDeta
     setLoadingQuestions(true)
     setQuestionsError("")
     try {
-      const res = await fetch(`/api/candidates/${candidate.id}/screening-questions`, {
+      const res = await apiFetch(`/api/candidates/${candidate.id}/screening-questions`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
       })
       const data = await res.json()
       if (data.success && data.data?.questions) {
@@ -96,9 +96,8 @@ export function CandidateDetailModal({ open, onClose, candidate }: CandidateDeta
     setLoadingStrategy(true)
     setStrategyError("")
     try {
-      const res = await fetch(`/api/candidates/${candidate.id}/closing-strategy`, {
+      const res = await apiFetch(`/api/candidates/${candidate.id}/closing-strategy`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
       })
       const data = await res.json()
       if (data.success && data.data?.selling_points) {

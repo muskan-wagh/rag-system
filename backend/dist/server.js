@@ -12,6 +12,8 @@ const logger_2 = require("@/middleware/logger");
 const errorHandler_1 = require("@/middleware/errorHandler");
 const createCollection_1 = require("@/services/qdrant/createCollection");
 const storage_1 = require("@/services/supabase/storage");
+const auth_1 = require("@/middleware/auth");
+const rateLimit_1 = require("@/middleware/rateLimit");
 const routes_1 = __importDefault(require("@/routes"));
 process.on('unhandledRejection', (reason) => {
     logger_1.logger.error('Unhandled rejection', { reason: reason instanceof Error ? reason.message : reason });
@@ -34,6 +36,8 @@ app.use((0, cors_1.default)({
 }));
 app.use(express_1.default.json({ limit: '1mb' }));
 app.use(logger_2.requestLogger);
+app.use(rateLimit_1.rateLimiter);
+app.use(auth_1.authMiddleware);
 app.get('/', (_req, res) => {
     res.json({ service: 'RAG System API', status: 'running', endpoints: { health: '/health', api: '/api' } });
 });

@@ -6,7 +6,8 @@
     "build": "tsc",
     "start": "node start.js",
     "dev": "ts-node-dev --respawn --require tsconfig-paths/register src/server.ts",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "keywords": [],
   "author": "",
@@ -33,6 +34,7 @@
     "@types/node": "^25.9.3",
     "@types/ws": "^8.18.1",
     "ts-node-dev": "^2.0.0",
-    "typescript": "^6.0.3"
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.10"
   }
 }

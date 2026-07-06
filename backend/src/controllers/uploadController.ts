@@ -1,11 +1,10 @@
 import { Request, Response } from 'express';
 import { asyncHandler } from '@/utils/asyncHandler';
-import { getSession, insertCandidate, insertSkills } from '@/services/supabase/database';
+import { getSession, upsertCandidate, insertSkills } from '@/services/supabase/database';
 import { uploadResumeFile } from '@/services/supabase/storage';
 import { extractResumeText, sanitizeText } from '@/services/resume-parser';
 import { generateEmbedding } from '@/services/llm/client';
 import { parseResume } from '@/services/llm/parseResume';
-import { analyzeFlightRisk } from '@/services/llm/flightRisk';
 import { getQdrantClient } from '@/services/qdrant/client';
 import { config } from '@/config';
 import { enqueue } from '@/services/queue';
@@ -54,9 +53,8 @@ export const uploadResumeHandler = asyncHandler(async (req: Request, res: Respon
     const cleanText = sanitizeText(rawText);
 
     const parsed = await parseResume(cleanText);
-    const flightRisk = await analyzeFlightRisk(cleanText, parsed);
 
-    const candidate = await insertCandidate({
+    const candidate = await upsertCandidate({
       upload_session_id: uuid,
       full_name: parsed.full_name || 'Unknown',
       email: parsed.email || undefined,
@@ -66,8 +64,8 @@ export const uploadResumeHandler = asyncHandler(async (req: Request, res: Respon
       total_experience_years: parsed.total_experience_years || 0,
       raw_resume_text: cleanText,
       parsed_json: parsed as unknown as Record<string, unknown>,
-      flight_risk: flightRisk.flight_risk,
-      growth_trajectory: flightRisk.growth_trajectory,
+      flight_risk: parsed.flight_risk,
+      growth_trajectory: parsed.growth_trajectory,
     });
 
     if (parsed.skills.length > 0) {

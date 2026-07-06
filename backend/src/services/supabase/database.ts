@@ -58,17 +58,17 @@ export async function getSession(sessionId: string): Promise<UploadSession | nul
   return data as UploadSession;
 }
 
-export async function insertCandidate(candidate: Omit<CandidateRecord, 'id' | 'created_at'>): Promise<CandidateRecord> {
+export async function upsertCandidate(candidate: Omit<CandidateRecord, 'id' | 'created_at'>): Promise<CandidateRecord> {
   const supabase = getSupabaseClient();
   const { data, error } = await supabase
     .from('candidates')
-    .insert(candidate)
+    .upsert(candidate, { onConflict: 'email', ignoreDuplicates: false })
     .select()
     .single();
 
   if (error) {
-    logger.error('Failed to insert candidate', { error: error.message });
-    throw new AppError('Failed to insert candidate', 500);
+    logger.error('Failed to upsert candidate', { error: error.message });
+    throw new AppError('Failed to upsert candidate', 500);
   }
 
   return data as CandidateRecord;
@@ -93,10 +93,35 @@ export async function insertSkills(candidateId: string, skills: string[]): Promi
   if (skills.length === 0) return;
   const supabase = getSupabaseClient();
 
-  const rows = skills.map((skill) => ({
-    candidate_id: candidateId,
-    skill_name: skill.toLowerCase().trim(),
-  }));
+  const seen = new Set<string>();
+  const rows = skills
+    .map((skill) => skill.toLowerCase().trim())
+    .filter((skill) => {
+      if (seen.has(skill) || !skill) return false;
+      seen.add(skill);
+      return true;
+    })
+    .map((skill) => ({
+      candidate_id: candidateId,
+      skill_name: skill,
+    }));
+
+  if (rows.length === 0) return;
+
+  const { error: deleteError } = await supabase.from('candidate_skills').delete().eq('candidate_id', candidateId);
+
+  if (deleteError) {
+    logger.warn('Delete skills blocked by RLS, falling back to upsert', { error: deleteError.message });
+    const { error: upsertError } = await supabase
+      .from('candidate_skills')
+      .upsert(rows, { onConflict: 'candidate_id,skill_name', ignoreDuplicates: false });
+
+    if (upsertError) {
+      logger.error('Failed to upsert skills', { error: upsertError.message });
+      throw new AppError('Failed to insert skills', 500);
+    }
+    return;
+  }
 
   const { error } = await supabase.from('candidate_skills').insert(rows);
 

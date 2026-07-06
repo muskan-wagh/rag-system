@@ -98,7 +98,7 @@ export function SemanticVsKeyword() {
               <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary/10">
                 <Check className="h-3.5 w-3.5 text-primary" />
               </div>
-              <span className="text-sm font-semibold text-foreground">RecruitFlow</span>
+              <span className="text-sm font-semibold text-foreground">RecruitIQ</span>
             </div>
 
             <p className="text-xs text-muted-foreground mb-3">Finds</p>

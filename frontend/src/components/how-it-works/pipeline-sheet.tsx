@@ -46,7 +46,7 @@ const pipelineSteps: PipelineStep[] = [
     icon: Database,
     label: "Qdrant",
     purpose: "Stores vector embeddings and performs ultra-fast semantic similarity search.",
-    why: "Instead of searching words, it searches meaning. This is what makes RecruitFlow different from traditional ATS.",
+    why: "Instead of searching words, it searches meaning. This is what makes RecruitIQ different from traditional ATS.",
     details: [
       "Purpose-built vector database optimized for similarity search.",
       "Returns the most semantically relevant candidates in milliseconds.",
@@ -70,7 +70,7 @@ const pipelineSteps: PipelineStep[] = [
     icon: BarChart3,
     label: "AI Explanation Engine",
     purpose: "Uses Qwen3 Next 80B A3B to explain every recommendation in plain language.",
-    why: 'Instead of "Score = 92", RecruitFlow explains WHY.',
+    why: 'Instead of "Score = 92", RecruitIQ explains WHY.',
     example:
       'Candidate ranked #1 because: Excellent React experience, AWS expertise, Meets experience requirement, Strong education match, High semantic similarity',
     details: [

@@ -109,3 +109,10 @@ ON candidate_skills
 FOR SELECT
 TO anon
 USING (true);
+
+DROP POLICY IF EXISTS "anon_delete_candidate_skills" ON candidate_skills;
+CREATE POLICY "anon_delete_candidate_skills"
+ON candidate_skills
+FOR DELETE
+TO anon
+USING (true);

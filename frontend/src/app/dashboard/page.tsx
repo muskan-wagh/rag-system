@@ -6,6 +6,7 @@ import { Sparkles, Link2, RefreshCw, Loader2 } from "lucide-react"
 import { GenerateLinkModal } from "@/components/generate-link-modal"
 import { CandidateTable } from "@/components/candidate-table"
 import { CandidateDetailModal } from "@/components/candidate-detail-modal"
+import { apiFetch } from "@/lib/api-fetch"
 
 interface SessionData {
   sessionId: string
@@ -45,9 +46,7 @@ export default function DashboardPage() {
 
       setLoadingCandidates(true)
       try {
-        const res = await fetch(`/api/sessions/${id}`, {
-          headers: { "Content-Type": "application/json" },
-        })
+        const res = await apiFetch(`/api/sessions/${id}`)
 
         const data = await res.json()
         if (data.success) {
@@ -68,9 +67,8 @@ export default function DashboardPage() {
     setError("")
 
     try {
-      const res = await fetch(`/api/generate-link`, {
+      const res = await apiFetch(`/api/generate-link`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ jdText }),
       })
 

@@ -6,15 +6,17 @@ import { NavBar } from "@/components/nav-bar";
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],
+  preload: false,
 });
 
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
+  preload: false,
 });
 
 export const metadata: Metadata = {
-  title: "RecruitFlow — AI-Powered Candidate Discovery",
+  title: "RecruitIQ — AI-Powered Candidate Discovery",
   description:
     "AI-powered candidate discovery and ranking. Find the right candidate in seconds.",
 };

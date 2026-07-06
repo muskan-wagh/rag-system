@@ -112,7 +112,7 @@ export function ProblemSection() {
                 </svg>
               </div>
               <div>
-                <h3 className="text-base font-semibold text-foreground">RecruitFlow</h3>
+                <h3 className="text-base font-semibold text-foreground">RecruitIQ</h3>
                 <p className="text-xs text-muted-foreground">AI-powered semantic matching</p>
               </div>
             </div>

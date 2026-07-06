@@ -13,6 +13,7 @@ export declare const config: Readonly<{
         baseUrl: string;
         embeddingModel: string;
     };
+    apiKey: string;
     qdrant: {
         url: string;
         apiKey: string;

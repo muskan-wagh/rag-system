@@ -21,12 +21,12 @@ export function HeroSection() {
           </div>
 
           <h1 className="text-4xl sm:text-5xl md:text-6xl font-semibold tracking-tight leading-[1.08] mb-5">
-            How RecruitFlow{" "}
+            How RecruitIQ{" "}
             <span className="text-primary">Works</span>
           </h1>
 
           <p className="text-sm md:text-base text-muted-foreground max-w-2xl mx-auto leading-relaxed">
-            Discover how RecruitFlow combines semantic search, AI reasoning, vector databases and hybrid ranking
+            Discover how RecruitIQ combines semantic search, AI reasoning, vector databases and hybrid ranking
             to identify the best candidates—not just the best keyword matches.
           </p>
         </motion.div>

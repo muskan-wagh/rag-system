@@ -7,6 +7,8 @@ import { requestLogger } from '@/middleware/logger';
 import { errorHandler } from '@/middleware/errorHandler';
 import { createCollection } from '@/services/qdrant/createCollection';
 import { ensureResumeBucket } from '@/services/supabase/storage';
+import { authMiddleware } from '@/middleware/auth';
+import { rateLimiter } from '@/middleware/rateLimit';
 import routes from '@/routes';
 
 process.on('unhandledRejection', (reason) => {
@@ -33,6 +35,8 @@ app.use(cors({
 
 app.use(express.json({ limit: '1mb' }));
 app.use(requestLogger);
+app.use(rateLimiter);
+app.use(authMiddleware);
 
 app.get('/', (_req, res) => {
   res.json({ service: 'RAG System API', status: 'running', endpoints: { health: '/health', api: '/api' } });

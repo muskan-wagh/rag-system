@@ -43,6 +43,8 @@ export const config = Object.freeze({
     embeddingModel: "text-embedding-3-small",
   },
 
+  apiKey: optional("API_KEY", ""),
+
   qdrant: {
     url: required("QDRANT_URL"),
     apiKey: required("QDRANT_API_KEY"),

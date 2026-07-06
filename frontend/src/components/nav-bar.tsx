@@ -38,7 +38,7 @@ export function NavBar() {
             </svg>
           </div>
           <span className="text-base font-semibold text-foreground tracking-tight">
-            Recruit<span className="text-primary">Flow</span>
+            Recruit<span className="text-primary">IQ</span>
           </span>
         </Link>
 

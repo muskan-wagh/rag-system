@@ -25,7 +25,7 @@ export function ArchitectureSection() {
           className="text-center mb-14"
         >
           <h2 className="text-2xl md:text-3xl font-semibold text-foreground">
-            RecruitFlow <span className="text-primary">Architecture</span>
+            RecruitIQ <span className="text-primary">Architecture</span>
           </h2>
           <p className="mt-3 text-sm text-muted-foreground max-w-lg mx-auto">
             Enterprise-grade system design for intelligent candidate matching

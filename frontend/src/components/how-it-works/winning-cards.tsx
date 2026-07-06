@@ -53,10 +53,10 @@ export function WinningCards() {
           className="text-center mb-12"
         >
           <h2 className="text-2xl md:text-3xl font-semibold text-foreground">
-            Why RecruitFlow <span className="text-primary">Wins</span>
+            Why RecruitIQ <span className="text-primary">Wins</span>
           </h2>
           <p className="mt-3 text-sm text-muted-foreground max-w-lg mx-auto">
-            Six capabilities that set RecruitFlow apart from traditional ATS systems
+            Six capabilities that set RecruitIQ apart from traditional ATS systems
           </p>
         </motion.div>
 

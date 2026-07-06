@@ -1,4 +1,5 @@
 import { API_BASE } from "./constants"
+import { apiFetch } from "./api-fetch"
 
 interface ApiResponse<T> {
   success: boolean
@@ -74,7 +75,7 @@ async function request<T>(
   options?: RequestInit,
 ): Promise<ApiResponse<T>> {
   const url = `${API_BASE}${endpoint}`
-  const res = await fetch(url, {
+  const res = await apiFetch(url, {
     headers: { "Content-Type": "application/json" },
     ...options,
   })

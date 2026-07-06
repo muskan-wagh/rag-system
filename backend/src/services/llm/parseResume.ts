@@ -15,9 +15,12 @@ export interface ParsedResume {
     title: string;
     duration_years: number;
   }>;
+  flight_risk: 'Low' | 'Medium' | 'High';
+  growth_trajectory: 'Fast-track' | 'Steady' | 'Stagnant';
 }
 
-const SYSTEM_PROMPT = `You are a resume parser. Extract structured information from resume text.
+const SYSTEM_PROMPT = `You are a resume parser and retention analyst. Extract structured information from resume text and analyze flight risk.
+
 Return ONLY valid JSON with this exact shape:
 {
   "full_name": "string",
@@ -30,16 +33,28 @@ Return ONLY valid JSON with this exact shape:
   "education": "string",
   "work_history": [
     { "company": "string", "title": "string", "duration_years": number }
-  ]
+  ],
+  "flight_risk": "Low" | "Medium" | "High",
+  "growth_trajectory": "Fast-track" | "Steady" | "Stagnant"
 }
 
 Rules:
 - Extract email and phone precisely
-- Normalize skill names to lowercase
+- Normalize skill names to lowercase (deduplicate identical skills)
 - Calculate total_experience_years from work history or explicit mention
 - If a field is not found, use empty string or 0
 - work_history: list all jobs with company name, title, and duration in years
-- For current_company, use the most recent employer`;
+- For current_company, use the most recent employer
+
+flight_risk rules (based on average tenure per job):
+- If average tenure < 1.5 years -> "High"
+- If average tenure 1.5-3 years -> "Medium"
+- If average tenure > 3 years -> "Low"
+
+growth_trajectory rules:
+- If clear promotions or role progression visible -> "Fast-track"
+- If stable career with no major jumps -> "Steady"
+- If same-level roles for extended time -> "Stagnant"`;
 
 function tryParseJSON(raw: string): ParsedResume | null {
   try {
@@ -88,5 +103,7 @@ export async function parseResume(rawText: string): Promise<ParsedResume> {
     skills: [],
     education: '',
     work_history: [],
+    flight_risk: 'Medium' as const,
+    growth_trajectory: 'Steady' as const,
   };
 }
