@@ -4,7 +4,7 @@ import { config } from '@/config';
 const PUBLIC_PATHS = ['/api/upload'];
 
 export function authMiddleware(req: Request, res: Response, next: NextFunction): void {
-  if (config.nodeEnv === 'development' && !config.apiKey) {
+  if (!config.apiKey) {
     return next();
   }
 
