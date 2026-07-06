@@ -20,23 +20,7 @@ export async function ensureResumeBucket(): Promise<void> {
       return;
     }
 
-    const { error: createError } = await supabase.storage.createBucket(BUCKET_NAME, {
-      public: true,
-      fileSizeLimit: 5 * 1024 * 1024,
-      allowedMimeTypes: [
-        'application/pdf',
-        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-      ],
-    });
-
-    if (createError) {
-      logger.warn('Could not create bucket via API, may need SQL setup', {
-        error: createError.message,
-      });
-      return;
-    }
-
-    logger.info(`Storage bucket "${BUCKET_NAME}" created successfully`);
+    logger.warn(`Storage bucket "${BUCKET_NAME}" not found via API — ensure it is created via SQL (see supabase_setup.sql)`);
   } catch (error) {
     logger.warn('Failed to ensure storage bucket', { error });
   }
