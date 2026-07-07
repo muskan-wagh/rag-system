@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useCallback, useEffect } from "react"
+import { useState, useCallback, useEffect, startTransition } from "react"
 import { motion } from "framer-motion"
 import {
   Sparkles, Link2, RefreshCw, Loader2, ShieldAlert, Plus,
@@ -110,17 +110,6 @@ export default function DashboardPage() {
   const [biasResult, setBiasResult] = useState<{ has_bias: boolean; issues: BiasIssue[]; suggestions: string[] } | null>(null)
   const [biasError, setBiasError] = useState("")
 
-  useEffect(() => {
-    const saved = loadSavedSession()
-    if (saved) {
-      setJdText(saved.jdText)
-      setSession({ sessionId: saved.sessionId, link: `/upload/${saved.sessionId}` })
-      fetchSessionData(saved.sessionId)
-    } else {
-      setInitialLoading(false)
-    }
-  }, [])
-
   const fetchSessionData = useCallback(async (sessionId: string) => {
     setLoadingCandidates(true)
     try {
@@ -148,6 +137,20 @@ export default function DashboardPage() {
       setInitialLoading(false)
     }
   }, [])
+
+  useEffect(() => {
+    const saved = loadSavedSession()
+    if (saved) {
+      startTransition(() => {
+        setJdText(saved.jdText)
+        setSession({ sessionId: saved.sessionId, link: `/upload/${saved.sessionId}` })
+      })
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      fetchSessionData(saved.sessionId)
+    } else {
+      setInitialLoading(false)
+    }
+  }, [fetchSessionData])
 
   const fetchCandidates = useCallback(
     async (sessionId?: string) => {

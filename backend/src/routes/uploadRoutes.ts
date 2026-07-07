@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import multer from 'multer';
 import { uploadResumeHandler } from '@/controllers/uploadController';
+import { validate, idParamSchema } from '@/middleware/validate';
 
 const upload = multer({
   limits: { fileSize: 5 * 1024 * 1024 },
@@ -19,6 +20,6 @@ const upload = multer({
 
 const router = Router();
 
-router.post('/upload/:uuid', upload.single('resume'), uploadResumeHandler);
+router.post('/upload/:uuid', validate(idParamSchema, 'params'), upload.single('resume'), uploadResumeHandler);
 
 export default router;

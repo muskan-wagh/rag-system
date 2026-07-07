@@ -53,23 +53,6 @@ export interface SearchFilters {
   educationLevel?: string
 }
 
-export interface UploadSession {
-  sessionId: string
-  link: string
-  createdAt: string
-}
-
-export interface ScreeningQuestion {
-  question: string
-  focus_area: string
-  why_this_matters: string
-}
-
-export interface ClosingStrategy {
-  selling_points: Array<{ point: string; detail: string }>
-  major_objection: { objection: string; overcome_strategy: string }
-}
-
 export interface BiasResult {
   has_bias: boolean
   issues: Array<{ category: string; text: string; suggestion: string }>
@@ -90,7 +73,7 @@ async function request<T>(
 
 export async function searchCandidates(
   jdText: string,
-  limit = 10,
+  limit = 20,
   filters?: SearchFilters,
 ) {
   return request<{ results: RankingResult[]; query: ParsedJD }>(
@@ -126,35 +109,6 @@ export async function batchCandidates(ids: string[]) {
   })
 }
 
-export async function generateLink(jdText: string) {
-  return request<UploadSession>("/generate-link", {
-    method: "POST",
-    body: JSON.stringify({ jdText }),
-  })
-}
-
-export async function getSession(sessionId: string) {
-  return request<{
-    session: UploadSession
-    candidates: Candidate[]
-    candidateCount: number
-  }>(`/sessions/${sessionId}`, { method: "GET" })
-}
-
-export async function getScreeningQuestions(candidateId: string) {
-  return request<{ questions: ScreeningQuestion[] }>(
-    `/candidates/${candidateId}/screening-questions`,
-    { method: "POST" },
-  )
-}
-
-export async function getClosingStrategy(candidateId: string) {
-  return request<ClosingStrategy>(
-    `/candidates/${candidateId}/closing-strategy`,
-    { method: "POST" },
-  )
-}
-
 export async function updateCandidateStatus(candidateId: string, status: string) {
   return request<{ message: string }>(
     `/candidates/${candidateId}/status`,
@@ -182,13 +136,23 @@ export async function getCandidateNotes(candidateId: string) {
   )
 }
 
+export async function getScreeningQuestions(candidateId: string) {
+  return request<{ questions: Array<{ question: string; focus_area: string; why_this_matters: string }> }>(
+    `/candidates/${candidateId}/screening-questions`,
+    { method: "POST" },
+  )
+}
+
+export async function getClosingStrategy(candidateId: string) {
+  return request<{ selling_points: Array<{ point: string; detail: string }>; major_objection: { objection: string; overcome_strategy: string } }>(
+    `/candidates/${candidateId}/closing-strategy`,
+    { method: "POST" },
+  )
+}
+
 export async function scanBias(jdText: string) {
   return request<BiasResult>("/scan-bias", {
     method: "POST",
     body: JSON.stringify({ jdText }),
   })
-}
-
-export async function getSimilarCandidates(candidateId: string) {
-  return request<Candidate[]>(`/candidates/${candidateId}/similar`, { method: "GET" })
 }

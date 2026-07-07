@@ -4,6 +4,7 @@ exports.chatCompletion = chatCompletion;
 const config_1 = require("@/config");
 const logger_1 = require("@/utils/logger");
 const errorHandler_1 = require("@/middleware/errorHandler");
+const errorCodes_1 = require("@/middleware/errorCodes");
 const BASE_URL = config_1.config.openai.baseUrl;
 async function fetchWithRetry(url, options, retries = 3) {
     for (let attempt = 0; attempt < retries; attempt++) {
@@ -25,7 +26,7 @@ async function fetchWithRetry(url, options, retries = 3) {
             await new Promise((resolve) => setTimeout(resolve, delay));
         }
     }
-    throw new errorHandler_1.AppError('Max retries exceeded', 503);
+    throw new errorHandler_1.AppError('Max retries exceeded', 503, errorCodes_1.ErrorCodes.AI_ERROR);
 }
 async function chatCompletion(messages, options = {}) {
     const { temperature = 0.1, maxTokens = 4096, stream = false } = options;
@@ -48,7 +49,7 @@ async function chatCompletion(messages, options = {}) {
     });
     if (!response.ok) {
         const errorBody = await response.text().catch(() => '');
-        throw new errorHandler_1.AppError(`LLM request failed: ${response.status} ${response.statusText}`, response.status, errorBody);
+        throw new errorHandler_1.AppError(`LLM request failed: ${response.status} ${response.statusText}`, response.status, errorCodes_1.ErrorCodes.AI_ERROR, errorBody);
     }
     const data = (await response.json());
     const duration = Date.now() - startTime;

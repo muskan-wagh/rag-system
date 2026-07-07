@@ -95,11 +95,7 @@ export const useSearchStore = create<SearchState>()(
       partialize: (state) => ({
         jdText: state.jdText,
         parsedJD: state.parsedJD,
-        results: state.results,
-        filters: state.filters,
-        filterFormValues: state.filterFormValues,
-        activeTab: state.activeTab,
-        viewMode: state.viewMode,
+        filters: state.filterFormValues,
         lastSearchTimestamp: state.lastSearchTimestamp,
       }),
     },

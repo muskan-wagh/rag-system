@@ -1,5 +1,6 @@
 import { logger } from '@/utils/logger';
 import { AppError } from '@/middleware/errorHandler';
+import { ErrorCodes } from '@/middleware/errorCodes';
 
 export async function extractTextFromPdf(buffer: Buffer): Promise<string> {
   try {
@@ -12,7 +13,7 @@ export async function extractTextFromPdf(buffer: Buffer): Promise<string> {
     return text;
   } catch (error: any) {
     logger.error('Failed to parse PDF', { error: error.message });
-    throw new AppError(`Failed to extract text from PDF: ${error.message}`, 400);
+    throw new AppError(`Failed to extract text from PDF: ${error.message}`, 400, ErrorCodes.VALIDATION_ERROR);
   }
 }
 
@@ -26,7 +27,7 @@ export async function extractTextFromDocx(buffer: Buffer): Promise<string> {
     return text;
   } catch (error: any) {
     logger.error('Failed to parse DOCX', { error: error.message });
-    throw new AppError(`Failed to extract text from DOCX: ${error.message}`, 400);
+    throw new AppError(`Failed to extract text from DOCX: ${error.message}`, 400, ErrorCodes.VALIDATION_ERROR);
   }
 }
 
@@ -60,5 +61,6 @@ export async function extractResumeText(
   throw new AppError(
     `Unsupported file format: ${mimeType}. Please upload a PDF or DOCX file.`,
     400,
+    ErrorCodes.VALIDATION_ERROR,
   );
 }

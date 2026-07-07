@@ -1,6 +1,7 @@
 import { getSupabaseClient } from './client';
 import { logger } from '@/utils/logger';
 import { AppError } from '@/middleware/errorHandler';
+import { ErrorCodes } from '@/middleware/errorCodes';
 
 const BUCKET_NAME = 'resumes';
 
@@ -45,7 +46,7 @@ export async function uploadResumeFile(
 
   if (error) {
     logger.error('Failed to upload resume file to storage', { error: error.message });
-    throw new AppError(`Failed to upload resume file: ${error.message}`, 500);
+    throw new AppError(`Failed to upload resume file: ${error.message}`, 500, ErrorCodes.STORAGE_ERROR);
   }
 
   logger.info('Resume file uploaded to storage', { path: storagePath });
@@ -56,4 +57,17 @@ export async function getResumeFileUrl(storagePath: string): Promise<string> {
   const supabase = getSupabaseClient();
   const { data } = supabase.storage.from(BUCKET_NAME).getPublicUrl(storagePath);
   return data.publicUrl;
+}
+
+export async function downloadResumeFile(storagePath: string): Promise<Buffer> {
+  const supabase = getSupabaseClient();
+  const { data, error } = await supabase.storage
+    .from(BUCKET_NAME)
+    .download(storagePath);
+
+  if (error || !data) {
+    throw new AppError(`Failed to download resume file: ${error?.message || 'unknown error'}`, 500, ErrorCodes.STORAGE_ERROR);
+  }
+
+  return Buffer.from(await data.arrayBuffer());
 }

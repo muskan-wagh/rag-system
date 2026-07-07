@@ -2,8 +2,9 @@
 
 import { motion } from "framer-motion"
 import { Button } from "@/components/ui/button"
-import { SlidersHorizontal, X } from "lucide-react"
+import { SlidersHorizontal, X, Search } from "lucide-react"
 import { useSearchStore } from "@/lib/search-store"
+import { searchCandidates } from "@/lib/api"
 import type { SearchFilters } from "@/lib/api"
 
 interface SearchSidebarProps {
@@ -11,17 +12,37 @@ interface SearchSidebarProps {
 }
 
 export function SearchSidebar({ className }: SearchSidebarProps) {
+  const jdText = useSearchStore((s) => s.jdText)
   const filterFormValues = useSearchStore((s) => s.filterFormValues)
   const setFilterFormValues = useSearchStore((s) => s.setFilterFormValues)
   const setFilters = useSearchStore((s) => s.setFilters)
 
-  function applyFilters() {
+  async function applyFilters() {
     const filters: SearchFilters = {}
     if (filterFormValues.minExp) filters.minExperience = parseInt(filterFormValues.minExp)
     if (filterFormValues.maxExp) filters.maxExperience = parseInt(filterFormValues.maxExp)
     if (filterFormValues.education) filters.educationLevel = filterFormValues.education
     if (filterFormValues.skills.trim()) filters.skills = filterFormValues.skills.split(",").map(s => s.trim()).filter(Boolean)
     setFilters(filters)
+
+    if (jdText.trim()) {
+      const { setLoading, setError, setResults, setActiveTab } = useSearchStore.getState()
+      setLoading(true)
+      setError("")
+      try {
+        const res = await searchCandidates(jdText, 20, filters)
+        if (res.success && res.data) {
+          setResults(res.data.results, res.data.query)
+          setActiveTab("results")
+        } else {
+          setError(res.error || "Search failed")
+        }
+      } catch {
+        setError("Failed to connect to server")
+      } finally {
+        setLoading(false)
+      }
+    }
   }
 
   function clearFilters() {
@@ -80,8 +101,6 @@ export function SearchSidebar({ className }: SearchSidebarProps) {
               className="w-full bg-white rounded-lg border border-border px-3 py-1.5 text-xs text-foreground outline-none focus:border-primary/30 transition-colors"
             >
               <option value="">Any</option>
-              <option value="high_school">High School</option>
-              <option value="associate">Associate</option>
               <option value="bachelor">Bachelor</option>
               <option value="master">Master</option>
               <option value="phd">PhD</option>
@@ -99,13 +118,16 @@ export function SearchSidebar({ className }: SearchSidebarProps) {
             <p className="text-[10px] text-muted-foreground mt-1">Comma-separated list</p>
           </div>
 
-          <Button
-            onClick={applyFilters}
-            size="sm"
-            className="w-full bg-primary text-primary-foreground hover:bg-primary/90 text-xs"
-          >
-            Apply Filters
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              onClick={applyFilters}
+              size="sm"
+              className="flex-1 bg-primary text-primary-foreground hover:bg-primary/90 text-xs"
+            >
+              <Search className="h-3 w-3 mr-1" />
+              Search
+            </Button>
+          </div>
         </div>
       </div>
     </motion.aside>

@@ -2,14 +2,11 @@ import { Request, Response } from 'express';
 import { asyncHandler } from '@/utils/asyncHandler';
 import { createUploadSession, getSession, getCandidatesBySession } from '@/services/supabase/database';
 import { logger } from '@/utils/logger';
+import { AppError } from '@/middleware/errorHandler';
+import { ErrorCodes } from '@/middleware/errorCodes';
 
 export const generateLinkHandler = asyncHandler(async (req: Request, res: Response) => {
   const { jdText } = req.body;
-
-  if (!jdText || typeof jdText !== 'string' || jdText.trim().length === 0) {
-    res.status(400).json({ success: false, error: 'jdText is required and must be a non-empty string' });
-    return;
-  }
 
   logger.info('Generate link request', { textLength: jdText.length });
 
@@ -28,15 +25,9 @@ export const generateLinkHandler = asyncHandler(async (req: Request, res: Respon
 export const getSessionHandler = asyncHandler(async (req: Request, res: Response) => {
   const id = req.params.id as string;
 
-  if (!id) {
-    res.status(400).json({ success: false, error: 'Session ID is required' });
-    return;
-  }
-
   const session = await getSession(id);
   if (!session) {
-    res.status(404).json({ success: false, error: 'Session not found' });
-    return;
+    throw new AppError('Session not found', 404, ErrorCodes.NOT_FOUND);
   }
 
   const candidates = await getCandidatesBySession(id);

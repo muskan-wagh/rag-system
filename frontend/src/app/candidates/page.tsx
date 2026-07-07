@@ -50,7 +50,7 @@ function CandidatesContent() {
     setLoading(true)
     setError("")
     try {
-      const res = await searchCandidates(text, 10, filters)
+      const res = await searchCandidates(text, 20, filters)
       if (res.success && res.data) {
         setResults(res.data.results, res.data.query)
         setActiveTab("results")

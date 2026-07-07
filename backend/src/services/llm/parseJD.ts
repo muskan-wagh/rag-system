@@ -2,8 +2,11 @@ import crypto from 'crypto';
 import { chatCompletion } from './client';
 import { ParsedJD } from '@/types';
 import { logger } from '@/utils/logger';
-import { getCached, setCache } from '@/utils/cache';
 import { AppError } from '@/middleware/errorHandler';
+import { ErrorCodes } from '@/middleware/errorCodes';
+
+const jdCache = new Map<string, { value: ParsedJD; expiry: number }>();
+const CACHE_TTL = 300_000;
 
 const SYSTEM_PROMPT = `You are a job description parser. Extract structured information from job descriptions.
 Return ONLY valid JSON with this exact shape:
@@ -34,13 +37,10 @@ function tryParseJSON(raw: string): ParsedJD | null {
 
 export async function parseJD(jdText: string): Promise<ParsedJD> {
   const cacheKey = `jd:${crypto.createHash('md5').update(jdText).digest('hex')}`;
-  const cached = getCached<ParsedJD>(cacheKey);
-  if (cached) {
-    logger.info('Returning cached JD parse result', { title: cached.title });
-    return cached;
+  const cached = jdCache.get(cacheKey);
+  if (cached && Date.now() < cached.expiry) {
+    return cached.value;
   }
-
-  logger.info('Parsing job description', { textLength: jdText.length });
 
   for (let attempt = 0; attempt < 3; attempt++) {
     const response = await chatCompletion([
@@ -50,19 +50,12 @@ export async function parseJD(jdText: string): Promise<ParsedJD> {
 
     const parsed = tryParseJSON(response.content);
     if (parsed) {
-      setCache(cacheKey, parsed, 300000);
-
-      logger.info('JD parsed successfully', {
-        title: parsed.title,
-        skillCount: parsed.skills.length,
-        experienceRange: `${parsed.experience.min}-${parsed.experience.max}`,
-      });
-
+      jdCache.set(cacheKey, { value: parsed, expiry: Date.now() + CACHE_TTL });
       return parsed;
     }
 
     logger.warn(`JD parse attempt ${attempt + 1} returned invalid JSON, retrying`);
   }
 
-  throw new AppError('Failed to parse JD: LLM returned invalid JSON after 3 attempts', 502);
+  throw new AppError('Failed to parse JD: LLM returned invalid JSON after 3 attempts', 502, ErrorCodes.AI_ERROR);
 }

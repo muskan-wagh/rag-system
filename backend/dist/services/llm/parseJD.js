@@ -7,8 +7,10 @@ exports.parseJD = parseJD;
 const crypto_1 = __importDefault(require("crypto"));
 const client_1 = require("./client");
 const logger_1 = require("@/utils/logger");
-const cache_1 = require("@/utils/cache");
 const errorHandler_1 = require("@/middleware/errorHandler");
+const errorCodes_1 = require("@/middleware/errorCodes");
+const jdCache = new Map();
+const CACHE_TTL = 300_000;
 const SYSTEM_PROMPT = `You are a job description parser. Extract structured information from job descriptions.
 Return ONLY valid JSON with this exact shape:
 {
@@ -37,12 +39,10 @@ function tryParseJSON(raw) {
 }
 async function parseJD(jdText) {
     const cacheKey = `jd:${crypto_1.default.createHash('md5').update(jdText).digest('hex')}`;
-    const cached = (0, cache_1.getCached)(cacheKey);
-    if (cached) {
-        logger_1.logger.info('Returning cached JD parse result', { title: cached.title });
-        return cached;
+    const cached = jdCache.get(cacheKey);
+    if (cached && Date.now() < cached.expiry) {
+        return cached.value;
     }
-    logger_1.logger.info('Parsing job description', { textLength: jdText.length });
     for (let attempt = 0; attempt < 3; attempt++) {
         const response = await (0, client_1.chatCompletion)([
             { role: 'system', content: SYSTEM_PROMPT },
@@ -50,16 +50,11 @@ async function parseJD(jdText) {
         ], { temperature: 0.1 });
         const parsed = tryParseJSON(response.content);
         if (parsed) {
-            (0, cache_1.setCache)(cacheKey, parsed, 300000);
-            logger_1.logger.info('JD parsed successfully', {
-                title: parsed.title,
-                skillCount: parsed.skills.length,
-                experienceRange: `${parsed.experience.min}-${parsed.experience.max}`,
-            });
+            jdCache.set(cacheKey, { value: parsed, expiry: Date.now() + CACHE_TTL });
             return parsed;
         }
         logger_1.logger.warn(`JD parse attempt ${attempt + 1} returned invalid JSON, retrying`);
     }
-    throw new errorHandler_1.AppError('Failed to parse JD: LLM returned invalid JSON after 3 attempts', 502);
+    throw new errorHandler_1.AppError('Failed to parse JD: LLM returned invalid JSON after 3 attempts', 502, errorCodes_1.ErrorCodes.AI_ERROR);
 }
 //# sourceMappingURL=parseJD.js.map

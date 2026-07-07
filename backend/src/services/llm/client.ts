@@ -1,6 +1,7 @@
 import { config } from '@/config';
 import { logger } from '@/utils/logger';
 import { AppError } from '@/middleware/errorHandler';
+import { ErrorCodes } from '@/middleware/errorCodes';
 
 interface LLMMessage {
   role: 'system' | 'user' | 'assistant';
@@ -62,7 +63,7 @@ async function fetchWithRetry(
       await new Promise((resolve) => setTimeout(resolve, delay));
     }
   }
-  throw new AppError('Max retries exceeded', 503);
+  throw new AppError('Max retries exceeded', 503, ErrorCodes.AI_ERROR);
 }
 
 export async function chatCompletion(
@@ -95,6 +96,7 @@ export async function chatCompletion(
     throw new AppError(
       `LLM request failed: ${response.status} ${response.statusText}`,
       response.status,
+      ErrorCodes.AI_ERROR,
       errorBody,
     );
   }

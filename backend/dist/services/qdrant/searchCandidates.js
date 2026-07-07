@@ -1,17 +1,10 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.searchCandidates = searchCandidates;
 exports.searchByEmbedding = searchByEmbedding;
 const client_1 = require("./client");
-const embedding_1 = require("@/services/embedding");
 const config_1 = require("@/config");
 const logger_1 = require("@/utils/logger");
 const normalizePayload_1 = require("./normalizePayload");
-async function searchCandidates(queryText, limit = 10, filters) {
-    logger_1.logger.info('Searching candidates', { queryLength: queryText.length, limit });
-    const embedding = await (0, embedding_1.generateEmbedding)(queryText);
-    return searchByEmbedding(embedding, limit, filters);
-}
 async function searchByEmbedding(embedding, limit = 10, filters) {
     logger_1.logger.info('Searching candidates by embedding', { limit });
     const client = (0, client_1.getQdrantClient)();
@@ -36,7 +29,7 @@ async function searchByEmbedding(embedding, limit = 10, filters) {
     }
     if (filters?.educationLevel) {
         filterConditions.push({
-            key: 'education.level',
+            key: 'education_level',
             match: { value: filters.educationLevel },
         });
     }

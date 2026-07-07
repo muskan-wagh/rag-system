@@ -1,5 +1,4 @@
 import { getQdrantClient } from './client';
-import { generateEmbedding } from '@/services/embedding';
 import { Candidate, SearchFilters } from '@/types';
 import { config } from '@/config';
 import { logger } from '@/utils/logger';
@@ -8,18 +7,6 @@ import { normalizeCandidatePayload } from './normalizePayload';
 export interface SearchResult {
   candidate: Candidate;
   score: number;
-}
-
-export async function searchCandidates(
-  queryText: string,
-  limit: number = 10,
-  filters?: SearchFilters,
-): Promise<SearchResult[]> {
-  logger.info('Searching candidates', { queryLength: queryText.length, limit });
-
-  const embedding = await generateEmbedding(queryText);
-
-  return searchByEmbedding(embedding, limit, filters);
 }
 
 export async function searchByEmbedding(
@@ -56,7 +43,7 @@ export async function searchByEmbedding(
 
   if (filters?.educationLevel) {
     filterConditions.push({
-      key: 'education.level',
+      key: 'education_level',
       match: { value: filters.educationLevel },
     });
   }
@@ -74,6 +61,5 @@ export async function searchByEmbedding(
   }));
 
   logger.info(`Found ${results.length} candidate matches`);
-
   return results;
 }

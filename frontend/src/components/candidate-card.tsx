@@ -1,10 +1,11 @@
 "use client"
 
+import { memo } from "react"
 import { motion } from "framer-motion"
 import { Badge } from "@/components/ui/badge"
 import { ProgressBar } from "@/components/ui/progress-bar"
 import { ScoreRing } from "@/components/ui/score-ring"
-import { Bookmark, GitCompare, Eye, CheckCircle2, XCircle } from "lucide-react"
+import { Bookmark, GitCompare, Eye, CheckCircle2 } from "lucide-react"
 import Link from "next/link"
 import { ROUTES } from "@/lib/constants"
 import type { RankingResult } from "@/lib/api"
@@ -31,9 +32,7 @@ function scoreColor(score: number) {
   return "bg-cyan-500"
 }
 
-const sampleMissingSkills = ["GraphQL", "Docker", "Kubernetes"]
-
-export function CandidateCard({ result, index }: { result: RankingResult; index: number }) {
+export const CandidateCard = memo(function CandidateCard({ result, index }: { result: RankingResult; index: number }) {
   const { candidate, scores } = result
 
   return (
@@ -74,7 +73,7 @@ export function CandidateCard({ result, index }: { result: RankingResult; index:
             <div className="flex items-center gap-3 text-[11px] text-muted-foreground mb-3">
               <span>{candidate.experience} yrs exp</span>
               <span className="text-border">|</span>
-              <span className="capitalize">{candidate.education?.level ?? "N/A"} in {candidate.education?.field ?? "N/A"}</span>
+              <span className="capitalize">{candidate.education?.level ?? "N/A"}{candidate.education?.field ? ` in ${candidate.education.field}` : ""}</span>
               <span className="text-border">|</span>
               <span className="flex items-center gap-1">
                 <Eye className="h-3 w-3" />
@@ -82,23 +81,17 @@ export function CandidateCard({ result, index }: { result: RankingResult; index:
               </span>
             </div>
             <div className="flex flex-wrap gap-1.5">
-              {candidate.skills.slice(0, 4).map((skill) => (
+              {candidate.skills.slice(0, 5).map((skill) => (
                 <Badge key={skill} variant="secondary" className="text-[10px] bg-primary/5 text-primary">
                   <CheckCircle2 className="h-2.5 w-2.5 mr-0.5" />
                   {skill}
                 </Badge>
               ))}
-              {candidate.skills.length > 4 && (
+              {candidate.skills.length > 5 && (
                 <Badge variant="outline" className="text-[10px]">
-                  +{candidate.skills.length - 4}
+                  +{candidate.skills.length - 5}
                 </Badge>
               )}
-              {sampleMissingSkills.slice(0, 2).map((skill) => (
-                <Badge key={skill} variant="outline" className="text-[10px] text-muted-foreground/50">
-                  <XCircle className="h-2.5 w-2.5 mr-0.5" />
-                  {skill}
-                </Badge>
-              ))}
             </div>
           </div>
 
@@ -112,13 +105,13 @@ export function CandidateCard({ result, index }: { result: RankingResult; index:
             <ProgressBar value={scores.skill * 100} label="Skills" size="sm" delay={0.3} />
             <ProgressBar value={scores.experience * 100} label="Experience" size="sm" color="bg-accent" delay={0.35} />
             <ProgressBar value={scores.education * 100} label="Education" size="sm" color="bg-chart-3" delay={0.4} />
-            <ProgressBar value={scores.overall * 100} label="Activity" size="sm" color="bg-chart-5" delay={0.45} />
+            <ProgressBar value={scores.overall * 100} label="Overall" size="sm" color="bg-primary" delay={0.45} />
           </div>
         </div>
 
         <div className="mt-3 pt-3 border-t border-border flex items-center justify-between">
           <p className="text-[11px] text-muted-foreground leading-relaxed line-clamp-1 flex-1 mr-4">
-            <span className="text-primary font-medium">AI:</span> {result.explanation || "Strong match based on skills and experience alignment."}
+            <span className="text-primary font-medium">AI:</span> {result.explanation}
           </p>
           <div className="flex items-center gap-1">
             <Link href={ROUTES.candidateDetail(candidate.id)}>
@@ -137,4 +130,4 @@ export function CandidateCard({ result, index }: { result: RankingResult; index:
       </div>
     </motion.div>
   )
-}
+})

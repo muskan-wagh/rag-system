@@ -11,18 +11,27 @@ import {
   getCandidateNotesHandler,
   getSimilarCandidatesHandler,
 } from '@/controllers/candidateController';
+import {
+  validate,
+  searchSchema,
+  compareSchema,
+  batchSchema,
+  updateStatusSchema,
+  addNoteSchema,
+  idParamSchema,
+} from '@/middleware/validate';
 
 const router = Router();
 
-router.post('/search', searchCandidatesHandler);
-router.post('/compare', compareCandidatesHandler);
-router.post('/batch', batchCandidatesHandler);
-router.get('/:id', getCandidateHandler);
-router.patch('/:id/status', updateCandidateStatusHandler);
-router.post('/:id/notes', addCandidateNoteHandler);
-router.get('/:id/notes', getCandidateNotesHandler);
-router.post('/:id/screening-questions', screeningQuestionsHandler);
-router.post('/:id/closing-strategy', closingStrategyHandler);
-router.get('/:id/similar', getSimilarCandidatesHandler);
+router.post('/search', validate(searchSchema), searchCandidatesHandler);
+router.post('/compare', validate(compareSchema), compareCandidatesHandler);
+router.post('/batch', validate(batchSchema), batchCandidatesHandler);
+router.get('/:id', validate(idParamSchema, 'params'), getCandidateHandler);
+router.patch('/:id/status', validate(idParamSchema, 'params'), validate(updateStatusSchema), updateCandidateStatusHandler);
+router.post('/:id/notes', validate(idParamSchema, 'params'), validate(addNoteSchema), addCandidateNoteHandler);
+router.get('/:id/notes', validate(idParamSchema, 'params'), getCandidateNotesHandler);
+router.post('/:id/screening-questions', validate(idParamSchema, 'params'), screeningQuestionsHandler);
+router.post('/:id/closing-strategy', validate(idParamSchema, 'params'), closingStrategyHandler);
+router.get('/:id/similar', validate(idParamSchema, 'params'), getSimilarCandidatesHandler);
 
 export default router;

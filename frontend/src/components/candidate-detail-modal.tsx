@@ -1,14 +1,11 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, startTransition } from "react"
 import {
   X,
   Loader2,
-  Copy,
-  Check,
   Brain,
   Target,
-  MessageSquare,
   ThumbsUp,
   ArrowRight,
   AlertTriangle,
@@ -23,11 +20,9 @@ import {
   ExternalLink,
 } from "lucide-react"
 import { toast } from "sonner"
-import { apiFetch } from "@/lib/api-fetch"
-import { updateCandidateStatus, addCandidateNote, getCandidateNotes } from "@/lib/api"
+import { updateCandidateStatus, addCandidateNote, getCandidateNotes, getScreeningQuestions, getClosingStrategy } from "@/lib/api"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Card } from "@/components/ui/card"
 import { Textarea } from "@/components/ui/textarea"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
@@ -119,38 +114,46 @@ export function CandidateDetailModal({ open, onClose, candidate, onStatusChange 
 
   const [statusLoading, setStatusLoading] = useState(false)
 
-  useEffect(() => {
-    if (open && candidate) {
-      setScreeningQuestions(null)
-      setClosingStrategy(null)
-      setQuestionsError("")
-      setStrategyError("")
-      setNotes([])
-      setNewNote("")
+  const fetchNotes = useCallback(async () => {
+    if (!candidate) return
+    setLoadingNotes(true)
+    try {
+      const result = await getCandidateNotes(candidate.id)
+      if (result.success && result.data) {
+        setNotes(result.data)
+      }
+    } catch {
+    } finally {
+      setLoadingNotes(false)
     }
-  }, [open, candidate])
+  }, [candidate])
 
   useEffect(() => {
     if (open && candidate) {
+      startTransition(() => {
+        setScreeningQuestions(null)
+        setClosingStrategy(null)
+        setQuestionsError("")
+        setStrategyError("")
+        setNotes([])
+        setNewNote("")
+      })
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       fetchNotes()
     }
-  }, [open, candidate])
+  }, [open, candidate, fetchNotes])
 
   const generateQuestions = useCallback(async () => {
     if (!candidate) return
     setLoadingQuestions(true)
     setQuestionsError("")
     try {
-      const res = await apiFetch(`/api/candidates/${candidate.id}/screening-questions`, {
-        method: "POST",
-      })
-      if (!res.ok) throw new Error(`HTTP ${res.status}`)
-      const data = await res.json()
-      if (data.success && data.data?.questions) {
-        setScreeningQuestions(data.data.questions)
+      const result = await getScreeningQuestions(candidate.id)
+      if (result.success && result.data?.questions) {
+        setScreeningQuestions(result.data.questions)
         toast.success("Screening questions generated!")
       } else {
-        setQuestionsError(data.error || "Failed to generate questions")
+        setQuestionsError(result.error || "Failed to generate questions")
       }
     } catch {
       setQuestionsError("Failed to connect to server")
@@ -165,36 +168,18 @@ export function CandidateDetailModal({ open, onClose, candidate, onStatusChange 
     setLoadingStrategy(true)
     setStrategyError("")
     try {
-      const res = await apiFetch(`/api/candidates/${candidate.id}/closing-strategy`, {
-        method: "POST",
-      })
-      if (!res.ok) throw new Error(`HTTP ${res.status}`)
-      const data = await res.json()
-      if (data.success && data.data?.selling_points) {
-        setClosingStrategy(data.data)
+      const result = await getClosingStrategy(candidate.id)
+      if (result.success && result.data?.selling_points) {
+        setClosingStrategy(result.data)
         toast.success("Closing strategy generated!")
       } else {
-        setStrategyError(data.error || "Failed to generate strategy")
+        setStrategyError(result.error || "Failed to generate strategy")
       }
     } catch {
       setStrategyError("Failed to connect to server")
       toast.error("Failed to generate closing strategy")
     } finally {
       setLoadingStrategy(false)
-    }
-  }, [candidate])
-
-  const fetchNotes = useCallback(async () => {
-    if (!candidate) return
-    setLoadingNotes(true)
-    try {
-      const result = await getCandidateNotes(candidate.id)
-      if (result.success && result.data) {
-        setNotes(result.data)
-      }
-    } catch {
-    } finally {
-      setLoadingNotes(false)
     }
   }, [candidate])
 

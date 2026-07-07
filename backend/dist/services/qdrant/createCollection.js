@@ -38,7 +38,7 @@ async function createCollection() {
         ensurePayloadIndex(collectionName, 'id', 'keyword'),
         ensurePayloadIndex(collectionName, 'experience', 'integer'),
         ensurePayloadIndex(collectionName, 'skills', 'keyword'),
-        ensurePayloadIndex(collectionName, 'education.level', 'keyword'),
+        ensurePayloadIndex(collectionName, 'education_level', 'keyword'),
     ]);
     logger_1.logger.info(`Payload indexes ensured for "${collectionName}"`, {
         vectorSize: config_1.config.qdrant.vectorSize,

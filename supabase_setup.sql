@@ -1,6 +1,5 @@
 -- ============================================================
 -- RecruitIQ Supabase Setup
--- Run this EXACTLY ONCE in your Supabase SQL editor
 -- ============================================================
 
 -- 1. Upload sessions table
@@ -19,6 +18,7 @@ ALTER TABLE candidates ADD COLUMN IF NOT EXISTS processing_status TEXT DEFAULT '
 ALTER TABLE candidates ADD COLUMN IF NOT EXISTS source TEXT DEFAULT '';
 ALTER TABLE candidates ADD COLUMN IF NOT EXISTS error_message TEXT DEFAULT '';
 ALTER TABLE candidates ADD COLUMN IF NOT EXISTS resume_file_url TEXT DEFAULT '';
+ALTER TABLE candidates ADD COLUMN IF NOT EXISTS current_status TEXT DEFAULT 'Applied';
 
 -- 3. Candidate experience table
 CREATE TABLE IF NOT EXISTS candidate_experience (
@@ -52,6 +52,11 @@ CREATE TABLE IF NOT EXISTS candidate_notes (
 CREATE TABLE IF NOT EXISTS search_sessions (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   job_description_text TEXT NOT NULL,
+  jd_hash TEXT,
+  filters JSONB,
+  result_count INT DEFAULT 0,
+  search_duration_ms INT,
+  user_id TEXT,
   created_at TIMESTAMP DEFAULT NOW()
 );
 
@@ -65,7 +70,24 @@ CREATE TABLE IF NOT EXISTS email_logs (
   sent_at TIMESTAMP DEFAULT NOW()
 );
 
--- 8. Storage bucket
+-- ============================================================
+-- INDEXES
+-- ============================================================
+CREATE INDEX IF NOT EXISTS idx_candidates_upload_session_id ON candidates(upload_session_id);
+CREATE INDEX IF NOT EXISTS idx_candidates_processing_status ON candidates(processing_status);
+CREATE INDEX IF NOT EXISTS idx_candidates_current_status ON candidates(current_status);
+CREATE INDEX IF NOT EXISTS idx_candidates_created_at ON candidates(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_candidate_skills_candidate_id ON candidate_skills(candidate_id);
+CREATE INDEX IF NOT EXISTS idx_candidate_skills_skill_name ON candidate_skills(skill_name);
+CREATE INDEX IF NOT EXISTS idx_candidate_experience_candidate_id ON candidate_experience(candidate_id);
+CREATE INDEX IF NOT EXISTS idx_candidate_notes_candidate_id ON candidate_notes(candidate_id);
+CREATE INDEX IF NOT EXISTS idx_candidate_status_log_candidate_id ON candidate_status_log(candidate_id);
+CREATE INDEX IF NOT EXISTS idx_search_sessions_created_at ON search_sessions(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_upload_sessions_created_at ON upload_sessions(created_at DESC);
+
+-- ============================================================
+-- Storage bucket
+-- ============================================================
 INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 VALUES (
   'resumes', 'resumes', true, 5242880,
@@ -73,17 +95,15 @@ VALUES (
 )
 ON CONFLICT (id) DO NOTHING;
 
--- 9. RLS policies for storage
+-- ============================================================
+-- RLS policies
+-- ============================================================
 DROP POLICY IF EXISTS "anon_insert_resumes" ON storage.objects;
 CREATE POLICY "anon_insert_resumes" ON storage.objects FOR INSERT TO anon WITH CHECK (bucket_id = 'resumes');
 
 DROP POLICY IF EXISTS "anon_select_resumes" ON storage.objects;
 CREATE POLICY "anon_select_resumes" ON storage.objects FOR SELECT TO anon USING (bucket_id = 'resumes');
 
-DROP POLICY IF EXISTS "anon_all_resumes" ON storage.objects;
-CREATE POLICY "anon_all_resumes" ON storage.objects FOR ALL TO anon USING (bucket_id = 'resumes') WITH CHECK (bucket_id = 'resumes');
-
--- 10. Enable RLS
 ALTER TABLE upload_sessions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE candidates ENABLE ROW LEVEL SECURITY;
 ALTER TABLE candidate_skills ENABLE ROW LEVEL SECURITY;
@@ -92,14 +112,12 @@ ALTER TABLE candidate_status_log ENABLE ROW LEVEL SECURITY;
 ALTER TABLE candidate_notes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE search_sessions ENABLE ROW LEVEL SECURITY;
 
--- 11. RLS policies: anon insert/select on upload_sessions
 DROP POLICY IF EXISTS "anon_insert_upload_sessions" ON upload_sessions;
 CREATE POLICY "anon_insert_upload_sessions" ON upload_sessions FOR INSERT TO anon WITH CHECK (true);
 
 DROP POLICY IF EXISTS "anon_select_upload_sessions" ON upload_sessions;
 CREATE POLICY "anon_select_upload_sessions" ON upload_sessions FOR SELECT TO anon USING (true);
 
--- 12. RLS policies: service_role full access to candidates (the backend uses service_role key)
 DROP POLICY IF EXISTS "service_role_all_candidates" ON candidates;
 CREATE POLICY "service_role_all_candidates" ON candidates FOR ALL TO service_role USING (true) WITH CHECK (true);
 
@@ -109,7 +127,6 @@ CREATE POLICY "anon_insert_candidates" ON candidates FOR INSERT TO anon WITH CHE
 DROP POLICY IF EXISTS "anon_select_candidates" ON candidates;
 CREATE POLICY "anon_select_candidates" ON candidates FOR SELECT TO anon USING (true);
 
--- 13. RLS: candidate_skills
 DROP POLICY IF EXISTS "service_role_all_candidate_skills" ON candidate_skills;
 CREATE POLICY "service_role_all_candidate_skills" ON candidate_skills FOR ALL TO service_role USING (true) WITH CHECK (true);
 
@@ -118,15 +135,3 @@ CREATE POLICY "anon_insert_candidate_skills" ON candidate_skills FOR INSERT TO a
 
 DROP POLICY IF EXISTS "anon_select_candidate_skills" ON candidate_skills;
 CREATE POLICY "anon_select_candidate_skills" ON candidate_skills FOR SELECT TO anon USING (true);
-
--- 14. RLS: candidate_experience
-DROP POLICY IF EXISTS "service_role_all_candidate_experience" ON candidate_experience;
-CREATE POLICY "service_role_all_candidate_experience" ON candidate_experience FOR ALL TO service_role USING (true) WITH CHECK (true);
-
--- 15. RLS: candidate_status_log
-DROP POLICY IF EXISTS "service_role_all_candidate_status_log" ON candidate_status_log;
-CREATE POLICY "service_role_all_candidate_status_log" ON candidate_status_log FOR ALL TO service_role USING (true) WITH CHECK (true);
-
--- 16. RLS: candidate_notes
-DROP POLICY IF EXISTS "service_role_all_candidate_notes" ON candidate_notes;
-CREATE POLICY "service_role_all_candidate_notes" ON candidate_notes FOR ALL TO service_role USING (true) WITH CHECK (true);

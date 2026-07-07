@@ -1,6 +1,7 @@
 import { getSupabaseClient } from './client';
 import { logger } from '@/utils/logger';
 import { AppError } from '@/middleware/errorHandler';
+import { ErrorCodes } from '@/middleware/errorCodes';
 
 export interface UploadSession {
   id: string;
@@ -26,6 +27,7 @@ export interface CandidateRecord {
   source?: string;
   error_message?: string;
   resume_file_url?: string;
+  current_status?: string;
   created_at?: string;
 }
 
@@ -38,11 +40,9 @@ export async function createUploadSession(jdText: string): Promise<UploadSession
     .single();
 
   if (error) {
-    logger.error('Failed to create upload session', { error: error.message });
-    throw new AppError('Failed to create upload session', 500);
+    throw new AppError('Failed to create upload session', 500, ErrorCodes.DATABASE_ERROR);
   }
 
-  logger.info('Upload session created', { sessionId: data.id });
   return data as UploadSession;
 }
 
@@ -56,8 +56,7 @@ export async function getSession(sessionId: string): Promise<UploadSession | nul
 
   if (error) {
     if (error.code === 'PGRST116') return null;
-    logger.error('Failed to get session', { error: error.message });
-    throw new AppError('Failed to get session', 500);
+    throw new AppError('Failed to get session', 500, ErrorCodes.DATABASE_ERROR);
   }
 
   return data as UploadSession;
@@ -72,8 +71,7 @@ export async function createCandidate(candidate: Record<string, unknown>): Promi
     .single();
 
   if (error) {
-    logger.error('Failed to create candidate', { error: error.message });
-    throw new AppError('Failed to create candidate', 500);
+    throw new AppError('Failed to create candidate', 500, ErrorCodes.DATABASE_ERROR);
   }
 
   return data as CandidateRecord;
@@ -87,8 +85,7 @@ export async function updateCandidate(id: string, updates: Partial<CandidateReco
     .eq('id', id);
 
   if (error) {
-    logger.error('Failed to update candidate', { error: error.message });
-    throw new AppError('Failed to update candidate', 500);
+    throw new AppError('Failed to update candidate', 500, ErrorCodes.DATABASE_ERROR);
   }
 }
 
@@ -100,107 +97,47 @@ export async function getCandidatesBySession(sessionId: string): Promise<Candida
     .eq('upload_session_id', sessionId);
 
   if (error) {
-    logger.error('Failed to get candidates for session', { error: error.message });
-    throw new AppError('Failed to get candidates', 500);
+    throw new AppError('Failed to get candidates', 500, ErrorCodes.DATABASE_ERROR);
   }
 
   return (data || []) as CandidateRecord[];
 }
 
-export async function getAllCandidates(): Promise<CandidateRecord[]> {
+export async function saveSearchSession(params: {
+  jobDescriptionText: string;
+  jdHash: string;
+  filters?: Record<string, unknown>;
+  resultCount: number;
+  searchDurationMs?: number;
+  userId?: string;
+}): Promise<void> {
+  const supabase = getSupabaseClient();
+  const { error } = await supabase.from('search_sessions').insert({
+    job_description_text: params.jobDescriptionText,
+    jd_hash: params.jdHash,
+    filters: params.filters ?? null,
+    result_count: params.resultCount,
+    search_duration_ms: params.searchDurationMs ?? null,
+    user_id: params.userId ?? null,
+  });
+  if (error) {
+    logger.warn('Failed to save search session', { error: error.message });
+  }
+}
+
+export async function getAllCandidates(limit = 50, offset = 0): Promise<CandidateRecord[]> {
   const supabase = getSupabaseClient();
   const { data, error } = await supabase
     .from('candidates')
     .select()
-    .order('created_at', { ascending: false });
+    .order('created_at', { ascending: false })
+    .range(offset, offset + limit - 1);
 
   if (error) {
-    logger.error('Failed to get all candidates', { error: error.message });
-    throw new AppError('Failed to get candidates', 500);
+    throw new AppError('Failed to get candidates', 500, ErrorCodes.DATABASE_ERROR);
   }
 
   return (data || []) as CandidateRecord[];
-}
-
-export async function insertParsedCandidate(
-  candidateId: string,
-  parsed: {
-    full_name?: string;
-    email?: string;
-    phone?: string;
-    location?: string;
-    current_company?: string;
-    total_experience_years?: number;
-    skills: string[];
-    work_history?: Array<{ title: string; company: string }>;
-    parsed_json: Record<string, unknown>;
-    flight_risk?: string;
-    growth_trajectory?: string;
-    source: string;
-    resume_file_url: string;
-    cleanText: string;
-  },
-): Promise<void> {
-  const supabase = getSupabaseClient();
-
-  const { error: updateError } = await supabase
-    .from('candidates')
-    .update({
-      full_name: parsed.full_name || 'Unknown',
-      email: parsed.email || null,
-      phone: parsed.phone || null,
-      location: parsed.location || null,
-      current_company: parsed.current_company || null,
-      total_experience_years: parsed.total_experience_years || 0,
-      parsed_json: parsed.parsed_json,
-      flight_risk: parsed.flight_risk || null,
-      growth_trajectory: parsed.growth_trajectory || null,
-      source: parsed.source || '',
-      resume_file_url: parsed.resume_file_url,
-      raw_resume_text: parsed.cleanText,
-      processing_status: 'COMPLETED',
-    })
-    .eq('id', candidateId);
-
-  if (updateError) {
-    logger.error('Failed to update parsed candidate', { error: updateError.message, candidateId });
-    throw new AppError('Failed to update candidate with parsed data', 500);
-  }
-
-  if (parsed.skills.length > 0) {
-    const seen = new Set<string>();
-    const rows = parsed.skills
-      .map((s) => s.toLowerCase().trim())
-      .filter((s) => { if (seen.has(s) || !s) return false; seen.add(s); return true; })
-      .map((s) => ({ candidate_id: candidateId, skill_name: s }));
-
-    const { error: skDeleteError } = await supabase.from('candidate_skills').delete().eq('candidate_id', candidateId);
-    if (skDeleteError) {
-      await supabase.from('candidate_skills').upsert(rows, { onConflict: 'candidate_id,skill_name', ignoreDuplicates: false });
-    } else if (rows.length > 0) {
-      const { error: skInsertError } = await supabase.from('candidate_skills').insert(rows);
-      if (skInsertError) {
-        logger.error('Failed to insert skills', { error: skInsertError.message, candidateId });
-      }
-    }
-  }
-
-  if (parsed.work_history && parsed.work_history.length > 0) {
-    const rows = parsed.work_history.map((w) => ({
-      candidate_id: candidateId,
-      job_title: w.title,
-      company: w.company,
-      start_date: null,
-      end_date: null,
-      is_current: false,
-    }));
-    const { error: expError } = await supabase.from('candidate_experience').insert(rows);
-    if (expError) {
-      logger.error('Failed to insert experience', { error: expError.message, candidateId });
-    }
-  }
-
-  logger.info('Parsed candidate data inserted', { candidateId, name: parsed.full_name, skills: parsed.skills.length });
 }
 
 export async function insertSkills(candidateId: string, skills: string[]): Promise<void> {
@@ -222,23 +159,19 @@ export async function insertSkills(candidateId: string, skills: string[]): Promi
   const { error: deleteError } = await supabase.from('candidate_skills').delete().eq('candidate_id', candidateId);
 
   if (deleteError) {
-    logger.warn('Delete skills blocked by RLS, falling back to upsert', { error: deleteError.message });
     const { error: upsertError } = await supabase
       .from('candidate_skills')
       .upsert(rows, { onConflict: 'candidate_id,skill_name', ignoreDuplicates: false });
 
     if (upsertError) {
-      logger.error('Failed to upsert skills', { error: upsertError.message });
-      throw new AppError('Failed to insert skills', 500);
+      throw new AppError('Failed to insert skills', 500, ErrorCodes.DATABASE_ERROR);
     }
     return;
   }
 
   const { error } = await supabase.from('candidate_skills').insert(rows);
-
   if (error) {
-    logger.error('Failed to insert skills', { error: error.message });
-    throw new AppError('Failed to insert skills', 500);
+    throw new AppError('Failed to insert skills', 500, ErrorCodes.DATABASE_ERROR);
   }
 }
 
@@ -260,19 +193,28 @@ export async function insertExperience(
 
   const { error } = await supabase.from('candidate_experience').insert(rows);
   if (error) {
-    logger.error('Failed to insert experience', { error: error.message });
-    throw new AppError('Failed to insert experience', 500);
+    throw new AppError('Failed to insert experience', 500, ErrorCodes.DATABASE_ERROR);
   }
 }
 
 export async function updateCandidateStatus(candidateId: string, status: string): Promise<void> {
   const supabase = getSupabaseClient();
+
   const { error: logError } = await supabase.from('candidate_status_log').insert({
     candidate_id: candidateId,
     status,
   });
   if (logError) {
     logger.error('Failed to log status change', { error: logError.message });
+  }
+
+  const { error } = await supabase
+    .from('candidates')
+    .update({ current_status: status })
+    .eq('id', candidateId);
+
+  if (error) {
+    logger.error('Failed to update candidate status', { error: error.message });
   }
 }
 
@@ -282,9 +224,9 @@ export async function addCandidateNote(candidateId: string, noteText: string): P
     candidate_id: candidateId,
     note_text: noteText,
   });
+
   if (error) {
-    logger.error('Failed to add note', { error: error.message });
-    throw new AppError('Failed to add note', 500);
+    throw new AppError('Failed to add note', 500, ErrorCodes.DATABASE_ERROR);
   }
 }
 
@@ -297,8 +239,7 @@ export async function getCandidateNotes(candidateId: string): Promise<Array<{ id
     .order('created_at', { ascending: false });
 
   if (error) {
-    logger.error('Failed to get notes', { error: error.message });
-    throw new AppError('Failed to get notes', 500);
+    throw new AppError('Failed to get notes', 500, ErrorCodes.DATABASE_ERROR);
   }
   return (data || []) as Array<{ id: string; note_text: string; created_at: string }>;
 }
@@ -308,26 +249,11 @@ export async function getPendingCandidates(): Promise<CandidateRecord[]> {
   const { data, error } = await supabase
     .from('candidates')
     .select()
-    .in('processing_status', ['PENDING', 'FAILED']);
+    .in('processing_status', ['PENDING', 'FAILED'])
+    .limit(100);
 
   if (error) {
-    logger.error('Failed to get pending candidates', { error: error.message });
     return [];
-  }
-  return (data || []) as CandidateRecord[];
-}
-
-export async function getCandidatesByIds(ids: string[]): Promise<CandidateRecord[]> {
-  if (ids.length === 0) return [];
-  const supabase = getSupabaseClient();
-  const { data, error } = await supabase
-    .from('candidates')
-    .select()
-    .in('id', ids);
-
-  if (error) {
-    logger.error('Failed to get candidates by ids', { error: error.message });
-    throw new AppError('Failed to get candidates', 500);
   }
   return (data || []) as CandidateRecord[];
 }

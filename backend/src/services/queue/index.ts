@@ -3,6 +3,7 @@ import Redis from 'ioredis';
 import { config } from '@/config';
 import { logger } from '@/utils/logger';
 import { AppError } from '@/middleware/errorHandler';
+import { ErrorCodes } from '@/middleware/errorCodes';
 
 const REDIS_PLACEHOLDER = 'YOUR_UPSTASH_PASSWORD';
 let connection: Redis | null = null;
@@ -49,11 +50,9 @@ export async function getResumeQueue(): Promise<Queue> {
   if (!queue) {
     const conn = getConnection();
     if (conn.status !== 'ready' && conn.status !== 'connecting' && conn.status !== 'connect') {
-      logger.info('Redis: attempting connection...');
       try {
         await conn.connect();
       } catch (err: any) {
-        logger.error('Redis: connection failed', { error: err.message });
         throw new AppError(
           `Cannot connect to Redis at ${config.redis.url}. Make sure your Upstash Redis instance is running and REDIS_URL is correct.`,
           500,
@@ -73,17 +72,6 @@ export async function getResumeQueue(): Promise<Queue> {
         removeOnFail: 50,
       },
     });
-    logger.info('BullMQ queue initialized');
   }
   return queue;
-}
-
-export async function getQueueSize(): Promise<number> {
-  try {
-    const q = await getResumeQueue();
-    const counts = await q.getJobCounts('waiting', 'active', 'delayed');
-    return (counts.waiting || 0) + (counts.active || 0) + (counts.delayed || 0);
-  } catch {
-    return 0;
-  }
 }
