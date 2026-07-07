@@ -11,9 +11,17 @@ export declare const config: Readonly<{
         apiKey: string;
         model: string;
         baseUrl: string;
-        embeddingModel: string;
+    };
+    embedding: {
+        model: string;
+        vectorSize: number;
+        distance: "Cosine";
+    };
+    redis: {
+        url: string;
     };
     apiKey: string;
+    recruiterPassword: string;
     qdrant: {
         url: string;
         apiKey: string;

@@ -45,10 +45,7 @@ export async function uploadResumeFile(
 
   if (error) {
     logger.error('Failed to upload resume file to storage', { error: error.message });
-    throw new AppError(
-      `Failed to upload resume file: ${error.message}`,
-      500,
-    );
+    throw new AppError(`Failed to upload resume file: ${error.message}`, 500);
   }
 
   logger.info('Resume file uploaded to storage', { path: storagePath });

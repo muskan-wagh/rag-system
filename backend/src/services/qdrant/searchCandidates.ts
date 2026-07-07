@@ -1,5 +1,5 @@
 import { getQdrantClient } from './client';
-import { generateEmbedding } from '@/services/llm/client';
+import { generateEmbedding } from '@/services/embedding';
 import { Candidate, SearchFilters } from '@/types';
 import { config } from '@/config';
 import { logger } from '@/utils/logger';

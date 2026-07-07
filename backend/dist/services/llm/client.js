@@ -1,7 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.chatCompletion = chatCompletion;
-exports.generateEmbedding = generateEmbedding;
 const config_1 = require("@/config");
 const logger_1 = require("@/utils/logger");
 const errorHandler_1 = require("@/middleware/errorHandler");
@@ -66,32 +65,5 @@ async function chatCompletion(messages, options = {}) {
             totalTokens: data.usage.total_tokens,
         },
     };
-}
-async function generateEmbedding(text) {
-    const startTime = Date.now();
-    const response = await fetchWithRetry(`${BASE_URL}/embeddings`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${config_1.config.openai.apiKey}`,
-            'HTTP-Referer': config_1.config.clientUrl,
-            'X-Title': 'Candidate Discovery Engine',
-        },
-        body: JSON.stringify({
-            model: config_1.config.openai.embeddingModel,
-            input: text,
-        }),
-    });
-    if (!response.ok) {
-        const errorBody = await response.text().catch(() => '');
-        throw new errorHandler_1.AppError(`Embedding request failed: ${response.status} ${response.statusText}`, response.status, errorBody);
-    }
-    const data = (await response.json());
-    const duration = Date.now() - startTime;
-    logger_1.logger.debug(`Embedding request completed in ${duration}ms`, {
-        model: data.model,
-        dimensions: data.data[0].embedding.length,
-    });
-    return data.data[0].embedding;
 }
 //# sourceMappingURL=client.js.map

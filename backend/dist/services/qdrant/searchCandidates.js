@@ -3,13 +3,13 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.searchCandidates = searchCandidates;
 exports.searchByEmbedding = searchByEmbedding;
 const client_1 = require("./client");
-const client_2 = require("@/services/llm/client");
+const embedding_1 = require("@/services/embedding");
 const config_1 = require("@/config");
 const logger_1 = require("@/utils/logger");
 const normalizePayload_1 = require("./normalizePayload");
 async function searchCandidates(queryText, limit = 10, filters) {
     logger_1.logger.info('Searching candidates', { queryLength: queryText.length, limit });
-    const embedding = await (0, client_2.generateEmbedding)(queryText);
+    const embedding = await (0, embedding_1.generateEmbedding)(queryText);
     return searchByEmbedding(embedding, limit, filters);
 }
 async function searchByEmbedding(embedding, limit = 10, filters) {

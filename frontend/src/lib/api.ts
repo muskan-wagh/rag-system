@@ -70,6 +70,12 @@ export interface ClosingStrategy {
   major_objection: { objection: string; overcome_strategy: string }
 }
 
+export interface BiasResult {
+  has_bias: boolean
+  issues: Array<{ category: string; text: string; suggestion: string }>
+  suggestions: string[]
+}
+
 async function request<T>(
   endpoint: string,
   options?: RequestInit,
@@ -149,4 +155,40 @@ export async function getClosingStrategy(candidateId: string) {
   )
 }
 
+export async function updateCandidateStatus(candidateId: string, status: string) {
+  return request<{ message: string }>(
+    `/candidates/${candidateId}/status`,
+    {
+      method: "PATCH",
+      body: JSON.stringify({ status }),
+    },
+  )
+}
 
+export async function addCandidateNote(candidateId: string, noteText: string) {
+  return request<{ message: string }>(
+    `/candidates/${candidateId}/notes`,
+    {
+      method: "POST",
+      body: JSON.stringify({ noteText }),
+    },
+  )
+}
+
+export async function getCandidateNotes(candidateId: string) {
+  return request<Array<{ id: string; note_text: string; created_at: string }>>(
+    `/candidates/${candidateId}/notes`,
+    { method: "GET" },
+  )
+}
+
+export async function scanBias(jdText: string) {
+  return request<BiasResult>("/scan-bias", {
+    method: "POST",
+    body: JSON.stringify({ jdText }),
+  })
+}
+
+export async function getSimilarCandidates(candidateId: string) {
+  return request<Candidate[]>(`/candidates/${candidateId}/similar`, { method: "GET" })
+}

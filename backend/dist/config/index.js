@@ -21,7 +21,6 @@ exports.config = Object.freeze({
     nodeEnv: optional("NODE_ENV", "development"),
     clientUrl: optional("CLIENT_URL", "http://localhost:3000"),
     allowedOrigins: (() => {
-        // Allow overriding via CORS_ORIGINS env var (comma-separated)
         const envOrigins = optional("CORS_ORIGINS", "");
         if (envOrigins) {
             return envOrigins.split(",").map((s) => s.trim());
@@ -40,14 +39,22 @@ exports.config = Object.freeze({
         apiKey: required("QWEN_API_KEY"),
         model: optional("QWEN_MODEL", "qwen/qwen3-next-80b-a3b-instruct"),
         baseUrl: "https://openrouter.ai/api/v1",
-        embeddingModel: "text-embedding-3-small",
+    },
+    embedding: {
+        model: optional("EMBEDDING_MODEL", "Xenova/all-MiniLM-L6-v2"),
+        vectorSize: 384,
+        distance: "Cosine",
+    },
+    redis: {
+        url: required("REDIS_URL"),
     },
     apiKey: optional("API_KEY", ""),
+    recruiterPassword: required("RECRUITER_PASSWORD"),
     qdrant: {
         url: required("QDRANT_URL"),
         apiKey: required("QDRANT_API_KEY"),
         collectionName: optional("QDRANT_COLLECTION_NAME", "candidates"),
-        vectorSize: 1536,
+        vectorSize: 384,
         distance: "Cosine",
     },
 });

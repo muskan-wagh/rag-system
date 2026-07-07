@@ -17,6 +17,5 @@ interface LLMResponse {
     };
 }
 export declare function chatCompletion(messages: LLMMessage[], options?: LLMRequestOptions): Promise<LLMResponse>;
-export declare function generateEmbedding(text: string): Promise<number[]>;
 export {};
 //# sourceMappingURL=client.d.ts.map

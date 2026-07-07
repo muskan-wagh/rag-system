@@ -38,15 +38,6 @@ interface ChatCompletionResponse {
   };
 }
 
-interface EmbeddingData {
-  embedding: number[];
-}
-
-interface EmbeddingResponse {
-  model: string;
-  data: EmbeddingData[];
-}
-
 const BASE_URL = config.openai.baseUrl;
 
 async function fetchWithRetry(
@@ -127,41 +118,5 @@ export async function chatCompletion(
   };
 }
 
-export async function generateEmbedding(text: string): Promise<number[]> {
-  const startTime = Date.now();
-
-  const response = await fetchWithRetry(`${BASE_URL}/embeddings`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${config.openai.apiKey}`,
-      'HTTP-Referer': config.clientUrl,
-      'X-Title': 'Candidate Discovery Engine',
-    },
-    body: JSON.stringify({
-      model: config.openai.embeddingModel,
-      input: text,
-    }),
-  });
-
-  if (!response.ok) {
-    const errorBody = await response.text().catch(() => '');
-    throw new AppError(
-      `Embedding request failed: ${response.status} ${response.statusText}`,
-      response.status,
-      errorBody,
-    );
-  }
-
-  const data = (await response.json()) as EmbeddingResponse;
-
-  const duration = Date.now() - startTime;
-  logger.debug(`Embedding request completed in ${duration}ms`, {
-    model: data.model,
-    dimensions: data.data[0].embedding.length,
-  });
-
-  return data.data[0].embedding;
-}
 
 

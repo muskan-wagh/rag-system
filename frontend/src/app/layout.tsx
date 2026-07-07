@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { NavBar } from "@/components/nav-bar";
+import { Toaster } from "sonner";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -31,6 +32,7 @@ export default function RootLayout({
       <body className="min-h-screen flex flex-col antialiased bg-background">
         <NavBar />
         <main className="flex-1">{children}</main>
+        <Toaster position="bottom-right" richColors closeButton />
       </body>
     </html>
   );

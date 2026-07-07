@@ -1,23 +1,19 @@
 import { Request, Response } from 'express';
 import { asyncHandler } from '@/utils/asyncHandler';
-import { getSession, createCandidate, updateCandidate, insertSkills } from '@/services/supabase/database';
-import { uploadResumeFile } from '@/services/supabase/storage';
-import { extractResumeText, sanitizeText } from '@/services/resume-parser';
-import { generateEmbedding } from '@/services/llm/client';
-import { parseResume } from '@/services/llm/parseResume';
-import { getQdrantClient } from '@/services/qdrant/client';
-import { config } from '@/config';
-import { enqueue } from '@/services/queue';
+import { getSession, createCandidate } from '@/services/supabase/database';
+import { getResumeQueue } from '@/services/queue';
 import { logger } from '@/utils/logger';
 
 export const uploadResumeHandler = asyncHandler(async (req: Request, res: Response) => {
   const uuid = req.params.uuid as string;
+  const source = (req.query.source as string) || '';
 
   if (!uuid) {
     res.status(400).json({ success: false, error: 'Upload session UUID is required' });
     return;
   }
 
+  logger.info('Upload: fetching session', { uuid });
   const session = await getSession(uuid);
   if (!session) {
     res.status(404).json({ success: false, error: 'Invalid upload link. This session does not exist.' });
@@ -40,96 +36,53 @@ export const uploadResumeHandler = asyncHandler(async (req: Request, res: Respon
     return;
   }
 
-  logger.info('Resume upload received', {
+  logger.info('Upload: resume received', {
     sessionId: uuid,
     fileName: file.originalname,
     fileSize: file.size,
+    mimeType: file.mimetype,
+    source,
   });
 
   try {
-    await uploadResumeFile(uuid, file.originalname, file.buffer, file.mimetype);
-
-    const rawText = await extractResumeText(file.buffer, file.mimetype);
-    const cleanText = sanitizeText(rawText);
-
     const candidate = await createCandidate({
       upload_session_id: uuid,
-      raw_resume_text: cleanText,
+      raw_resume_text: '',
+      processing_status: 'PENDING',
+      source,
     });
+    logger.info('Upload: candidate row created', { candidateId: candidate.id });
 
-    enqueue(`process-${candidate.id}`, async () => {
-      try {
-        const parsed = await parseResume(cleanText);
-
-        await updateCandidate(candidate.id, {
-          full_name: parsed.full_name || 'Unknown',
-          email: parsed.email || undefined,
-          phone: parsed.phone || undefined,
-          location: parsed.location || undefined,
-          current_company: parsed.current_company || undefined,
-          total_experience_years: parsed.total_experience_years || 0,
-          parsed_json: parsed as unknown as Record<string, unknown>,
-          flight_risk: parsed.flight_risk,
-          growth_trajectory: parsed.growth_trajectory,
-        });
-
-        if (parsed.skills.length > 0) {
-          await insertSkills(candidate.id, parsed.skills);
-        }
-
-        try {
-          const embeddingText = [
-            parsed.full_name,
-            `Skills: ${parsed.skills.join(', ')}`,
-            `Experience: ${parsed.total_experience_years} years`,
-            `Education: ${parsed.education}`,
-            cleanText.slice(0, 3000),
-          ]
-            .filter(Boolean)
-            .join('. ');
-
-          const embedding = await generateEmbedding(embeddingText);
-          const qdrant = getQdrantClient();
-          await qdrant.upsert(config.qdrant.collectionName, {
-            points: [
-              {
-                id: candidate.id,
-                vector: embedding,
-                payload: {
-                  id: candidate.id,
-                  name: parsed.full_name,
-                  email: parsed.email,
-                  skills: parsed.skills,
-                  experience: parsed.total_experience_years,
-                  education: { level: '', field: '', details: parsed.education },
-                  summary: cleanText.slice(0, 500),
-                },
-              },
-            ],
-          });
-          logger.info('Candidate embedded and stored in Qdrant', { candidateId: candidate.id });
-        } catch (error) {
-          logger.error('Failed to embed candidate', { candidateId: candidate.id, error });
-        }
-
-        logger.info('Candidate fully processed', { candidateId: candidate.id, name: parsed.full_name });
-      } catch (error) {
-        logger.error('Failed to process candidate in background', { candidateId: candidate.id, error });
-      }
+    logger.info('Upload: adding job to BullMQ queue...');
+    const queue = await getResumeQueue();
+    const job = await queue.add('process-resume', {
+      sessionId: uuid,
+      fileBuffer: Array.from(file.buffer),
+      mimeType: file.mimetype,
+      originalName: file.originalname,
+      source,
+      candidateId: candidate.id,
     });
+    logger.info('Upload: job added to queue', { candidateId: candidate.id, jobId: job.id });
 
-    res.status(200).json({
+    res.status(202).json({
       success: true,
       data: {
-        message: 'Resume uploaded and is being processed',
+        message: 'Resume uploaded and queued for processing',
         candidateId: candidate.id,
+        jobId: job.id,
       },
     });
-  } catch (error) {
-    logger.error('Upload processing failed', { error });
+  } catch (error: any) {
+    logger.error('Upload: failed to queue resume processing', {
+      error: error.message,
+      stack: error.stack,
+      uuid,
+      fileName: file.originalname,
+    });
     res.status(500).json({
       success: false,
-      error: 'Failed to process resume. Please try again.',
+      error: error.message || 'Failed to process resume. Please try again.',
     });
   }
 });

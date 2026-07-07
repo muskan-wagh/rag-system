@@ -2,11 +2,31 @@
 
 import { useState, useCallback, useEffect } from "react"
 import { motion } from "framer-motion"
-import { Sparkles, Link2, RefreshCw, Loader2 } from "lucide-react"
-import { GenerateLinkModal } from "@/components/generate-link-modal"
-import { CandidateTable } from "@/components/candidate-table"
+import {
+  Sparkles, Link2, RefreshCw, Loader2, ShieldAlert, Plus,
+  FilePlus, Copy, Check, Users, FileText,
+} from "lucide-react"
+import { toast } from "sonner"
 import { CandidateDetailModal } from "@/components/candidate-detail-modal"
 import { apiFetch } from "@/lib/api-fetch"
+import { scanBias } from "@/lib/api"
+import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
+import { Card } from "@/components/ui/card"
+import { Textarea } from "@/components/ui/textarea"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { Progress } from "@/components/ui/progress"
+import { Skeleton } from "@/components/ui/skeleton"
+import { EmptyState } from "@/components/ui/empty-state"
+import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell,
+} from "@/components/ui/table"
 
 interface SessionData {
   sessionId: string
@@ -17,15 +37,24 @@ interface CandidateRow {
   id: string
   full_name?: string
   current_company?: string
+  current_title?: string
   total_experience_years?: number
   flight_risk?: string
   growth_trajectory?: string
   match_score?: number
+  status?: string
   email?: string
   phone?: string
   location?: string
   raw_resume_text?: string
   skills?: string[]
+  resume_file_url?: string
+}
+
+interface BiasIssue {
+  category: string
+  text: string
+  suggestion: string
 }
 
 const SESSION_STORAGE_KEY = "rag_dashboard_session"
@@ -50,10 +79,24 @@ function clearSavedSession() {
   } catch {}
 }
 
+function getInitials(name: string): string {
+  return name
+    .split(" ")
+    .map((n) => n[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase()
+}
+
+function getFlightRiskVariant(risk?: string): "destructive" | "default" | "outline" {
+  if (risk === "High") return "destructive"
+  if (risk === "Medium") return "default"
+  return "outline"
+}
+
 export default function DashboardPage() {
   const [jdText, setJdText] = useState("")
   const [session, setSession] = useState<SessionData | null>(null)
-  const [showModal, setShowModal] = useState(false)
   const [generating, setGenerating] = useState(false)
   const [candidates, setCandidates] = useState<CandidateRow[]>([])
   const [loadingCandidates, setLoadingCandidates] = useState(false)
@@ -61,6 +104,11 @@ export default function DashboardPage() {
   const [showDetailModal, setShowDetailModal] = useState(false)
   const [error, setError] = useState("")
   const [initialLoading, setInitialLoading] = useState(true)
+  const [copied, setCopied] = useState(false)
+
+  const [scanningBias, setScanningBias] = useState(false)
+  const [biasResult, setBiasResult] = useState<{ has_bias: boolean; issues: BiasIssue[]; suggestions: string[] } | null>(null)
+  const [biasError, setBiasError] = useState("")
 
   useEffect(() => {
     const saved = loadSavedSession()
@@ -77,6 +125,14 @@ export default function DashboardPage() {
     setLoadingCandidates(true)
     try {
       const res = await apiFetch(`/api/sessions/${sessionId}`)
+      if (!res.ok) {
+        if (res.status === 401) {
+          clearSavedSession()
+          setSession(null)
+          return
+        }
+        throw new Error(`HTTP ${res.status}`)
+      }
       const data = await res.json()
       if (data.success) {
         setCandidates(data.data?.candidates || [])
@@ -101,12 +157,20 @@ export default function DashboardPage() {
       setLoadingCandidates(true)
       try {
         const res = await apiFetch(`/api/sessions/${id}`)
+        if (!res.ok) {
+          if (res.status === 401) {
+            clearSavedSession()
+            setSession(null)
+            return
+          }
+          throw new Error(`HTTP ${res.status}`)
+        }
         const data = await res.json()
         if (data.success) {
           setCandidates(data.data?.candidates || [])
         }
       } catch {
-        // silently fail for refresh
+        toast.error("Failed to refresh candidates")
       } finally {
         setLoadingCandidates(false)
       }
@@ -125,28 +189,67 @@ export default function DashboardPage() {
         body: JSON.stringify({ jdText }),
       })
 
+      if (!res.ok) {
+        if (res.status === 401) throw new Error("auth")
+        throw new Error(`HTTP ${res.status}`)
+      }
+
       const data = await res.json()
       if (data.success) {
         const sessionData = data.data
         setSession(sessionData)
         saveSession(sessionData.sessionId, jdText)
-        setShowModal(true)
         fetchCandidates(sessionData.sessionId)
+        toast.success("Application link generated!")
       } else {
         setError(data.error || "Failed to generate link")
       }
-    } catch {
-      setError("Failed to connect to server")
+    } catch (err) {
+      if (err instanceof Error && err.message === "auth") {
+        setError("Session expired. Please log in again.")
+      } else {
+        setError("Failed to connect to server. Please check your network connection.")
+      }
     } finally {
       setGenerating(false)
     }
   }, [jdText, fetchCandidates])
+
+  const handleBiasScan = useCallback(async () => {
+    if (!jdText.trim()) return
+    setScanningBias(true)
+    setBiasResult(null)
+    setBiasError("")
+
+    try {
+      const result = await scanBias(jdText)
+      if (result.success && result.data) {
+        setBiasResult(result.data)
+        if (result.data.has_bias) {
+          toast.warning(`${result.data.issues.length} bias issue(s) detected`)
+        } else {
+          toast.success("No bias detected — JD looks great!")
+        }
+      } else {
+        setBiasError(result.error || "Bias scan failed")
+        toast.error(result.error || "Bias scan failed")
+      }
+    } catch {
+      setBiasError("Failed to scan for bias")
+      toast.error("Failed to scan for bias")
+    } finally {
+      setScanningBias(false)
+    }
+  }, [jdText])
 
   const handleNewSession = () => {
     clearSavedSession()
     setSession(null)
     setCandidates([])
     setJdText("")
+    setBiasResult(null)
+    setError("")
+    toast.info("Started a new session")
   }
 
   const handleSelectCandidate = (candidate: CandidateRow) => {
@@ -154,9 +257,28 @@ export default function DashboardPage() {
     setShowDetailModal(true)
   }
 
+  const handleCopyLink = async () => {
+    const url = typeof window !== "undefined"
+      ? `${window.location.origin}${session?.link}`
+      : session?.link || ""
+    try {
+      await navigator.clipboard.writeText(url)
+    } catch {
+      const input = document.createElement("textarea")
+      input.value = url
+      document.body.appendChild(input)
+      input.select()
+      document.execCommand("copy")
+      document.body.removeChild(input)
+    }
+    setCopied(true)
+    toast.success("Copied to clipboard!")
+    setTimeout(() => setCopied(false), 2000)
+  }
+
   if (initialLoading) {
     return (
-      <div className="mx-auto max-w-5xl px-4 md:px-6 py-6 md:py-8">
+      <div className="max-w-7xl mx-auto p-6 lg:p-8">
         <div className="flex items-center justify-center h-64">
           <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
         </div>
@@ -165,162 +287,353 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="mx-auto max-w-5xl px-4 md:px-6 py-6 md:py-8">
-      <motion.div
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="mb-6"
-      >
-        <div className="flex items-center gap-3 mb-1">
-          <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary shadow-sm">
-            <Sparkles className="h-3.5 w-3.5 text-white" />
-          </div>
-          <div>
-            <h1 className="text-base font-semibold text-foreground">Recruiter Dashboard</h1>
-            <p className="text-xs text-muted-foreground">
-              Create application links and manage candidate submissions
-            </p>
-          </div>
-        </div>
-      </motion.div>
-
-      <motion.div
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.05 }}
-        className="bg-white rounded-2xl p-5 border border-border mb-6"
-      >
-        <div className="flex flex-col gap-4">
-          <div>
-            <label className="text-xs font-medium text-foreground mb-1.5 block">
-              Job Description
-            </label>
-            <textarea
-              value={jdText}
-              onChange={(e) => setJdText(e.target.value)}
-              placeholder="Paste the job description here to generate an application link..."
-              rows={4}
-              className="w-full bg-muted/30 rounded-xl p-3 text-sm text-foreground placeholder-muted-foreground/60 outline-none resize-none border border-border focus:border-primary/40 transition-colors"
-            />
-          </div>
-
-          {error && (
-            <p className="text-xs text-destructive flex items-center gap-1">
-              <span className="inline-block h-1 w-1 rounded-full bg-destructive" />
-              {error}
-            </p>
-          )}
-
-          <div className="flex items-center gap-3">
-            <button
-              onClick={generateLink}
-              disabled={generating || !jdText.trim()}
-              className="flex items-center gap-2 rounded-xl bg-primary text-white px-5 py-2.5 text-sm font-medium hover:bg-primary/90 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
-            >
-              {generating ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Link2 className="h-4 w-4" />
+    <>
+      <div className="sticky top-0 z-40 bg-white/80 backdrop-blur-sm border-b">
+        <div className="max-w-7xl mx-auto px-6 lg:px-8">
+          <div className="flex items-center justify-between h-14">
+            <div className="flex items-center gap-2 text-sm">
+              <span className="font-semibold text-foreground">RecruitIQ</span>
+              <span className="text-muted-foreground">/</span>
+              <span className="text-muted-foreground">Dashboard</span>
+            </div>
+            <div className="flex items-center gap-2">
+              {session && (
+                <>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => fetchCandidates()}
+                    disabled={loadingCandidates}
+                  >
+                    <RefreshCw className={`h-3.5 w-3.5 mr-1 ${loadingCandidates ? "animate-spin" : ""}`} />
+                    Refresh
+                    {candidates.length > 0 && (
+                      <span className="ml-1 rounded-full bg-primary/5 px-1.5 py-0.5 text-[10px] text-primary">
+                        {candidates.length}
+                      </span>
+                    )}
+                  </Button>
+                  <Button variant="ghost" size="sm" onClick={handleNewSession}>
+                    <Plus className="h-3.5 w-3.5 mr-1" />
+                    New Session
+                  </Button>
+                </>
               )}
-              {generating ? "Generating..." : "Generate Application Link"}
-            </button>
-
-            {session && (
-              <>
-                <button
-                  onClick={() => fetchCandidates()}
-                  disabled={loadingCandidates}
-                  className="flex items-center gap-1.5 rounded-xl border border-border px-4 py-2.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  <RefreshCw className={`h-3.5 w-3.5 ${loadingCandidates ? "animate-spin" : ""}`} />
-                  Refresh
-                  {candidates.length > 0 && (
-                    <span className="ml-1 rounded-full bg-primary/5 px-1.5 py-0.5 text-[10px] text-primary">
-                      {candidates.length}
-                    </span>
-                  )}
-                </button>
-                <button
-                  onClick={handleNewSession}
-                  className="flex items-center gap-1.5 rounded-xl border border-border px-4 py-2.5 text-xs text-muted-foreground hover:text-foreground transition-colors ml-auto"
-                >
+              {!session && (
+                <Button variant="ghost" size="sm" onClick={handleNewSession}>
+                  <Plus className="h-3.5 w-3.5 mr-1" />
                   New Session
-                </button>
-              </>
-            )}
+                </Button>
+              )}
+            </div>
           </div>
         </div>
-      </motion.div>
+      </div>
 
-      {session && (
+      <div className="max-w-7xl mx-auto p-6 lg:p-8 space-y-8">
+        {/* Generate Application Link Card */}
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+        >
+          <Card className="p-6">
+            <div className="space-y-4">
+              <h2 className="text-lg font-semibold flex items-center gap-2">
+                <FilePlus className="h-5 w-5 text-primary" />
+                Create New Application Link
+              </h2>
+
+              <Textarea
+                value={jdText}
+                onChange={(e) => setJdText(e.target.value)}
+                placeholder="Paste the full job description here. The AI will parse this to match candidates."
+                rows={6}
+              />
+
+              {/* Error message */}
+              {error && (
+                <Alert variant="destructive">
+                  <AlertDescription className="flex items-center justify-between">
+                    <span>{error}</span>
+                    <Button
+                      variant="ghost"
+                      size="xs"
+                      onClick={() => { setError(""); generateLink() }}
+                    >
+                      Retry
+                    </Button>
+                  </AlertDescription>
+                </Alert>
+              )}
+
+              {/* Bias error */}
+              {biasError && (
+                <Alert variant="destructive">
+                  <AlertDescription className="flex items-center justify-between">
+                    <span>{biasError}</span>
+                    <Button variant="ghost" size="xs" onClick={handleBiasScan}>
+                      Retry
+                    </Button>
+                  </AlertDescription>
+                </Alert>
+              )}
+
+              <div className="flex items-center justify-between">
+                <div className="text-xs text-muted-foreground">
+                  {jdText.length} / 5000 characters
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleBiasScan}
+                    disabled={scanningBias || !jdText.trim()}
+                  >
+                    {scanningBias ? (
+                      <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
+                    ) : (
+                      <ShieldAlert className="h-3.5 w-3.5 mr-1" />
+                    )}
+                    {scanningBias ? "Scanning..." : "Check for Bias"}
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={generateLink}
+                    disabled={generating || !jdText.trim()}
+                  >
+                    {generating ? (
+                      <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
+                    ) : (
+                      <Sparkles className="h-3.5 w-3.5 mr-1" />
+                    )}
+                    {generating ? "Generating..." : "Generate Application Link"}
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </Card>
+        </motion.div>
+
+        {/* Bias Results */}
+        {biasResult && biasResult.has_bias && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+          >
+            <Alert variant="warning">
+              <ShieldAlert className="h-4 w-4" />
+              <AlertDescription>
+                <div className="space-y-2">
+                  <p className="font-medium">{biasResult.issues.length} bias issue(s) found</p>
+                  {biasResult.issues.map((issue, i) => (
+                    <div key={i} className="text-xs space-y-0.5">
+                      <span className="font-medium">[{issue.category}]</span> &ldquo;{issue.text}&rdquo;
+                      <p className="text-amber-600">→ {issue.suggestion}</p>
+                    </div>
+                  ))}
+                  {biasResult.suggestions.length > 0 && (
+                    <div className="pt-2 border-t border-amber-200">
+                      <p className="text-xs font-medium mb-1">Suggestions:</p>
+                      {biasResult.suggestions.map((s, i) => (
+                        <p key={i} className="text-xs">• {s}</p>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </AlertDescription>
+            </Alert>
+          </motion.div>
+        )}
+
+        {biasResult && !biasResult.has_bias && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+          >
+            <Alert variant="success">
+              <ShieldAlert className="h-4 w-4" />
+              <AlertDescription>No bias detected — JD looks great!</AlertDescription>
+            </Alert>
+          </motion.div>
+        )}
+
+        {/* Active Link Section */}
+        {session && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.05 }}
+          >
+            <Card className="border-primary/20 bg-primary/5 p-4">
+              <div className="flex items-center justify-between gap-4">
+                <div className="flex items-center gap-3 min-w-0">
+                  <Link2 className="h-4 w-4 text-primary shrink-0" />
+                  <span className="font-medium text-sm shrink-0">Active Link:</span>
+                  <code className="text-sm bg-white px-3 py-1 rounded border font-mono truncate">
+                    {typeof window !== "undefined"
+                      ? `${window.location.origin}${session.link}`
+                      : session.link}
+                  </code>
+                </div>
+                <Button variant="outline" size="sm" className="gap-1 shrink-0" onClick={handleCopyLink}>
+                  {copied ? (
+                    <Check className="h-3.5 w-3.5" />
+                  ) : (
+                    <Copy className="h-3.5 w-3.5" />
+                  )}
+                  {copied ? "Copied" : "Copy"}
+                </Button>
+              </div>
+            </Card>
+          </motion.div>
+        )}
+
+        {/* Candidates Table */}
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
-          className="bg-green-50 border border-green-200 rounded-2xl p-4 mb-6"
         >
-          <div className="flex items-center gap-2 mb-2">
-            <span className="flex h-2 w-2 rounded-full bg-green-500" />
-            <span className="text-xs font-medium text-green-700">Active Application Link</span>
-          </div>
-          <div className="flex items-center gap-2 bg-white rounded-xl border border-green-200 p-3">
-            <code className="flex-1 text-xs text-green-800 break-all font-mono">
-              {typeof window !== "undefined"
-                ? `${window.location.origin}${session.link}`
-                : session.link}
-            </code>
-            <button
-              onClick={() => {
-                const url =
-                  typeof window !== "undefined"
-                    ? `${window.location.origin}${session.link}`
-                    : session.link
-                navigator.clipboard.writeText(url)
-              }}
-              className="flex shrink-0 items-center gap-1.5 rounded-lg bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 text-xs font-medium transition-colors"
-            >
-              <Link2 className="h-3.5 w-3.5" />
-              Copy
-            </button>
-          </div>
-        </motion.div>
-      )}
+          <Card className="p-0 overflow-hidden border shadow-sm">
+            <div className="flex items-center justify-between p-4 border-b bg-muted/30">
+              <h3 className="font-semibold text-sm">
+                Candidates
+                {candidates.length > 0 && (
+                  <span className="ml-1.5 text-muted-foreground font-normal">
+                    ({candidates.length})
+                  </span>
+                )}
+              </h3>
+              <Button variant="ghost" size="sm">
+                View All
+              </Button>
+            </div>
 
-      <motion.div
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.15 }}
-      >
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="text-sm font-semibold text-foreground">
-            Candidates
-            {candidates.length > 0 && (
-              <span className="ml-1.5 text-muted-foreground font-normal">
-                ({candidates.length})
-              </span>
+            {loadingCandidates ? (
+              <div className="p-4 space-y-3">
+                {Array.from({ length: 3 }).map((_, i) => (
+                  <div key={i} className="flex items-center gap-4">
+                    <Skeleton className="h-8 w-8 rounded-full" />
+                    <div className="flex-1 space-y-2">
+                      <Skeleton className="h-3 w-40" />
+                      <Skeleton className="h-2 w-24" />
+                    </div>
+                    <Skeleton className="h-4 w-16" />
+                    <Skeleton className="h-5 w-20 rounded-full" />
+                    <Skeleton className="h-8 w-16" />
+                  </div>
+                ))}
+              </div>
+            ) : candidates.length === 0 ? (
+              <EmptyState
+                icon={Users}
+                title="No candidates yet"
+                description="Share your application link to start receiving resumes."
+              />
+            ) : (
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Candidate</TableHead>
+                      <TableHead>Match Score</TableHead>
+                      <TableHead>Flight Risk</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Resume</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {candidates.map((candidate) => (
+                      <TableRow key={candidate.id}>
+                        <TableCell>
+                          <div className="flex items-center gap-3">
+                            <Avatar className="h-8 w-8">
+                              <AvatarFallback className="text-xs">
+                                {getInitials(candidate.full_name || "?")}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div>
+                              <p className="font-medium text-sm">{candidate.full_name || "Unknown"}</p>
+                              <p className="text-xs text-muted-foreground">
+                                {candidate.current_title || ""}
+                                {candidate.current_title && candidate.current_company ? " @ " : ""}
+                                {candidate.current_company || ""}
+                              </p>
+                            </div>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          {candidate.match_score !== undefined ? (
+                            <div className="flex items-center gap-2">
+                              <Progress
+                                value={Math.round(candidate.match_score)}
+                                className="h-1.5 w-16"
+                              />
+                              <span className="text-xs font-mono">
+                                {Math.round(candidate.match_score)}%
+                              </span>
+                            </div>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">—</span>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <Badge
+                            variant={getFlightRiskVariant(candidate.flight_risk)}
+                            className="capitalize"
+                          >
+                            {candidate.flight_risk || "Unknown"}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="secondary" className="capitalize">
+                            {candidate.status || "New"}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          {candidate.resume_file_url ? (
+                            <a
+                              href={candidate.resume_file_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 h-8 px-2.5 rounded-lg text-sm font-medium whitespace-nowrap transition-colors hover:bg-muted hover:text-foreground text-muted-foreground"
+                            >
+                              <FileText className="h-3.5 w-3.5" />
+                              View
+                            </a>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">—</span>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleSelectCandidate(candidate)}
+                          >
+                            View
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
             )}
-          </h2>
-        </div>
-
-        <CandidateTable
-          candidates={candidates}
-          loading={loadingCandidates}
-          onSelect={handleSelectCandidate}
-        />
-      </motion.div>
+          </Card>
+        </motion.div>
+      </div>
 
       <CandidateDetailModal
         open={showDetailModal}
-        onClose={() => setShowDetailModal(false)}
+        onClose={() => {
+          setShowDetailModal(false)
+          setSelectedCandidate(null)
+        }}
         candidate={selectedCandidate}
+        onStatusChange={() => fetchCandidates()}
       />
-
-      <GenerateLinkModal
-        open={showModal}
-        onClose={() => setShowModal(false)}
-        link={session?.link || ""}
-        sessionId={session?.sessionId || ""}
-      />
-    </div>
+    </>
   )
 }
