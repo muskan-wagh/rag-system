@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useEffect, startTransition } from "react"
 import { motion } from "framer-motion"
+import Link from "next/link"
 import {
   Sparkles, Link2, RefreshCw, Loader2, ShieldAlert, Plus,
   FilePlus, Copy, Check, Users, FileText,
@@ -9,7 +10,10 @@ import {
 import { toast } from "sonner"
 import { CandidateDetailModal } from "@/components/candidate-detail-modal"
 import { apiFetch } from "@/lib/api-fetch"
-import { scanBias } from "@/lib/api"
+import { scanBias, getSessionStats } from "@/lib/api"
+import { useWebSocket } from "@/lib/use-websocket"
+import { ROUTES } from "@/lib/constants"
+import type { SessionStats } from "@/lib/api"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card } from "@/components/ui/card"
@@ -43,6 +47,7 @@ interface CandidateRow {
   growth_trajectory?: string
   match_score?: number
   status?: string
+  current_status?: string
   email?: string
   phone?: string
   location?: string
@@ -110,6 +115,9 @@ export default function DashboardPage() {
   const [biasResult, setBiasResult] = useState<{ has_bias: boolean; issues: BiasIssue[]; suggestions: string[] } | null>(null)
   const [biasError, setBiasError] = useState("")
 
+  const [stats, setStats] = useState<SessionStats | null>(null)
+  const [loadingStats, setLoadingStats] = useState(false)
+
   const fetchSessionData = useCallback(async (sessionId: string) => {
     setLoadingCandidates(true)
     try {
@@ -125,6 +133,9 @@ export default function DashboardPage() {
       const data = await res.json()
       if (data.success) {
         setCandidates(data.data?.candidates || [])
+        if (data.data?.stats) {
+          setStats(data.data.stats)
+        }
         if (data.data?.session?.job_description_text) {
           setJdText(data.data.session.job_description_text)
         }
@@ -137,20 +148,6 @@ export default function DashboardPage() {
       setInitialLoading(false)
     }
   }, [])
-
-  useEffect(() => {
-    const saved = loadSavedSession()
-    if (saved) {
-      startTransition(() => {
-        setJdText(saved.jdText)
-        setSession({ sessionId: saved.sessionId, link: `/upload/${saved.sessionId}` })
-      })
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      fetchSessionData(saved.sessionId)
-    } else {
-      setInitialLoading(false)
-    }
-  }, [fetchSessionData])
 
   const fetchCandidates = useCallback(
     async (sessionId?: string) => {
@@ -180,6 +177,44 @@ export default function DashboardPage() {
     },
     [session],
   )
+
+  const fetchStats = useCallback(async (sessionId: string) => {
+    if (!sessionId) return
+    setLoadingStats(true)
+    try {
+      const res = await getSessionStats(sessionId)
+      if (res.success && res.data) {
+        setStats(res.data)
+      }
+    } catch {
+      // fail silently - stats are non-critical
+    } finally {
+      setLoadingStats(false)
+    }
+  }, [])
+
+  // WebSocket listener for real-time updates
+  useWebSocket('candidate:status_changed', useCallback((payload) => {
+    const sid = payload.sessionId as string || session?.sessionId
+    if (sid && session?.sessionId === sid) {
+      fetchStats(sid)
+      fetchCandidates(sid)
+    }
+  }, [session?.sessionId, fetchStats, fetchCandidates]))
+
+  useEffect(() => {
+    const saved = loadSavedSession()
+    if (saved) {
+      startTransition(() => {
+        setJdText(saved.jdText)
+        setSession({ sessionId: saved.sessionId, link: `/upload/${saved.sessionId}` })
+      })
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      fetchSessionData(saved.sessionId)
+    } else {
+      setInitialLoading(false)
+    }
+  }, [fetchSessionData])
 
   const generateLink = useCallback(async () => {
     if (!jdText.trim()) return
@@ -491,6 +526,53 @@ export default function DashboardPage() {
           </motion.div>
         )}
 
+        {/* Statistics Cards */}
+        {session && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.08 }}
+          >
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+              {loadingStats ? (
+                Array.from({ length: 6 }).map((_, i) => (
+                  <Card key={i} className="p-4">
+                    <Skeleton className="h-3 w-20 mb-2" />
+                    <Skeleton className="h-7 w-12" />
+                  </Card>
+                ))
+              ) : (
+                <>
+                  <Card className="p-4 border-l-4 border-l-primary">
+                    <p className="text-xs text-muted-foreground font-medium">Total Candidates</p>
+                    <p className="text-2xl font-bold mt-1">{stats?.total ?? 0}</p>
+                  </Card>
+                  <Card className="p-4 border-l-4 border-l-blue-500">
+                    <p className="text-xs text-muted-foreground font-medium">Pending</p>
+                    <p className="text-2xl font-bold mt-1 text-blue-600">{stats?.pending ?? 0}</p>
+                  </Card>
+                  <Card className="p-4 border-l-4 border-l-amber-500">
+                    <p className="text-xs text-muted-foreground font-medium">Shortlisted</p>
+                    <p className="text-2xl font-bold mt-1 text-amber-600">{stats?.shortlisted ?? 0}</p>
+                  </Card>
+                  <Card className="p-4 border-l-4 border-l-violet-500">
+                    <p className="text-xs text-muted-foreground font-medium">Interview</p>
+                    <p className="text-2xl font-bold mt-1 text-violet-600">{stats?.interview ?? 0}</p>
+                  </Card>
+                  <Card className="p-4 border-l-4 border-l-red-500">
+                    <p className="text-xs text-muted-foreground font-medium">Rejected</p>
+                    <p className="text-2xl font-bold mt-1 text-red-600">{stats?.rejected ?? 0}</p>
+                  </Card>
+                  <Card className="p-4 border-l-4 border-l-emerald-500">
+                    <p className="text-xs text-muted-foreground font-medium">Hired</p>
+                    <p className="text-2xl font-bold mt-1 text-emerald-600">{stats?.hired ?? 0}</p>
+                  </Card>
+                </>
+              )}
+            </div>
+          </motion.div>
+        )}
+
         {/* Candidates Table */}
         <motion.div
           initial={{ opacity: 0, y: 10 }}
@@ -507,9 +589,11 @@ export default function DashboardPage() {
                   </span>
                 )}
               </h3>
-              <Button variant="ghost" size="sm">
-                View All
-              </Button>
+              <Link href={`${ROUTES.candidates}?session=${session?.sessionId}`}>
+                <Button variant="ghost" size="sm">
+                  View All
+                </Button>
+              </Link>
             </div>
 
             {loadingCandidates ? (
@@ -591,7 +675,7 @@ export default function DashboardPage() {
                         </TableCell>
                         <TableCell>
                           <Badge variant="secondary" className="capitalize">
-                            {candidate.status || "New"}
+                            {candidate.current_status || candidate.status || "Pending"}
                           </Badge>
                         </TableCell>
                         <TableCell>

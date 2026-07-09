@@ -10,6 +10,7 @@ import {
   addCandidateNoteHandler,
   getCandidateNotesHandler,
   getSimilarCandidatesHandler,
+  getAllCandidatesHandler,
 } from '@/controllers/candidateController';
 import {
   validate,
@@ -23,6 +24,7 @@ import {
 
 const router = Router();
 
+router.get('/', getAllCandidatesHandler);
 router.post('/search', validate(searchSchema), searchCandidatesHandler);
 router.post('/compare', validate(compareSchema), compareCandidatesHandler);
 router.post('/batch', validate(batchSchema), batchCandidatesHandler);

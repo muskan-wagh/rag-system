@@ -156,3 +156,80 @@ export async function scanBias(jdText: string) {
     body: JSON.stringify({ jdText }),
   })
 }
+
+// --- New API functions for dashboard & candidate management ---
+
+export interface SessionSummary {
+  id: string
+  job_description_text: string
+  created_at: string
+  candidate_count: number
+}
+
+export async function getSessions() {
+  return request<SessionSummary[]>("/sessions", { method: "GET" })
+}
+
+export interface SessionStats {
+  total: number
+  pending: number
+  shortlisted: number
+  interview: number
+  rejected: number
+  hired: number
+}
+
+export async function getSessionStats(sessionId: string) {
+  return request<SessionStats>(`/sessions/${sessionId}/stats`, { method: "GET" })
+}
+
+export interface CandidateRecord {
+  id: string
+  upload_session_id?: string
+  full_name?: string
+  email?: string
+  phone?: string
+  location?: string
+  current_company?: string
+  current_title?: string
+  total_experience_years?: number
+  raw_resume_text?: string
+  resume_file_url?: string
+  flight_risk?: string
+  growth_trajectory?: string
+  current_status?: string
+  created_at?: string
+  skills?: string[]
+  match_score?: number
+}
+
+export interface PaginatedCandidates {
+  candidates: CandidateRecord[]
+  total: number
+  page: number
+  limit: number
+  totalPages: number
+}
+
+export async function getAllCandidates(params: {
+  page?: number
+  limit?: number
+  search?: string
+  sortBy?: string
+  sortOrder?: "asc" | "desc"
+  sessionId?: string
+} = {}) {
+  const searchParams = new URLSearchParams()
+  if (params.page) searchParams.set("page", String(params.page))
+  if (params.limit) searchParams.set("limit", String(params.limit))
+  if (params.search) searchParams.set("search", params.search)
+  if (params.sortBy) searchParams.set("sortBy", params.sortBy)
+  if (params.sortOrder) searchParams.set("sortOrder", params.sortOrder)
+  if (params.sessionId) searchParams.set("sessionId", params.sessionId)
+  const qs = searchParams.toString()
+  return request<PaginatedCandidates>(`/candidates${qs ? `?${qs}` : ""}`, { method: "GET" })
+}
+
+export async function getCandidateRecord(id: string) {
+  return request<CandidateRecord>(`/candidates/${id}`, { method: "GET" })
+}

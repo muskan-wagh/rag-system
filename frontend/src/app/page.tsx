@@ -116,7 +116,7 @@ export default function Home() {
                   Go to Dashboard <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
               </Link>
-              <Link href={ROUTES.candidates}>
+              <Link href={ROUTES.candidateSearch}>
                 <Button variant="outline" className="text-muted-foreground hover:text-foreground h-10 px-6">
                   Search Candidates
                 </Button>

@@ -1,14 +1,16 @@
 import { Request, Response, NextFunction } from 'express';
 import { config } from '@/config';
 
-const PUBLIC_PATHS = ['/api/upload'];
+// These paths are accessible WITHOUT authentication.
+// Paths are matched against req.path (which is the full path at the app level).
+const PUBLIC_PATHS = ['/api/upload', '/api/generate-link', '/api/sessions'];
 
 export function authMiddleware(req: Request, res: Response, next: NextFunction): void {
   if (!config.apiKey) {
     return next();
   }
 
-  if (PUBLIC_PATHS.some((path) => req.path.startsWith(path))) {
+  if (PUBLIC_PATHS.some((path) => req.path === path || req.path.startsWith(path + '/'))) {
     return next();
   }
 

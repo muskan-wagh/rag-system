@@ -15,6 +15,7 @@ import {
   addCandidateNote,
   getCandidateNotes,
   saveSearchSession,
+  getAllCandidatesPaginated,
 } from '@/services/supabase/database';
 import { Candidate } from '@/types';
 import { logger } from '@/utils/logger';
@@ -211,4 +212,26 @@ export const getSimilarCandidatesHandler = asyncHandler(async (req: Request, res
   const filtered = similar.filter((r) => r.candidate.id !== id);
 
   res.status(200).json({ success: true, data: filtered.slice(0, 5).map((r) => r.candidate) });
+});
+
+export const getAllCandidatesHandler = asyncHandler(async (req: Request, res: Response) => {
+  const {
+    page = '1',
+    limit = '20',
+    search,
+    sortBy,
+    sortOrder,
+    sessionId,
+  } = req.query as Record<string, string | undefined>;
+
+  const result = await getAllCandidatesPaginated({
+    page: parseInt(page || '1', 10),
+    limit: parseInt(limit || '20', 10),
+    search,
+    sortBy,
+    sortOrder: (sortOrder as 'asc' | 'desc') || 'desc',
+    sessionId,
+  });
+
+  res.status(200).json({ success: true, data: result });
 });

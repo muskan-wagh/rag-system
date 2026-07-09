@@ -1,10 +1,8 @@
 import { Server as HttpServer } from 'http';
 import { WebSocketServer, WebSocket } from 'ws';
-import Redis from 'ioredis';
-import { config } from '@/config';
+import { getRedisClient, isRedisAvailable } from '@/services/redis/manager';
 import { logger } from '@/utils/logger';
 
-const REDIS_PLACEHOLDER = 'YOUR_UPSTASH_PASSWORD';
 const EVENTS_CHANNEL = 'app:events';
 
 let wss: WebSocketServer | null = null;
@@ -19,14 +17,8 @@ export function initWebSocketServer(server: HttpServer): WebSocketServer {
   });
 
   // Subscribe to Redis events and forward to WebSocket clients
-  if (!config.redis.url.includes(REDIS_PLACEHOLDER)) {
-    const sub = new Redis(config.redis.url, {
-      maxRetriesPerRequest: null,
-      retryStrategy: (times) => {
-        if (times > 3) return null;
-        return Math.min(times * 200, 1000);
-      },
-    });
+  if (isRedisAvailable()) {
+    const sub = getRedisClient()!.duplicate();
     sub.subscribe(EVENTS_CHANNEL, (err) => {
       if (err) {
         logger.warn('Failed to subscribe to events channel', { error: err.message });
@@ -36,7 +28,6 @@ export function initWebSocketServer(server: HttpServer): WebSocketServer {
     });
     sub.on('message', (_channel, message) => {
       try {
-        const parsed = JSON.parse(message);
         broadcastRaw(message);
       } catch {
         // ignore malformed messages

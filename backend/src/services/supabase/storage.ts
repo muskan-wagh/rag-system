@@ -59,6 +59,20 @@ export async function getResumeFileUrl(storagePath: string): Promise<string> {
   return data.publicUrl;
 }
 
+export async function deleteResumeFile(storagePath: string): Promise<void> {
+  const supabase = getSupabaseClient();
+  const { error } = await supabase.storage
+    .from(BUCKET_NAME)
+    .remove([storagePath]);
+
+  if (error) {
+    logger.error('Failed to delete resume file from storage', { path: storagePath, error: error.message });
+    throw new AppError(`Failed to delete resume file: ${error.message}`, 500, ErrorCodes.STORAGE_ERROR);
+  }
+
+  logger.info('Resume file deleted from storage', { path: storagePath });
+}
+
 export async function downloadResumeFile(storagePath: string): Promise<Buffer> {
   const supabase = getSupabaseClient();
   const { data, error } = await supabase.storage

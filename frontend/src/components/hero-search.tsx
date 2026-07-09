@@ -44,7 +44,7 @@ export function HeroSearch() {
     const text = value || query
     if (!text.trim()) return
     setLoading(true)
-    router.push(`${ROUTES.candidates}?jd=${encodeURIComponent(text)}`)
+    router.push(`${ROUTES.candidateSearch}?jd=${encodeURIComponent(text)}`)
   }
 
   function handleKeyDown(e: React.KeyboardEvent) {

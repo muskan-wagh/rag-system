@@ -1,426 +1,471 @@
 "use client"
 
-import { Suspense, useState, useEffect, useCallback } from "react"
+import { Suspense, useState, useEffect, useCallback, useRef } from "react"
 import { useSearchParams } from "next/navigation"
-import { motion, AnimatePresence } from "framer-motion"
+import { motion } from "framer-motion"
+import Link from "next/link"
+import {
+  Search, Loader2, Users, FileText, ChevronLeft, ChevronRight,
+  LayoutDashboard,
+} from "lucide-react"
+import { toast } from "sonner"
+import { CandidateDetailModal } from "@/components/candidate-detail-modal"
+import { getSessions, getAllCandidates } from "@/lib/api"
+import { useWebSocket } from "@/lib/use-websocket"
+import { ROUTES } from "@/lib/constants"
 import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
+import { Card } from "@/components/ui/card"
+import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Skeleton } from "@/components/ui/skeleton"
-import { ProgressBar } from "@/components/ui/progress-bar"
 import { EmptyState } from "@/components/ui/empty-state"
-import { Search, Sparkles, Loader2, SlidersHorizontal, ListFilter, LayoutGrid, X } from "lucide-react"
-import { searchCandidates } from "@/lib/api"
-import { CandidateCard } from "@/components/candidate-card"
-import { AiInsightsPanel } from "@/components/ai-insights-panel"
-import { ResumeDrawer } from "@/components/resume-drawer"
-import { SearchSidebar } from "@/components/search-sidebar"
-import { useSearchStore, isCacheValid } from "@/lib/search-store"
-import type { Candidate } from "@/lib/api"
+import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell,
+} from "@/components/ui/table"
+import type { SessionSummary, CandidateRecord, PaginatedCandidates } from "@/lib/api"
 
-type Tab = "results" | "analytics"
+function getInitials(name?: string): string {
+  return (name || "?")
+    .split(" ")
+    .map((n) => n[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase()
+}
 
-const examplePrompts = [
-  "Senior React Developer with TypeScript",
-  "Data Scientist NLP Python",
-  "Full-stack Python AWS",
-  "Product Manager SaaS",
-]
+function getStatusColor(status?: string): string {
+  const s = (status || "").toLowerCase()
+  if (s === "pending" || s === "applied") return "bg-blue-100 text-blue-700 border-blue-200"
+  if (s === "shortlisted") return "bg-amber-100 text-amber-700 border-amber-200"
+  if (s === "interview" || s === "screening" || s === "technical interview" || s === "hr interview") return "bg-violet-100 text-violet-700 border-violet-200"
+  if (s === "rejected") return "bg-red-100 text-red-700 border-red-200"
+  if (s === "hired") return "bg-emerald-100 text-emerald-700 border-emerald-200"
+  if (s === "offer") return "bg-teal-100 text-teal-700 border-teal-200"
+  return "bg-gray-100 text-gray-700 border-gray-200"
+}
 
-const SCROLL_KEY = "recruitiq-scroll-candidates"
+function getFlightRiskColor(risk?: string): string {
+  const r = (risk || "").toLowerCase()
+  if (r === "high") return "destructive"
+  if (r === "medium") return "default"
+  return "outline"
+}
+
+function formatDate(dateStr?: string): string {
+  if (!dateStr) return "—"
+  try {
+    return new Date(dateStr).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })
+  } catch {
+    return dateStr
+  }
+}
+
+const PAGE_SIZE = 20
 
 function CandidatesContent() {
   const searchParams = useSearchParams()
 
-  const [selectedCandidate, setSelectedCandidate] = useState<Candidate | null>(null)
+  const [sessions, setSessions] = useState<SessionSummary[]>([])
+  const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null)
+  const [sessionsLoading, setSessionsLoading] = useState(true)
 
-  const jdText = useSearchStore((s) => s.jdText)
-  const setJdText = useSearchStore((s) => s.setJdText)
-  const results = useSearchStore((s) => s.results)
-  const loading = useSearchStore((s) => s.loading)
-  const error = useSearchStore((s) => s.error)
-  const activeTab = useSearchStore((s) => s.activeTab)
-  const setActiveTab = useSearchStore((s) => s.setActiveTab)
-  const viewMode = useSearchStore((s) => s.viewMode)
-  const setViewMode = useSearchStore((s) => s.setViewMode)
-  const showMobileFilters = useSearchStore((s) => s.showMobileFilters)
-  const setShowMobileFilters = useSearchStore((s) => s.setShowMobileFilters)
-  const lastSearchTimestamp = useSearchStore((s) => s.lastSearchTimestamp)
+  const [candidatesData, setCandidatesData] = useState<PaginatedCandidates | null>(null)
+  const [candidatesLoading, setCandidatesLoading] = useState(false)
+  const [searchQuery, setSearchQuery] = useState("")
+  const [page, setPage] = useState(1)
 
-  const performSearch = useCallback(async (text: string) => {
-    const { filters, setLoading, setError, setResults, setActiveTab } = useSearchStore.getState()
-    setLoading(true)
-    setError("")
+  const [selectedCandidate, setSelectedCandidate] = useState<CandidateRecord | null>(null)
+  const [showDetailModal, setShowDetailModal] = useState(false)
+  const searchInputRef = useRef<HTMLInputElement>(null)
+
+  // Load sessions
+  const fetchSessions = useCallback(async () => {
+    setSessionsLoading(true)
     try {
-      const res = await searchCandidates(text, 20, filters)
+      const res = await getSessions()
       if (res.success && res.data) {
-        setResults(res.data.results, res.data.query)
-        setActiveTab("results")
-      } else {
-        setError(res.error || "Search failed")
+        setSessions(res.data)
       }
     } catch {
-      setError("Failed to connect to server")
+      // fail silently
     } finally {
-      setLoading(false)
+      setSessionsLoading(false)
     }
   }, [])
 
   useEffect(() => {
-    const jdFromUrl = searchParams.get("jd")
-    const hasCachedResults = results.length > 0 && isCacheValid(lastSearchTimestamp)
+    fetchSessions()
+  }, [fetchSessions])
 
-    if (jdFromUrl && jdFromUrl !== jdText) {
-      setJdText(jdFromUrl)
-      performSearch(jdFromUrl)
-    } else if (!hasCachedResults && jdText) {
-      performSearch(jdText)
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
-
+  // Read session from URL on mount
   useEffect(() => {
-    const savedY = localStorage.getItem(SCROLL_KEY)
-    if (savedY && results.length > 0) {
-      requestAnimationFrame(() => {
-        window.scrollTo(0, parseInt(savedY, 10))
+    const sessionFromUrl = searchParams.get("session")
+    if (sessionFromUrl) {
+      setSelectedSessionId(sessionFromUrl)
+    }
+  }, [searchParams])
+
+  // Fetch candidates
+  const fetchCandidates = useCallback(async (sessionId: string | null, query: string, currentPage: number) => {
+    setCandidatesLoading(true)
+    try {
+      const res = await getAllCandidates({
+        page: currentPage,
+        limit: PAGE_SIZE,
+        search: query || undefined,
+        sessionId: sessionId || undefined,
+        sortBy: "created_at",
+        sortOrder: "desc",
       })
-    }
-  }, [results.length])
-
-  useEffect(() => {
-    let ticking = false
-    const handleScroll = () => {
-      if (!ticking) {
-        requestAnimationFrame(() => {
-          localStorage.setItem(SCROLL_KEY, String(window.scrollY))
-          ticking = false
-        })
-        ticking = true
+      if (res.success && res.data) {
+        setCandidatesData(res.data)
       }
-    }
-    window.addEventListener("scroll", handleScroll, { passive: true })
-    return () => {
-      localStorage.setItem(SCROLL_KEY, String(window.scrollY))
-      window.removeEventListener("scroll", handleScroll)
+    } catch {
+      toast.error("Failed to load candidates")
+    } finally {
+      setCandidatesLoading(false)
     }
   }, [])
 
-  async function handleSearch() {
-    const text = useSearchStore.getState().jdText
-    if (!text.trim()) return
-    await performSearch(text)
-  }
+  useEffect(() => {
+    fetchCandidates(selectedSessionId, searchQuery, page)
+  }, [selectedSessionId, page, fetchCandidates])
 
-  function handleKeyDown(e: React.KeyboardEvent) {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault()
-      handleSearch()
-    }
-  }
+  // WebSocket updates
+  useWebSocket("candidate:status_changed", useCallback(() => {
+    fetchCandidates(selectedSessionId, searchQuery, page)
+    fetchSessions()
+  }, [selectedSessionId, searchQuery, page, fetchCandidates, fetchSessions]))
 
-  const tabs: { key: Tab; label: string; count?: number }[] = [
-    { key: "results", label: "Results", count: results.length },
-    { key: "analytics", label: "Analytics" },
-  ]
+  const handleSearch = useCallback((value: string) => {
+    setSearchQuery(value)
+    setPage(1)
+  }, [])
 
-  const analyticsStats = results.length > 0 ? [
-    { label: "Total Candidates", value: results.length },
-    { label: "Avg Match Score", value: `${Math.round(results.reduce((s, r) => s + r.scores.overall, 0) / results.length * 100)}%` },
-    { label: "Avg Experience", value: `${(results.reduce((s, r) => s + r.candidate.experience, 0) / results.length).toFixed(1)} yrs` },
-    { label: "Top Match", value: `${Math.round(results[0].scores.overall * 100)}%` },
-  ] : []
+  const handleSelectSession = useCallback((sessionId: string | null) => {
+    setSelectedSessionId(sessionId)
+    setSearchQuery("")
+    setPage(1)
+  }, [])
+
+  const handleViewCandidate = useCallback((candidate: CandidateRecord) => {
+    setSelectedCandidate(candidate)
+    setShowDetailModal(true)
+  }, [])
+
+  const totalPages = candidatesData?.totalPages || 0
+  const startRow = candidatesData?.total ? (page - 1) * PAGE_SIZE + 1 : 0
+  const endRow = Math.min(page * PAGE_SIZE, candidatesData?.total || 0)
 
   return (
-    <div className="flex-1">
-      <div className="mx-auto max-w-7xl px-4 md:px-6 py-6 md:py-8">
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="mb-6"
-        >
-          <div className="flex items-center gap-3 mb-1">
-            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary shadow-sm">
-              <Search className="h-3.5 w-3.5 text-white" />
-            </div>
-            <div>
-              <h1 className="text-base font-semibold text-foreground">Candidate Search</h1>
-              <p className="text-xs text-muted-foreground">
-                AI-powered candidate discovery and ranking
-              </p>
-            </div>
-          </div>
-        </motion.div>
-
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.05 }}
-          className="bg-white rounded-2xl p-4 border border-border mb-6 card-hover"
-        >
-          <div className="flex flex-col gap-3">
-            <div className="relative">
-              <Sparkles className="absolute left-3 top-3 h-4 w-4 text-primary" />
-              <textarea
-                value={jdText}
-                onChange={(e) => setJdText(e.target.value)}
-                onKeyDown={handleKeyDown}
-                placeholder="Paste a job description or describe your ideal candidate..."
-                rows={2}
-                className="w-full bg-transparent text-sm text-foreground placeholder-muted-foreground/60 outline-none resize-none pl-9 pt-2.5"
-              />
-            </div>
-            <div className="flex items-center justify-between gap-2">
-              <div className="flex flex-wrap gap-1.5 flex-1">
-                {examplePrompts.map((p) => (
-                  <button
-                    key={p}
-                    onClick={() => { setJdText(p); performSearch(p) }}
-                    className="rounded-full border border-border bg-white px-2.5 py-1 text-[11px] text-muted-foreground hover:text-foreground hover:border-primary/20 transition-all"
-                  >
-                    {p}
-                  </button>
-                ))}
+    <div className="flex-1 flex">
+      {/* Left Sidebar - Sessions */}
+      <aside className="w-64 shrink-0 border-r bg-muted/10 hidden md:flex flex-col">
+        <div className="p-4 border-b">
+          <h2 className="text-sm font-semibold flex items-center gap-2">
+            <LayoutDashboard className="h-4 w-4 text-primary" />
+            Hiring Sessions
+          </h2>
+        </div>
+        <div className="flex-1 overflow-y-auto p-2 space-y-0.5">
+          <button
+            onClick={() => handleSelectSession(null)}
+            className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors flex items-center justify-between ${
+              selectedSessionId === null
+                ? "bg-primary/10 text-primary font-medium"
+                : "text-muted-foreground hover:text-foreground hover:bg-muted"
+            }`}
+          >
+            <span className="flex items-center gap-2">
+              <Users className="h-3.5 w-3.5" />
+              All Candidates
+            </span>
+          </button>
+          <div className="h-px bg-border my-1" />
+          {sessionsLoading ? (
+            Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="px-3 py-2">
+                <Skeleton className="h-4 w-full mb-1" />
+                <Skeleton className="h-3 w-16" />
               </div>
-              <div className="flex items-center gap-2">
+            ))
+          ) : sessions.length === 0 ? (
+            <p className="text-xs text-muted-foreground px-3 py-4 text-center">
+              No sessions yet
+            </p>
+          ) : (
+            sessions.map((session) => {
+              const truncatedText = session.job_description_text
+                ? session.job_description_text.length > 55
+                  ? session.job_description_text.slice(0, 55) + "..."
+                  : session.job_description_text
+                : "Untitled Session"
+              return (
                 <button
-                  onClick={() => setShowMobileFilters(!showMobileFilters)}
-                  className="lg:hidden flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-all"
+                  key={session.id}
+                  onClick={() => handleSelectSession(session.id)}
+                  className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors ${
+                    selectedSessionId === session.id
+                      ? "bg-primary/10 text-primary font-medium"
+                      : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                  }`}
                 >
-                  <SlidersHorizontal className="h-3.5 w-3.5" />
-                  Filters
+                  <p className="truncate text-xs font-medium">{truncatedText}</p>
+                  <p className="text-[10px] text-muted-foreground mt-0.5">
+                    {session.candidate_count} candidate{session.candidate_count !== 1 ? "s" : ""}
+                  </p>
                 </button>
-                <Button
-                  onClick={handleSearch}
-                  disabled={loading || !jdText.trim()}
-                  className="bg-primary text-white hover:bg-primary/90 h-8 px-4 text-xs shadow-sm"
-                >
-                  {loading ? (
-                    <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />
-                  ) : (
-                    <Search className="h-3.5 w-3.5 mr-1.5" />
-                  )}
-                  {loading ? "Searching..." : "Search"}
-                </Button>
-              </div>
-            </div>
-            {error && (
-              <p className="text-xs text-destructive flex items-center gap-1">
-                <span className="inline-block h-1 w-1 rounded-full bg-destructive" />
-                {error}
-              </p>
-            )}
-          </div>
-        </motion.div>
-
-        <div className="flex gap-6">
-          <SearchSidebar
-            className="hidden lg:block w-56 shrink-0"
-          />
-
-          <div className="flex-1 min-w-0">
-            {results.length > 0 && (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="mb-4 flex items-center justify-between"
-              >
-                <div className="flex items-center gap-2">
-                  {tabs.map((tab) => (
-                    <button
-                      key={tab.key}
-                      onClick={() => setActiveTab(tab.key)}
-                      className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-all ${
-                        activeTab === tab.key
-                          ? "bg-primary/5 text-primary"
-                          : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
-                      }`}
-                    >
-                      {tab.label}
-                      {tab.count !== undefined && (
-                        <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px]">
-                          {tab.count}
-                        </span>
-                      )}
-                    </button>
-                  ))}
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-muted-foreground">
-                    AI analyzed {results.length} candidates
-                  </span>
-                  <div className="flex items-center gap-1 border-l border-border pl-2">
-                    <button
-                      onClick={() => setViewMode("list")}
-                      className={`flex h-7 w-7 items-center justify-center rounded-lg transition-all ${
-                        viewMode === "list" ? "bg-primary/5 text-primary" : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
-                      }`}
-                    >
-                      <ListFilter className="h-3.5 w-3.5" />
-                    </button>
-                    <button
-                      onClick={() => setViewMode("grid")}
-                      className={`flex h-7 w-7 items-center justify-center rounded-lg transition-all ${
-                        viewMode === "grid" ? "bg-primary/5 text-primary" : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
-                      }`}
-                    >
-                      <LayoutGrid className="h-3.5 w-3.5" />
-                    </button>
-                  </div>
-                </div>
-              </motion.div>
-            )}
-
-            {activeTab === "results" && (
-              <>
-                {loading && (
-                  <div className="grid gap-3">
-                    {Array.from({ length: 3 }).map((_, i) => (
-                      <div key={i} className="bg-white rounded-2xl p-5 border border-border">
-                        <div className="flex gap-4">
-                          <Skeleton className="h-12 w-12 rounded-xl" />
-                          <div className="flex-1 space-y-3">
-                            <Skeleton className="h-4 w-48" />
-                            <Skeleton className="h-3 w-full" />
-                            <div className="flex gap-2">
-                              <Skeleton className="h-5 w-16 rounded-full" />
-                              <Skeleton className="h-5 w-20 rounded-full" />
-                              <Skeleton className="h-5 w-14 rounded-full" />
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {!loading && results.length > 0 && (
-                  <div className={viewMode === "grid" ? "grid grid-cols-1 md:grid-cols-2 gap-3" : "space-y-3"}>
-                    {results.map((result, i) => (
-                      <div key={result.candidate.id} onClick={() => setSelectedCandidate(result.candidate)} className="cursor-pointer">
-                        <CandidateCard result={result} index={i} />
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {!loading && results.length > 0 && (
-                  <div className="mt-6 flex items-center justify-between">
-                    <span className="text-xs text-muted-foreground">
-                      Showing 1-{results.length} of {results.length} candidates
-                    </span>
-                    <div className="flex items-center gap-1">
-                      <button className="flex h-8 w-8 items-center justify-center rounded-lg border border-border text-xs text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-all disabled:opacity-40" disabled>
-                        Previous
-                      </button>
-                      <button className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/5 text-primary text-xs font-medium">
-                        1
-                      </button>
-                      <button className="flex h-8 w-8 items-center justify-center rounded-lg border border-border text-xs text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-all disabled:opacity-40" disabled>
-                        Next
-                      </button>
-                    </div>
-                  </div>
-                )}
-
-                {!loading && !error && results.length === 0 && jdText && (
-                  <EmptyState
-                    icon={Search}
-                    title="No candidates found"
-                    description="Try adjusting your job description or filters to find more candidates."
-                  />
-                )}
-
-                {!loading && results.length === 0 && !jdText && !error && (
-                  <EmptyState
-                    icon={Search}
-                    title="Search Candidates"
-                    description="Paste a job description above and click search to find ranked candidates with AI-powered matching."
-                  />
-                )}
-              </>
-            )}
-
-            {activeTab === "analytics" && results.length > 0 && (
-              <div className="space-y-4">
-                <div className="bg-white rounded-2xl p-5 border border-border">
-                  <h3 className="text-sm font-medium text-foreground mb-4">Analytics Overview</h3>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    {analyticsStats.map((stat) => (
-                      <div key={stat.label} className="bg-muted/50 rounded-xl p-4">
-                        <div className="text-2xl font-bold text-primary">{stat.value}</div>
-                        <div className="text-[11px] text-muted-foreground mt-1">{stat.label}</div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="bg-white rounded-2xl p-5 border border-border">
-                  <h3 className="text-sm font-medium text-foreground mb-4">Score Breakdown</h3>
-                  <div className="grid grid-cols-2 gap-6">
-                    <div className="space-y-3">
-                      {(["skill", "experience", "education"] as const).map((key) => {
-                        const avg = results.reduce((s, r) => s + r.scores[key], 0) / results.length
-                        return (
-                          <ProgressBar
-                            key={key}
-                            value={avg * 100}
-                            label={key.charAt(0).toUpperCase() + key.slice(1)}
-                            color={key === "skill" ? "bg-primary" : key === "experience" ? "bg-accent" : "bg-chart-3"}
-                          />
-                        )
-                      })}
-                    </div>
-                    <div className="glass rounded-xl p-4">
-                      <p className="text-xs text-muted-foreground mb-2">AI Recommendation</p>
-                      <p className="text-xs text-foreground/80 leading-relaxed">
-                        Based on the current job description, the top candidates show strong alignment in required skills and experience level. Consider reviewing the top 3 candidates for initial interviews.
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {results.length > 0 && (
-            <div className="hidden xl:block w-72 shrink-0">
-              <AiInsightsPanel results={results} jdText={jdText} />
-            </div>
+              )
+            })
           )}
         </div>
+        <div className="p-3 border-t">
+          <Link href={ROUTES.dashboard}>
+            <Button variant="outline" size="sm" className="w-full text-xs">
+              <LayoutDashboard className="h-3 w-3 mr-1" />
+              Go to Dashboard
+            </Button>
+          </Link>
+        </div>
+      </aside>
+
+      {/* Main Content */}
+      <div className="flex-1 min-w-0 p-6 lg:p-8 space-y-6">
+        {/* Header */}
+        <div>
+          <h1 className="text-lg font-semibold flex items-center gap-2">
+            <Users className="h-5 w-5 text-primary" />
+            Candidate Database
+          </h1>
+          <p className="text-sm text-muted-foreground mt-0.5">
+            {selectedSessionId
+              ? "Candidates filtered by selected hiring session"
+              : "All candidates across all hiring sessions"}
+          </p>
+        </div>
+
+        {/* Search & Filters */}
+        <div className="flex items-center gap-3">
+          <div className="relative flex-1 max-w-md">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <input
+              ref={searchInputRef}
+              type="text"
+              value={searchQuery}
+              onChange={(e) => handleSearch(e.target.value)}
+              placeholder="Search by name, email, or company..."
+              className="w-full h-9 pl-9 pr-4 text-sm rounded-lg border border-border bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+            />
+          </div>
+          {candidatesData && (
+            <span className="text-xs text-muted-foreground shrink-0">
+              {candidatesData.total} candidate{candidatesData.total !== 1 ? "s" : ""}
+            </span>
+          )}
+        </div>
+
+        {/* Candidate Table */}
+        <Card className="p-0 overflow-hidden border shadow-sm">
+          {candidatesLoading ? (
+            <div className="p-4 space-y-3">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <div key={i} className="flex items-center gap-4">
+                  <Skeleton className="h-8 w-8 rounded-full" />
+                  <div className="flex-1 space-y-2">
+                    <Skeleton className="h-3 w-40" />
+                    <Skeleton className="h-2 w-24" />
+                  </div>
+                  <Skeleton className="h-4 w-16" />
+                  <Skeleton className="h-5 w-20 rounded-full" />
+                  <Skeleton className="h-8 w-16" />
+                </div>
+              ))}
+            </div>
+          ) : candidatesData?.candidates.length === 0 ? (
+            <EmptyState
+              icon={Users}
+              title="No candidates found"
+              description={searchQuery ? "Try a different search term" : "Upload resumes to start building your candidate database."}
+            />
+          ) : (
+            <>
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Candidate</TableHead>
+                      <TableHead>Company</TableHead>
+                      <TableHead>Experience</TableHead>
+                      <TableHead className="hidden lg:table-cell">Skills</TableHead>
+                      <TableHead className="hidden sm:table-cell">Flight Risk</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead className="hidden md:table-cell">Applied</TableHead>
+                      <TableHead>Resume</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {candidatesData?.candidates.map((candidate) => (
+                      <TableRow key={candidate.id}>
+                        <TableCell>
+                          <div className="flex items-center gap-3">
+                            <Avatar className="h-8 w-8">
+                              <AvatarFallback className="text-xs">
+                                {getInitials(candidate.full_name)}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div className="min-w-0">
+                              <p className="font-medium text-sm truncate max-w-[180px]">
+                                {candidate.full_name || "Unknown"}
+                              </p>
+                              {candidate.current_title && (
+                                <p className="text-xs text-muted-foreground truncate max-w-[180px]">
+                                  {candidate.current_title}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <span className="text-sm text-muted-foreground">
+                            {candidate.current_company || "—"}
+                          </span>
+                        </TableCell>
+                        <TableCell>
+                          <span className="text-sm font-mono">
+                            {candidate.total_experience_years != null
+                              ? `${candidate.total_experience_years}y`
+                              : "—"}
+                          </span>
+                        </TableCell>
+                        <TableCell className="hidden lg:table-cell">
+                          <div className="flex flex-wrap gap-1 max-w-[200px]">
+                            {(candidate.skills || []).slice(0, 3).map((skill, i) => (
+                              <Badge key={i} variant="secondary" className="text-[10px]">
+                                {skill}
+                              </Badge>
+                            ))}
+                            {(candidate.skills?.length || 0) > 3 && (
+                              <Badge variant="outline" className="text-[10px]">
+                                +{(candidate.skills?.length || 0) - 3}
+                              </Badge>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell className="hidden sm:table-cell">
+                          <Badge variant={getFlightRiskColor(candidate.flight_risk) as any} className="capitalize text-xs">
+                            {candidate.flight_risk || "—"}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium border ${getStatusColor(candidate.current_status)}`}>
+                            {candidate.current_status || "Pending"}
+                          </span>
+                        </TableCell>
+                        <TableCell className="hidden md:table-cell">
+                          <span className="text-xs text-muted-foreground whitespace-nowrap">
+                            {formatDate(candidate.created_at)}
+                          </span>
+                        </TableCell>
+                        <TableCell>
+                          {candidate.resume_file_url ? (
+                            <a
+                              href={candidate.resume_file_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 h-8 px-2.5 rounded-lg text-sm font-medium whitespace-nowrap transition-colors hover:bg-muted hover:text-foreground text-muted-foreground"
+                            >
+                              <FileText className="h-3.5 w-3.5" />
+                              <span className="hidden sm:inline">View</span>
+                            </a>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">—</span>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleViewCandidate(candidate)}
+                          >
+                            View
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+
+              {/* Pagination */}
+              {totalPages > 1 && (
+                <div className="flex items-center justify-between px-4 py-3 border-t bg-muted/20">
+                  <span className="text-xs text-muted-foreground">
+                    Showing {startRow}–{endRow} of {candidatesData?.total}
+                  </span>
+                  <div className="flex items-center gap-1">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={page <= 1}
+                      onClick={() => setPage((p) => Math.max(1, p - 1))}
+                      className="h-8 px-2"
+                    >
+                      <ChevronLeft className="h-3.5 w-3.5" />
+                    </Button>
+                    {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
+                      let pageNum: number
+                      if (totalPages <= 5) {
+                        pageNum = i + 1
+                      } else if (page <= 3) {
+                        pageNum = i + 1
+                      } else if (page >= totalPages - 2) {
+                        pageNum = totalPages - 4 + i
+                      } else {
+                        pageNum = page - 2 + i
+                      }
+                      return (
+                        <Button
+                          key={pageNum}
+                          variant={pageNum === page ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => setPage(pageNum)}
+                          className="h-8 w-8 p-0 text-xs"
+                        >
+                          {pageNum}
+                        </Button>
+                      )
+                    })}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={page >= totalPages}
+                      onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                      className="h-8 px-2"
+                    >
+                      <ChevronRight className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+        </Card>
       </div>
 
-      <AnimatePresence>
-        {showMobileFilters && (
-          <>
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-black/10 backdrop-blur-sm z-40 lg:hidden"
-              onClick={() => setShowMobileFilters(false)}
-            />
-            <motion.div
-              initial={{ x: "-100%" }}
-              animate={{ x: 0 }}
-              exit={{ x: "-100%" }}
-              transition={{ type: "spring", damping: 25, stiffness: 200 }}
-              className="fixed left-0 top-0 bottom-0 w-72 z-50 bg-white border-r border-border p-6 overflow-y-auto"
-            >
-              <div className="flex items-center justify-between mb-6">
-                <h3 className="text-sm font-medium text-foreground">Filters</h3>
-                <button onClick={() => setShowMobileFilters(false)} className="flex h-7 w-7 items-center justify-center rounded-lg hover:bg-muted transition-colors">
-                  <X className="h-4 w-4" />
-                </button>
-              </div>
-              <SearchSidebar className="!block" />
-            </motion.div>
-          </>
-        )}
-      </AnimatePresence>
-
-      <ResumeDrawer
-        candidate={selectedCandidate}
-        onClose={() => setSelectedCandidate(null)}
+      <CandidateDetailModal
+        open={showDetailModal}
+        onClose={() => {
+          setShowDetailModal(false)
+          setSelectedCandidate(null)
+        }}
+        candidate={selectedCandidate || null}
+        onStatusChange={() => fetchCandidates(selectedSessionId, searchQuery, page)}
       />
     </div>
   )

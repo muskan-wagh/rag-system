@@ -1,9 +1,9 @@
-import { Worker } from 'bullmq';
-import Redis from 'ioredis';
+import { Worker, Queue } from 'bullmq';
+import { ensureRedisConnected, shutdownRedis } from '@/services/redis/manager';
 import { config } from '@/config';
 import { logger } from '@/utils/logger';
 import { downloadResumeFile } from '@/services/supabase/storage';
-import { updateCandidate, insertSkills, insertExperience } from '@/services/supabase/database';
+import { updateCandidate, insertSkills, insertExperience, getPendingCandidates } from '@/services/supabase/database';
 import { extractResumeText, sanitizeText } from '@/services/resume-parser';
 import { generateEmbedding } from '@/services/embedding';
 import { parseResume } from '@/services/llm/parseResume';
@@ -11,42 +11,10 @@ import { calculateFlightRisk } from '@/services/llm/flightRisk';
 import { getQdrantClient } from '@/services/qdrant/client';
 import { publishEvent } from '@/services/events';
 
-const REDIS_PLACEHOLDER = 'YOUR_UPSTASH_PASSWORD';
-
 async function startWorker(): Promise<void> {
   logger.info('=== RecruitIQ Worker Starting ===');
 
-  if (config.redis.url.includes(REDIS_PLACEHOLDER)) {
-    logger.error('REDIS_URL is still a placeholder! Set it to your Upstash Redis connection string.');
-    logger.error('Get a free Redis instance at: https://upstash.com');
-    process.exit(1);
-  }
-
-  const redisConnection = new Redis(config.redis.url, {
-    maxRetriesPerRequest: null,
-    enableReadyCheck: false,
-    retryStrategy: (times) => {
-      if (times > 10) {
-        logger.error('Worker Redis: max connection retries exceeded');
-        process.exit(1);
-      }
-      return Math.min(times * 200, 3000);
-    },
-  });
-
-  await new Promise<void>((resolve, reject) => {
-    redisConnection.on('ready', () => {
-      logger.info('Worker Redis connected successfully');
-      resolve();
-    });
-    redisConnection.on('error', (err) => {
-      logger.error('Worker Redis connection error', { error: err.message });
-    });
-    redisConnection.on('close', () => {
-      logger.warn('Worker Redis connection closed');
-    });
-    setTimeout(() => reject(new Error('Redis connection timeout after 15s')), 15000);
-  });
+  const connection = await ensureRedisConnected();
 
   const worker = new Worker(
     'resume-processing',
@@ -57,11 +25,12 @@ async function startWorker(): Promise<void> {
       logger.info('=== WORKER: Job started ===', logCtx);
 
       // Step 1: Mark as PROCESSING
+      logger.info('WORKER: Step 1/8 — Marking candidate as PROCESSING', logCtx);
       await updateCandidate(candidateId, { processing_status: 'PROCESSING' });
       publishEvent('resume:processing', { candidateId, sessionId });
 
-      // Step 2: Download file from storage + extract text (parallel not needed, download first)
-      logger.info('WORKER: Downloading file from storage', logCtx);
+      // Step 2: Download file from storage + extract text
+      logger.info('WORKER: Step 2/8 — Downloading file from storage', logCtx);
       const fileBuffer = await downloadResumeFile(storagePath);
       const rawText = await extractResumeText(fileBuffer, mimeType);
       const cleanText = sanitizeText(rawText);
@@ -72,10 +41,11 @@ async function startWorker(): Promise<void> {
       }
 
       // Step 3: Parse with Qwen LLM
-      logger.info('WORKER: Parsing resume with Qwen LLM', logCtx);
+      logger.info('WORKER: Step 3/8 — Parsing resume with Qwen LLM', logCtx);
       const parsed = await parseResume(cleanText);
 
       // Step 4: Calculate flight risk
+      logger.info('WORKER: Step 4/8 — Calculating flight risk', logCtx);
       const workHistory = parsed.work_history?.map(w => ({
         company: w.company,
         title: w.title,
@@ -83,39 +53,37 @@ async function startWorker(): Promise<void> {
       })) || [];
       const { flight_risk, growth_trajectory } = calculateFlightRisk(workHistory);
 
-      // Step 5: Update candidate + insert skills + insert experience + generate embedding (parallel)
+      // Step 5: Generate embedding
+      logger.info('WORKER: Step 5/8 — Generating embedding', logCtx);
+      const embeddingText = [
+        parsed.full_name,
+        `Skills: ${parsed.skills.join(', ')}`,
+        `Experience: ${parsed.total_experience_years} years`,
+        `Education: ${parsed.education}`,
+        cleanText.slice(0, 8000),
+      ].filter(Boolean).join('. ');
+      const embedding = await generateEmbedding(embeddingText);
+
+      // Step 6: Update candidate in DB (sequential — must succeed before Qdrant)
+      logger.info('WORKER: Step 6/8 — Updating candidate in database', logCtx);
       const currentTitle = parsed.work_history?.[0]?.title || '';
-      logger.info('WORKER: Running parallel updates (DB + embedding)', logCtx);
+      await updateCandidate(candidateId, {
+        full_name: parsed.full_name || 'Unknown',
+        email: parsed.email || '',
+        phone: parsed.phone || '',
+        location: parsed.location || '',
+        current_company: parsed.current_company || '',
+        current_title: currentTitle,
+        total_experience_years: parsed.total_experience_years || 0,
+        parsed_json: parsed as unknown as Record<string, unknown>,
+        flight_risk,
+        growth_trajectory,
+        source: source || '',
+        raw_resume_text: cleanText,
+        processing_status: 'COMPLETED',
+      });
 
-      const [embedding] = await Promise.all([
-        (async () => {
-          const embeddingText = [
-            parsed.full_name,
-            `Skills: ${parsed.skills.join(', ')}`,
-            `Experience: ${parsed.total_experience_years} years`,
-            `Education: ${parsed.education}`,
-            cleanText.slice(0, 8000),
-          ].filter(Boolean).join('. ');
-          return generateEmbedding(embeddingText);
-        })(),
-        updateCandidate(candidateId, {
-          full_name: parsed.full_name || 'Unknown',
-          email: parsed.email || undefined,
-          phone: parsed.phone || undefined,
-          location: parsed.location || undefined,
-          current_company: parsed.current_company || undefined,
-          current_title: currentTitle,
-          total_experience_years: parsed.total_experience_years || 0,
-          parsed_json: parsed as unknown as Record<string, unknown>,
-          flight_risk,
-          growth_trajectory,
-          source: source || '',
-          raw_resume_text: cleanText,
-          processing_status: 'COMPLETED',
-        }),
-      ]);
-
-      // Insert skills and experiences (parallel, independent of embedding)
+      // Insert skills and experiences (parallel, independent)
       if (parsed.skills && parsed.skills.length > 0) {
         await insertSkills(candidateId, parsed.skills);
       }
@@ -132,8 +100,8 @@ async function startWorker(): Promise<void> {
         );
       }
 
-      // Step 6: Upsert to Qdrant
-      logger.info('WORKER: Upserting to Qdrant', logCtx);
+      // Step 7: Upsert to Qdrant (after DB is committed)
+      logger.info('WORKER: Step 7/8 — Upserting to Qdrant', logCtx);
       const qdrant = getQdrantClient();
       await qdrant.upsert(config.qdrant.collectionName, {
         points: [{
@@ -153,11 +121,13 @@ async function startWorker(): Promise<void> {
         }],
       });
 
+      // Step 8: Publish completion event
+      logger.info('WORKER: Step 8/8 — Publishing completion event', logCtx);
       publishEvent('resume:completed', { candidateId, name: parsed.full_name });
       logger.info('=== WORKER: Job completed successfully ===', { ...logCtx, name: parsed.full_name });
     },
     {
-      connection: redisConnection as any,
+      connection: connection as any,
       concurrency: 5,
     },
   );
@@ -175,7 +145,6 @@ async function startWorker(): Promise<void> {
     if (candidateId) {
       publishEvent('resume:failed', { candidateId, error: err.message });
       try {
-        const { updateCandidate } = await import('@/services/supabase/database');
         await updateCandidate(candidateId, {
           processing_status: 'FAILED',
           error_message: `Attempt ${job?.attemptsMade}/3: ${err.message}`,
@@ -190,24 +159,21 @@ async function startWorker(): Promise<void> {
     logger.info('=== WORKER: Job completed ===', { jobId: job.id, candidateId: job.data?.candidateId });
   });
 
-  logger.info('BullMQ worker started and listening for jobs on queue: resume-processing');
+  logger.info('BullMQ worker started and listening on queue: resume-processing');
 
   // Scan for stuck candidates and re-enqueue them using existing storage files
   try {
-    const { getPendingCandidates } = await import('@/services/supabase/database');
-    const { Queue: BullQueue } = await import('bullmq');
     const pending = await getPendingCandidates();
     if (pending.length > 0) {
       logger.info(`Found ${pending.length} stuck candidate(s)`, {
         statuses: pending.map(c => c.processing_status),
       });
-      const reprocessQueue = new BullQueue('resume-processing', { connection: redisConnection as any });
+      const reprocessQueue = new Queue('resume-processing', { connection: connection as any });
       for (const c of pending) {
         if (!c.resume_file_url) {
           logger.warn('Cannot reprocess — no resume_file_url', { candidateId: c.id });
           continue;
         }
-        // Derive storage path from public URL (last two segments: sessionId/filename)
         const urlParts = new URL(c.resume_file_url).pathname.split('/');
         const storagePath = urlParts.slice(-2).join('/');
 
@@ -227,6 +193,16 @@ async function startWorker(): Promise<void> {
   } catch (err: any) {
     logger.error('Reprocess scan failed', { error: err.message });
   }
+
+  // Graceful shutdown
+  const shutdown = async () => {
+    logger.info('Worker shutting down...');
+    await worker.close();
+    shutdownRedis();
+    process.exit(0);
+  };
+  process.on('SIGTERM', shutdown);
+  process.on('SIGINT', shutdown);
 }
 
 startWorker().catch((err) => {

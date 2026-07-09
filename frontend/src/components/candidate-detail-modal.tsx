@@ -2,22 +2,10 @@
 
 import { useState, useEffect, useCallback, startTransition } from "react"
 import {
-  X,
-  Loader2,
-  Brain,
-  Target,
-  ThumbsUp,
-  ArrowRight,
-  AlertTriangle,
-  Sparkles,
-  FileText,
-  CheckCircle2,
-  User,
-  Mail,
-  Phone,
-  MapPin,
-  Briefcase,
-  ExternalLink,
+  X, Loader2, Brain, Target, ThumbsUp, ArrowRight,
+  AlertTriangle, Sparkles, FileText, CheckCircle2,
+  User, Mail, Phone, MapPin, Briefcase, ExternalLink,
+  Wand2, Lightbulb, MessageSquare,
 } from "lucide-react"
 import { toast } from "sonner"
 import { updateCandidateStatus, addCandidateNote, getCandidateNotes, getScreeningQuestions, getClosingStrategy } from "@/lib/api"
@@ -44,7 +32,7 @@ interface CandidateDetail {
   growth_trajectory?: string
   skills?: string[]
   match_score?: number
-  status?: string
+  current_status?: string
   resume_file_url?: string
 }
 
@@ -71,6 +59,8 @@ interface Note {
   note_text: string
   created_at: string
 }
+
+const statusFlow = ["Pending", "Shortlisted", "Interview", "Offer", "Hired", "Rejected"]
 
 function getInitials(name: string): string {
   return name
@@ -99,6 +89,19 @@ function formatDate(dateStr: string): string {
   }
 }
 
+function getStatusColor(status?: string): string {
+  const s = (status || "").toLowerCase()
+  if (s === "pending" || s === "applied") return "bg-blue-100 text-blue-700 border-blue-200"
+  if (s === "shortlisted") return "bg-amber-100 text-amber-700 border-amber-200"
+  if (s === "interview" || s === "screening" || s === "technical interview" || s === "hr interview") return "bg-violet-100 text-violet-700 border-violet-200"
+  if (s === "rejected") return "bg-red-100 text-red-700 border-red-200"
+  if (s === "hired") return "bg-emerald-100 text-emerald-700 border-emerald-200"
+  if (s === "offer") return "bg-teal-100 text-teal-700 border-teal-200"
+  return "bg-gray-100 text-gray-700 border-gray-200"
+}
+
+type TabId = "insights" | "profile" | "notes" | "generate" | "screening" | "closing"
+
 export function CandidateDetailModal({ open, onClose, candidate, onStatusChange }: CandidateDetailModalProps) {
   const [screeningQuestions, setScreeningQuestions] = useState<ScreeningQuestion[] | null>(null)
   const [closingStrategy, setClosingStrategy] = useState<ClosingStrategy | null>(null)
@@ -113,6 +116,7 @@ export function CandidateDetailModal({ open, onClose, candidate, onStatusChange 
   const [savingNote, setSavingNote] = useState(false)
 
   const [statusLoading, setStatusLoading] = useState(false)
+  const [activeTab, setActiveTab] = useState<TabId>("insights")
 
   const fetchNotes = useCallback(async () => {
     if (!candidate) return
@@ -137,8 +141,8 @@ export function CandidateDetailModal({ open, onClose, candidate, onStatusChange 
         setStrategyError("")
         setNotes([])
         setNewNote("")
+        setActiveTab("insights")
       })
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       fetchNotes()
     }
   }, [open, candidate, fetchNotes])
@@ -151,6 +155,7 @@ export function CandidateDetailModal({ open, onClose, candidate, onStatusChange 
       const result = await getScreeningQuestions(candidate.id)
       if (result.success && result.data?.questions) {
         setScreeningQuestions(result.data.questions)
+        setActiveTab("screening")
         toast.success("Screening questions generated!")
       } else {
         setQuestionsError(result.error || "Failed to generate questions")
@@ -171,6 +176,7 @@ export function CandidateDetailModal({ open, onClose, candidate, onStatusChange 
       const result = await getClosingStrategy(candidate.id)
       if (result.success && result.data?.selling_points) {
         setClosingStrategy(result.data)
+        setActiveTab("closing")
         toast.success("Closing strategy generated!")
       } else {
         setStrategyError(result.error || "Failed to generate strategy")
@@ -182,6 +188,14 @@ export function CandidateDetailModal({ open, onClose, candidate, onStatusChange 
       setLoadingStrategy(false)
     }
   }, [candidate])
+
+  const handleGenerate = useCallback(async (type: "questions" | "strategy") => {
+    if (type === "questions") {
+      await generateQuestions()
+    } else {
+      await generateStrategy()
+    }
+  }, [generateQuestions, generateStrategy])
 
   const handleAddNote = async () => {
     if (!newNote.trim() || !candidate) return
@@ -203,15 +217,24 @@ export function CandidateDetailModal({ open, onClose, candidate, onStatusChange 
     setStatusLoading(true)
     try {
       await updateCandidateStatus(candidate.id, status)
+      if (candidate) candidate.current_status = status
       onStatusChange?.()
       const label = status.charAt(0).toUpperCase() + status.slice(1).toLowerCase()
-      toast.success(`Candidate ${label === "Screening" ? "moved to interview" : status.toLowerCase()}!`)
+      toast.success(`Candidate moved to ${label}!`)
     } catch {
       toast.error("Failed to update status")
     } finally {
       setStatusLoading(false)
     }
   }
+
+  const currentStatus = candidate?.current_status || "Pending"
+  const statusIndex = statusFlow.indexOf(currentStatus)
+
+  const canShortlist = currentStatus === "Pending"
+  const canMoveToInterview = currentStatus === "Shortlisted"
+  const canHire = currentStatus === "Interview" || currentStatus === "Offer"
+  const canReject = !["Hired", "Rejected"].includes(currentStatus)
 
   if (!candidate) return null
 
@@ -224,49 +247,63 @@ export function CandidateDetailModal({ open, onClose, candidate, onStatusChange 
       >
         {/* Sticky Profile Header */}
         <div className="flex items-start justify-between p-6 border-b bg-muted/20 shrink-0">
-          <div className="flex items-center gap-4">
-            <Avatar className="h-14 w-14">
+          <div className="flex items-center gap-4 min-w-0">
+            <Avatar className="h-14 w-14 shrink-0">
               <AvatarFallback className="text-lg">
                 {getInitials(candidate.full_name || "?")}
               </AvatarFallback>
             </Avatar>
-            <div>
-              <h2 className="text-xl font-bold tracking-tight">
+            <div className="min-w-0">
+              <h2 className="text-xl font-bold tracking-tight truncate">
                 {candidate.full_name || "Unknown"}
               </h2>
-              <p className="text-sm text-muted-foreground">
+              <p className="text-sm text-muted-foreground truncate">
                 {candidate.current_title || ""}
                 {(candidate.current_title && candidate.current_company ? " at " : "") + (candidate.current_company || "")}
                 {candidate.total_experience_years ? ` · ${candidate.total_experience_years} yrs` : ""}
               </p>
             </div>
           </div>
-          <div className="flex flex-col items-end gap-1 shrink-0">
+          <div className="flex flex-col items-end gap-1 shrink-0 ml-4">
             {candidate.flight_risk && (
               <Badge variant={getFlightRiskVariant(candidate.flight_risk)}>
                 {candidate.flight_risk} Risk
               </Badge>
             )}
-            {candidate.status && (
-              <span className="text-xs text-muted-foreground">Applied {formatDate(candidate.status)}</span>
+            {currentStatus && (
+              <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium border ${getStatusColor(currentStatus)}`}>
+                {currentStatus}
+              </span>
             )}
           </div>
         </div>
 
         {/* Tabs */}
-        <Tabs defaultValue="insights" className="flex-1 flex flex-col overflow-hidden">
-          <TabsList className="px-6 border-b rounded-none justify-start bg-transparent h-12">
-            <TabsTab value="insights" className="text-sm">
+        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as TabId)} className="flex-1 flex flex-col overflow-hidden">
+          <TabsList className="px-6 border-b rounded-none justify-start bg-transparent h-12 overflow-x-auto shrink-0">
+            <TabsTab value="insights" className="text-sm whitespace-nowrap">
               <Brain className="h-4 w-4 mr-1.5" />
               AI Insights
             </TabsTab>
-            <TabsTab value="profile" className="text-sm">
+            <TabsTab value="profile" className="text-sm whitespace-nowrap">
               <User className="h-4 w-4 mr-1.5" />
               Profile
             </TabsTab>
-            <TabsTab value="notes" className="text-sm">
+            <TabsTab value="notes" className="text-sm whitespace-nowrap">
               <FileText className="h-4 w-4 mr-1.5" />
               Notes
+            </TabsTab>
+            <TabsTab value="generate" className="text-sm whitespace-nowrap">
+              <Wand2 className="h-4 w-4 mr-1.5" />
+              Generate
+            </TabsTab>
+            <TabsTab value="screening" className="text-sm whitespace-nowrap">
+              <MessageSquare className="h-4 w-4 mr-1.5" />
+              Screening Questions
+            </TabsTab>
+            <TabsTab value="closing" className="text-sm whitespace-nowrap">
+              <Target className="h-4 w-4 mr-1.5" />
+              Closing Strategy
             </TabsTab>
           </TabsList>
 
@@ -556,43 +593,317 @@ export function CandidateDetailModal({ open, onClose, candidate, onStatusChange 
               </div>
             )}
           </TabsPanel>
+
+          {/* Generate Tab */}
+          <TabsPanel value="generate" className="flex-1 overflow-y-auto p-6 space-y-6">
+            <div>
+              <h3 className="font-medium text-sm flex items-center gap-2">
+                <Wand2 className="h-4 w-4 text-primary" />
+                AI Generation Hub
+              </h3>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Generate AI-powered insights for this candidate. Results appear in the respective tabs.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="p-5 border rounded-xl bg-muted/20 hover:bg-muted/40 transition-colors">
+                <div className="flex items-start gap-3">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10">
+                    <MessageSquare className="h-5 w-5 text-primary" />
+                  </div>
+                  <div className="flex-1">
+                    <h4 className="text-sm font-medium">Screening Questions</h4>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Generate personalized verification questions based on the job description and resume.
+                    </p>
+                    <div className="mt-3">
+                      {screeningQuestions ? (
+                        <div className="flex items-center gap-2">
+                          <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                          <span className="text-xs text-emerald-600 font-medium">
+                            {screeningQuestions.length} questions ready
+                          </span>
+                          <Button variant="ghost" size="xs" onClick={() => setActiveTab("screening")}>
+                            View
+                          </Button>
+                        </div>
+                      ) : (
+                        <Button
+                          size="sm"
+                          onClick={() => handleGenerate("questions")}
+                          disabled={loadingQuestions}
+                        >
+                          {loadingQuestions ? (
+                            <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
+                          ) : (
+                            <Sparkles className="h-3.5 w-3.5 mr-1" />
+                          )}
+                          {loadingQuestions ? "Generating..." : "Generate"}
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-5 border rounded-xl bg-muted/20 hover:bg-muted/40 transition-colors">
+                <div className="flex items-start gap-3">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-amber-50">
+                    <Target className="h-5 w-5 text-amber-600" />
+                  </div>
+                  <div className="flex-1">
+                    <h4 className="text-sm font-medium">Closing Strategy</h4>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Generate selling points and objection handling strategies to close the offer.
+                    </p>
+                    <div className="mt-3">
+                      {closingStrategy ? (
+                        <div className="flex items-center gap-2">
+                          <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                          <span className="text-xs text-emerald-600 font-medium">
+                            Strategy ready
+                          </span>
+                          <Button variant="ghost" size="xs" onClick={() => setActiveTab("closing")}>
+                            View
+                          </Button>
+                        </div>
+                      ) : (
+                        <Button
+                          size="sm"
+                          onClick={() => handleGenerate("strategy")}
+                          disabled={loadingStrategy}
+                        >
+                          {loadingStrategy ? (
+                            <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
+                          ) : (
+                            <Sparkles className="h-3.5 w-3.5 mr-1" />
+                          )}
+                          {loadingStrategy ? "Generating..." : "Get Strategy"}
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </TabsPanel>
+
+          {/* Screening Questions Tab */}
+          <TabsPanel value="screening" className="flex-1 overflow-y-auto p-6 space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="font-medium text-sm">Screening Questions</h3>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  AI-generated questions to verify claimed skills
+                </p>
+              </div>
+              <Button size="sm" onClick={generateQuestions} disabled={loadingQuestions}>
+                <Sparkles className="h-3.5 w-3.5 mr-1" />
+                {loadingQuestions ? "Generating..." : "Generate"}
+              </Button>
+            </div>
+
+            {loadingQuestions && (
+              <div className="space-y-3">
+                {Array.from({ length: 3 }).map((_, i) => (
+                  <Skeleton key={i} className="h-16 w-full rounded-xl" />
+                ))}
+              </div>
+            )}
+
+            {questionsError && (
+              <Alert variant="destructive">
+                <AlertDescription className="flex items-center justify-between">
+                  <span>{questionsError}</span>
+                  <Button variant="ghost" size="xs" onClick={generateQuestions}>
+                    Retry
+                  </Button>
+                </AlertDescription>
+              </Alert>
+            )}
+
+            {screeningQuestions && !loadingQuestions && (
+              <div className="space-y-2">
+                {screeningQuestions.map((q, i) => (
+                  <div
+                    key={i}
+                    className="flex items-start gap-3 p-3 bg-muted/30 rounded-lg border"
+                  >
+                    <span className="font-mono text-xs text-muted-foreground mt-0.5 shrink-0">
+                      #{i + 1}
+                    </span>
+                    <div>
+                      <p className="text-sm">{q.question}</p>
+                      <div className="flex items-center gap-2 mt-1">
+                        <Badge variant="outline" className="text-[10px]">{q.focus_area}</Badge>
+                        <span className="text-[10px] text-muted-foreground">{q.why_this_matters}</span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {!screeningQuestions && !loadingQuestions && !questionsError && (
+              <div className="text-center py-12">
+                <MessageSquare className="h-10 w-10 text-muted-foreground/30 mx-auto mb-3" />
+                <p className="text-sm text-muted-foreground">
+                  Generate screening questions from the Generate tab or click the button above.
+                </p>
+              </div>
+            )}
+          </TabsPanel>
+
+          {/* Closing Strategy Tab */}
+          <TabsPanel value="closing" className="flex-1 overflow-y-auto p-6 space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="font-medium text-sm">Closing Strategy</h3>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Negotiation intel to help close the offer
+                </p>
+              </div>
+              <Button size="sm" onClick={generateStrategy} disabled={loadingStrategy}>
+                <Sparkles className="h-3.5 w-3.5 mr-1" />
+                {loadingStrategy ? "Generating..." : "Get Strategy"}
+              </Button>
+            </div>
+
+            {loadingStrategy && (
+              <div className="grid grid-cols-2 gap-4">
+                <Skeleton className="h-32 rounded-xl" />
+                <Skeleton className="h-32 rounded-xl" />
+              </div>
+            )}
+
+            {strategyError && (
+              <Alert variant="destructive">
+                <AlertDescription className="flex items-center justify-between">
+                  <span>{strategyError}</span>
+                  <Button variant="ghost" size="xs" onClick={generateStrategy}>
+                    Retry
+                  </Button>
+                </AlertDescription>
+              </Alert>
+            )}
+
+            {closingStrategy && !loadingStrategy && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="p-4 border rounded-lg bg-green-50/50 dark:bg-green-950/10">
+                  <h4 className="text-xs font-semibold text-green-600 uppercase tracking-wide flex items-center gap-1.5 mb-3">
+                    <ThumbsUp className="h-3.5 w-3.5" />
+                    Selling Points
+                  </h4>
+                  <ul className="space-y-2">
+                    {closingStrategy.selling_points.map((sp, i) => (
+                      <li key={i} className="text-sm flex items-start gap-2">
+                        <CheckCircle2 className="h-4 w-4 text-green-500 shrink-0 mt-0.5" />
+                        <div>
+                          <p className="font-medium text-green-800">{sp.point}</p>
+                          <p className="text-xs text-green-600">{sp.detail}</p>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+                <div className="p-4 border rounded-lg bg-amber-50/50 dark:bg-amber-950/10">
+                  <h4 className="text-xs font-semibold text-amber-600 uppercase tracking-wide flex items-center gap-1.5 mb-3">
+                    <AlertTriangle className="h-3.5 w-3.5" />
+                    Objection to Overcome
+                  </h4>
+                  <p className="text-sm flex items-start gap-2 mt-1">
+                    <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />
+                    <span className="font-medium text-amber-800">{closingStrategy.major_objection.objection}</span>
+                  </p>
+                  <p className="text-xs text-amber-600 mt-2 flex items-start gap-1.5 ml-6">
+                    <ArrowRight className="h-3 w-3 shrink-0 mt-0.5" />
+                    {closingStrategy.major_objection.overcome_strategy}
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {!closingStrategy && !loadingStrategy && !strategyError && (
+              <div className="text-center py-12">
+                <Target className="h-10 w-10 text-muted-foreground/30 mx-auto mb-3" />
+                <p className="text-sm text-muted-foreground">
+                  Generate a closing strategy from the Generate tab or click the button above.
+                </p>
+              </div>
+            )}
+          </TabsPanel>
         </Tabs>
 
         {/* Footer Actions */}
         <div className="flex items-center justify-between p-4 border-t bg-muted/10 shrink-0">
-          <Button
-            variant="outline"
-            size="sm"
-            className="text-destructive hover:bg-destructive/10"
-            disabled
-          >
-            Delete Profile
-          </Button>
+          <div className="flex items-center gap-1">
+            {statusFlow.map((step, i) => (
+              <div key={step} className="flex items-center">
+                <span
+                  className={`inline-flex items-center justify-center h-5 w-5 rounded-full text-[9px] font-medium border ${
+                    i <= statusIndex
+                      ? "bg-primary text-white border-primary"
+                      : "bg-muted text-muted-foreground border-border"
+                  }`}
+                >
+                  {i + 1}
+                </span>
+                {i < statusFlow.length - 1 && (
+                  <span className={`h-px w-4 mx-0.5 ${i < statusIndex ? "bg-primary" : "bg-border"}`} />
+                )}
+              </div>
+            ))}
+          </div>
           <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => handleStatusChange("Shortlist")}
-              disabled={statusLoading}
-            >
-              <ThumbsUp className="h-3.5 w-3.5 mr-1" />
-              Shortlist
-            </Button>
-            <Button
-              size="sm"
-              onClick={() => handleStatusChange("Screening")}
-              disabled={statusLoading}
-            >
-              Move to Interview
-            </Button>
-            <Button
-              variant="destructive"
-              size="sm"
-              onClick={() => handleStatusChange("Rejected")}
-              disabled={statusLoading}
-            >
-              Reject
-            </Button>
+            {canShortlist && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handleStatusChange("Shortlisted")}
+                disabled={statusLoading}
+              >
+                <ThumbsUp className="h-3.5 w-3.5 mr-1" />
+                Shortlist
+              </Button>
+            )}
+            {canMoveToInterview && (
+              <Button
+                size="sm"
+                onClick={() => handleStatusChange("Interview")}
+                disabled={statusLoading}
+              >
+                <Lightbulb className="h-3.5 w-3.5 mr-1" />
+                Move to Interview
+              </Button>
+            )}
+            {canHire && (
+              <Button
+                variant="default"
+                size="sm"
+                className="bg-emerald-600 hover:bg-emerald-700"
+                onClick={() => handleStatusChange("Hired")}
+                disabled={statusLoading}
+              >
+                <CheckCircle2 className="h-3.5 w-3.5 mr-1" />
+                Hire
+              </Button>
+            )}
+            {canReject && (
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={() => handleStatusChange("Rejected")}
+                disabled={statusLoading}
+              >
+                Reject
+              </Button>
+            )}
+            {!canShortlist && !canMoveToInterview && !canHire && !canReject && (
+              <span className="text-xs text-muted-foreground">
+                {currentStatus === "Hired" ? "Candidate hired" : "Candidate rejected"}
+              </span>
+            )}
           </div>
         </div>
 

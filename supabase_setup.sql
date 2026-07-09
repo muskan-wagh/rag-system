@@ -1,5 +1,5 @@
 -- ============================================================
--- RecruitIQ Supabase Setup
+-- RecruitIQ Supabase Setup (idempotent — safe to re-run)
 -- ============================================================
 
 -- 1. Upload sessions table
@@ -9,7 +9,30 @@ CREATE TABLE IF NOT EXISTS upload_sessions (
   created_at TIMESTAMP DEFAULT NOW()
 );
 
--- 2. Add columns to existing candidates table
+-- 2. Candidates table (created first time; ALTER statements below for upgrades)
+CREATE TABLE IF NOT EXISTS candidates (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  upload_session_id UUID REFERENCES upload_sessions(id),
+  full_name TEXT DEFAULT '',
+  email TEXT DEFAULT '',
+  phone TEXT DEFAULT '',
+  location TEXT DEFAULT '',
+  current_company TEXT DEFAULT '',
+  current_title TEXT DEFAULT '',
+  total_experience_years REAL DEFAULT 0,
+  raw_resume_text TEXT DEFAULT '',
+  resume_file_url TEXT NOT NULL DEFAULT '',
+  processing_status TEXT DEFAULT 'PENDING' CHECK (processing_status IN ('PENDING','PROCESSING','COMPLETED','FAILED')),
+  source TEXT DEFAULT '',
+  error_message TEXT DEFAULT '',
+  flight_risk TEXT CHECK (flight_risk IN ('Low','Medium','High')),
+  growth_trajectory TEXT CHECK (growth_trajectory IN ('Fast-track','Steady','Stagnant')),
+  parsed_json JSONB,
+  current_status TEXT DEFAULT 'Applied',
+  created_at TIMESTAMP DEFAULT NOW()
+);
+
+-- 2b. Ensure all columns exist (safe for upgrades if table already existed)
 ALTER TABLE candidates ADD COLUMN IF NOT EXISTS upload_session_id UUID REFERENCES upload_sessions(id);
 ALTER TABLE candidates ADD COLUMN IF NOT EXISTS flight_risk TEXT CHECK (flight_risk IN ('Low','Medium','High'));
 ALTER TABLE candidates ADD COLUMN IF NOT EXISTS growth_trajectory TEXT CHECK (growth_trajectory IN ('Fast-track','Steady','Stagnant'));
@@ -19,8 +42,28 @@ ALTER TABLE candidates ADD COLUMN IF NOT EXISTS source TEXT DEFAULT '';
 ALTER TABLE candidates ADD COLUMN IF NOT EXISTS error_message TEXT DEFAULT '';
 ALTER TABLE candidates ADD COLUMN IF NOT EXISTS resume_file_url TEXT DEFAULT '';
 ALTER TABLE candidates ADD COLUMN IF NOT EXISTS current_status TEXT DEFAULT 'Applied';
+ALTER TABLE candidates ADD COLUMN IF NOT EXISTS current_title TEXT DEFAULT '';
+ALTER TABLE candidates ADD COLUMN IF NOT EXISTS current_company TEXT DEFAULT '';
+ALTER TABLE candidates ADD COLUMN IF NOT EXISTS full_name TEXT DEFAULT '';
+ALTER TABLE candidates ADD COLUMN IF NOT EXISTS email TEXT DEFAULT '';
+ALTER TABLE candidates ADD COLUMN IF NOT EXISTS phone TEXT DEFAULT '';
+ALTER TABLE candidates ADD COLUMN IF NOT EXISTS location TEXT DEFAULT '';
+ALTER TABLE candidates ADD COLUMN IF NOT EXISTS total_experience_years REAL DEFAULT 0;
+ALTER TABLE candidates ADD COLUMN IF NOT EXISTS raw_resume_text TEXT DEFAULT '';
 
--- 3. Candidate experience table
+-- 2c. Enforce NOT NULL on resume_file_url for new rows (existing nulls remain)
+ALTER TABLE candidates ALTER COLUMN resume_file_url SET NOT NULL;
+
+-- 3. Candidate skills table (was MISSING — now created)
+CREATE TABLE IF NOT EXISTS candidate_skills (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  candidate_id UUID REFERENCES candidates(id) ON DELETE CASCADE,
+  skill_name TEXT NOT NULL,
+  created_at TIMESTAMP DEFAULT NOW(),
+  UNIQUE(candidate_id, skill_name)
+);
+
+-- 4. Candidate experience table
 CREATE TABLE IF NOT EXISTS candidate_experience (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   candidate_id UUID REFERENCES candidates(id) ON DELETE CASCADE,
@@ -32,15 +75,19 @@ CREATE TABLE IF NOT EXISTS candidate_experience (
   created_at TIMESTAMP DEFAULT NOW()
 );
 
--- 4. Candidate status log
+-- 5. Candidate status log
 CREATE TABLE IF NOT EXISTS candidate_status_log (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   candidate_id UUID REFERENCES candidates(id) ON DELETE CASCADE,
-  status TEXT NOT NULL CHECK (status IN ('Applied','Screening','Technical Interview','HR Interview','Offer','Hired','Rejected')),
+  status TEXT NOT NULL CHECK (status IN ('Pending','Shortlisted','Interview','Offer','Hired','Rejected','Applied','Screening','Technical Interview','HR Interview')),
   changed_at TIMESTAMP DEFAULT NOW()
 );
 
--- 5. Candidate notes
+-- Migrate existing 'Applied' statuses to 'Pending' if desired (opt-in, keeps backward compat)
+-- UPDATE candidates SET current_status = 'Pending' WHERE current_status = 'Applied';
+-- UPDATE candidate_status_log SET status = 'Pending' WHERE status = 'Applied';
+
+-- 6. Candidate notes
 CREATE TABLE IF NOT EXISTS candidate_notes (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   candidate_id UUID REFERENCES candidates(id) ON DELETE CASCADE,
@@ -48,7 +95,7 @@ CREATE TABLE IF NOT EXISTS candidate_notes (
   created_at TIMESTAMP DEFAULT NOW()
 );
 
--- 6. Search sessions
+-- 7. Search sessions
 CREATE TABLE IF NOT EXISTS search_sessions (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   job_description_text TEXT NOT NULL,
@@ -60,7 +107,7 @@ CREATE TABLE IF NOT EXISTS search_sessions (
   created_at TIMESTAMP DEFAULT NOW()
 );
 
--- 7. Email logs
+-- 8. Email logs
 CREATE TABLE IF NOT EXISTS email_logs (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   candidate_id UUID REFERENCES candidates(id) ON DELETE CASCADE,
@@ -77,6 +124,7 @@ CREATE INDEX IF NOT EXISTS idx_candidates_upload_session_id ON candidates(upload
 CREATE INDEX IF NOT EXISTS idx_candidates_processing_status ON candidates(processing_status);
 CREATE INDEX IF NOT EXISTS idx_candidates_current_status ON candidates(current_status);
 CREATE INDEX IF NOT EXISTS idx_candidates_created_at ON candidates(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_candidates_session_status ON candidates(upload_session_id, current_status);
 CREATE INDEX IF NOT EXISTS idx_candidate_skills_candidate_id ON candidate_skills(candidate_id);
 CREATE INDEX IF NOT EXISTS idx_candidate_skills_skill_name ON candidate_skills(skill_name);
 CREATE INDEX IF NOT EXISTS idx_candidate_experience_candidate_id ON candidate_experience(candidate_id);

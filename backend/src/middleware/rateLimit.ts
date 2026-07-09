@@ -1,6 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import Redis from 'ioredis';
-import { config } from '@/config';
+import { getRedisClient, isRedisAvailable } from '@/services/redis/manager';
 import { logger } from '@/utils/logger';
 import { ErrorCodes } from './errorCodes';
 
@@ -10,47 +9,16 @@ const LLM_MAX = parseInt(process.env.RATE_LIMIT_LLM_MAX ?? '15', 10);
 
 const LLM_PATHS = ['/api/jd/', '/api/candidates/search', '/api/candidates/compare'];
 
-const REDIS_PLACEHOLDER = 'YOUR_UPSTASH_PASSWORD';
-
 function isLlmPath(path: string): boolean {
   return LLM_PATHS.some((p) => path.includes(p));
 }
 
-let redis: Redis | null = null;
-let redisReady = false;
-
-function getRedis(): Redis | null {
-  if (redisReady) return redis;
-  if (redis) return redis;
-
-  if (config.redis.url.includes(REDIS_PLACEHOLDER)) {
-    logger.warn('Redis not configured — rate limiter disabled. Set REDIS_URL in .env');
-    return null;
-  }
-
-  redis = new Redis(config.redis.url, {
-    lazyConnect: true,
-    maxRetriesPerRequest: null,
-    retryStrategy: (times) => {
-      if (times > 3) return null;
-      return Math.min(times * 200, 1000);
-    },
-  });
-
-  redis.on('ready', () => { redisReady = true; });
-  redis.on('error', (err) => {
-    logger.warn('Rate limiter Redis error', { error: err.message });
-  });
-
-  return redis;
-}
-
 export function rateLimiter(req: Request, res: Response, next: NextFunction): void {
-  const client = getRedis();
-  if (!client || !redisReady) {
+  if (!isRedisAvailable()) {
     return next();
   }
 
+  const client = getRedisClient()!;
   const ip = req.ip ?? req.socket.remoteAddress ?? 'unknown';
   const path = req.path;
   const limit = isLlmPath(path) ? LLM_MAX : MAX_REQUESTS;

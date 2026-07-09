@@ -58,9 +58,9 @@ export default function CandidateDetailPage() {
   if (error || !candidate) {
     return (
       <div className="flex-1 mx-auto max-w-5xl px-4 md:px-6 py-8">
-        <Link href={ROUTES.candidates}>
+        <Link href={ROUTES.candidateSearch}>
           <Button variant="ghost" className="mb-4 text-muted-foreground hover:text-foreground text-xs">
-            <ArrowLeft className="mr-1.5 h-3.5 w-3.5" /> Back to Candidates
+            <ArrowLeft className="mr-1.5 h-3.5 w-3.5" /> Back to Search
           </Button>
         </Link>
         <div className="bg-white rounded-2xl p-10 text-center border border-border">
@@ -73,9 +73,9 @@ export default function CandidateDetailPage() {
   return (
     <div className="flex-1 mx-auto max-w-5xl px-4 md:px-6 py-8">
       <motion.div initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }}>
-        <Link href={ROUTES.candidates}>
+        <Link href={ROUTES.candidateSearch}>
           <Button variant="ghost" className="mb-5 text-muted-foreground hover:text-foreground text-xs">
-            <ArrowLeft className="mr-1.5 h-3.5 w-3.5" /> Back to Candidates
+            <ArrowLeft className="mr-1.5 h-3.5 w-3.5" /> Back to Search
           </Button>
         </Link>
       </motion.div>
@@ -187,7 +187,7 @@ export default function CandidateDetailPage() {
             </div>
             <p className="text-sm text-muted-foreground leading-relaxed">
               AI-powered analysis is available from the search results page, where candidates are ranked and explained based on a specific job description. Visit the{" "}
-              <Link href={ROUTES.candidates} className="text-primary hover:underline">Candidate Search</Link> page to see this candidate&apos;s ranking and AI insights.
+              <Link href={ROUTES.candidateSearch} className="text-primary hover:underline">Candidate Search</Link> page to see this candidate&apos;s ranking and AI insights.
             </p>
           </div>
         </motion.div>
