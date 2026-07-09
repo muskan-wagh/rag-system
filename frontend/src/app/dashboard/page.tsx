@@ -187,7 +187,6 @@ export default function DashboardPage() {
             setJdText(latest.job_description_text)
             setSession({ sessionId: latest.id, link: `/upload/${latest.id}` })
           })
-          // eslint-disable-next-line react-hooks/set-state-in-effect
           fetchSessionData(latest.id)
           return
         }
