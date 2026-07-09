@@ -31,10 +31,6 @@ const SERVICE_TIPS: Record<string, { service: Service; hint: string }> = {
     service: "both",
     hint: "Redis connection string (Upstash or similar). Required for BullMQ queue + rate limiting.",
   },
-  RECRUITER_PASSWORD: {
-    service: "api",
-    hint: "Password used for dashboard access. Set this to a strong, unique value.",
-  },
 };
 
 function required(key: string): string {
@@ -95,7 +91,6 @@ export const config = Object.freeze({
   },
 
   apiKey: optional("API_KEY", ""),
-  recruiterPassword: required("RECRUITER_PASSWORD"),
 
   qdrant: {
     url: required("QDRANT_URL"),
