@@ -5,11 +5,53 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.config = void 0;
 const dotenv_1 = __importDefault(require("dotenv"));
-dotenv_1.default.config();
+if (process.env.NODE_ENV !== "production") {
+    dotenv_1.default.config();
+}
+const REQUIRED_VARS = ["REDIS_URL", "SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY", "QWEN_API_KEY", "QDRANT_URL", "QDRANT_API_KEY"];
+for (const v of REQUIRED_VARS) {
+    console.log(`[startup] ${v}: ${process.env[v] ? "present" : "MISSING"}`);
+}
+console.log(`[startup] NODE_ENV: ${process.env.NODE_ENV ?? "MISSING"}`);
+console.log(`[startup] CWD: ${process.cwd()}`);
+const SERVICE_TIPS = {
+    SUPABASE_URL: {
+        service: "both",
+        hint: "Find at Supabase Dashboard → Project Settings → API → Project URL",
+    },
+    SUPABASE_SERVICE_ROLE_KEY: {
+        service: "both",
+        hint: "Find at Supabase Dashboard → Project Settings → API → service_role key",
+    },
+    QWEN_API_KEY: {
+        service: "both",
+        hint: "Your OpenRouter API key for LLM calls",
+    },
+    QDRANT_URL: {
+        service: "both",
+        hint: "Find at Qdrant Cloud → Clusters → Cluster URL",
+    },
+    QDRANT_API_KEY: {
+        service: "both",
+        hint: "Find at Qdrant Cloud → Clusters → API Key",
+    },
+    REDIS_URL: {
+        service: "both",
+        hint: "Redis connection string (Upstash or similar). Required for BullMQ queue + rate limiting.",
+    },
+};
 function required(key) {
     const value = process.env[key];
     if (!value) {
-        throw new Error(`Missing required environment variable: ${key}`);
+        const tip = SERVICE_TIPS[key];
+        const lines = [`Missing required environment variable: ${key}`];
+        if (tip) {
+            lines.push(`  Required by: ${tip.service === "both" ? "API + Worker" : tip.service} service`);
+            lines.push(`  Hint: ${tip.hint}`);
+        }
+        lines.push(`  Set this in your Render dashboard: Dashboard → your-service → Environment → add ${key}`);
+        lines.push(`  Or create a .env file for local development (see .env.example)`);
+        throw new Error(lines.join("\n"));
     }
     return value;
 }
@@ -25,7 +67,7 @@ exports.config = Object.freeze({
         if (envOrigins) {
             return envOrigins.split(",").map((s) => s.trim());
         }
-        const origins = ["https://rag-system-vert.vercel.app"];
+        const origins = [];
         if (optional("NODE_ENV", "development") === "development") {
             origins.push("http://localhost:3000", "http://localhost:3001");
         }
@@ -49,7 +91,6 @@ exports.config = Object.freeze({
         url: required("REDIS_URL"),
     },
     apiKey: optional("API_KEY", ""),
-    recruiterPassword: required("RECRUITER_PASSWORD"),
     qdrant: {
         url: required("QDRANT_URL"),
         apiKey: required("QDRANT_API_KEY"),

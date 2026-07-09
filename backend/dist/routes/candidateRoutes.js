@@ -4,6 +4,7 @@ const express_1 = require("express");
 const candidateController_1 = require("@/controllers/candidateController");
 const validate_1 = require("@/middleware/validate");
 const router = (0, express_1.Router)();
+router.get('/', candidateController_1.getAllCandidatesHandler);
 router.post('/search', (0, validate_1.validate)(validate_1.searchSchema), candidateController_1.searchCandidatesHandler);
 router.post('/compare', (0, validate_1.validate)(validate_1.compareSchema), candidateController_1.compareCandidatesHandler);
 router.post('/batch', (0, validate_1.validate)(validate_1.batchSchema), candidateController_1.batchCandidatesHandler);

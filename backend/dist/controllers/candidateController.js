@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getSimilarCandidatesHandler = exports.getCandidateNotesHandler = exports.addCandidateNoteHandler = exports.updateCandidateStatusHandler = exports.compareCandidatesHandler = exports.closingStrategyHandler = exports.screeningQuestionsHandler = exports.batchCandidatesHandler = exports.getCandidateHandler = exports.searchCandidatesHandler = void 0;
+exports.getAllCandidatesHandler = exports.getSimilarCandidatesHandler = exports.getCandidateNotesHandler = exports.addCandidateNoteHandler = exports.updateCandidateStatusHandler = exports.compareCandidatesHandler = exports.closingStrategyHandler = exports.screeningQuestionsHandler = exports.batchCandidatesHandler = exports.getCandidateHandler = exports.searchCandidatesHandler = void 0;
 const crypto_1 = __importDefault(require("crypto"));
 const asyncHandler_1 = require("@/utils/asyncHandler");
 const parseJD_1 = require("@/services/llm/parseJD");
@@ -171,5 +171,17 @@ exports.getSimilarCandidatesHandler = (0, asyncHandler_1.asyncHandler)(async (re
     const similar = await (0, searchCandidates_1.searchByEmbedding)(embedding, 10, {});
     const filtered = similar.filter((r) => r.candidate.id !== id);
     res.status(200).json({ success: true, data: filtered.slice(0, 5).map((r) => r.candidate) });
+});
+exports.getAllCandidatesHandler = (0, asyncHandler_1.asyncHandler)(async (req, res) => {
+    const { page = '1', limit = '20', search, sortBy, sortOrder, sessionId, } = req.query;
+    const result = await (0, database_1.getAllCandidatesPaginated)({
+        page: parseInt(page || '1', 10),
+        limit: parseInt(limit || '20', 10),
+        search,
+        sortBy,
+        sortOrder: sortOrder || 'desc',
+        sessionId,
+    });
+    res.status(200).json({ success: true, data: result });
 });
 //# sourceMappingURL=candidateController.js.map

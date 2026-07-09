@@ -4,6 +4,13 @@ if (process.env.NODE_ENV !== "production") {
   dotenv.config();
 }
 
+const REQUIRED_VARS = ["REDIS_URL", "SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY", "QWEN_API_KEY", "QDRANT_URL", "QDRANT_API_KEY"];
+for (const v of REQUIRED_VARS) {
+  console.log(`[startup] ${v}: ${process.env[v] ? "present" : "MISSING"}`);
+}
+console.log(`[startup] NODE_ENV: ${process.env.NODE_ENV ?? "MISSING"}`);
+console.log(`[startup] CWD: ${process.cwd()}`);
+
 type Service = "api" | "worker" | "both";
 
 const SERVICE_TIPS: Record<string, { service: Service; hint: string }> = {

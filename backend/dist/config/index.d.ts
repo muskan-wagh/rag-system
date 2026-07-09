@@ -21,7 +21,6 @@ export declare const config: Readonly<{
         url: string;
     };
     apiKey: string;
-    recruiterPassword: string;
     qdrant: {
         url: string;
         apiKey: string;
