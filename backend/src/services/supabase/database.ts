@@ -481,7 +481,7 @@ export async function getPendingCandidates(): Promise<CandidateRecord[]> {
   const { data, error } = await supabase
     .from('candidates')
     .select()
-    .in('processing_status', ['PENDING', 'FAILED'])
+    .in('processing_status', ['PENDING'])
     .limit(100);
 
   if (error) {

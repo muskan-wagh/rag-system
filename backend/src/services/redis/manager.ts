@@ -11,10 +11,18 @@ function isConfigured(): boolean {
   return !config.redis.url.includes(REDIS_PLACEHOLDER);
 }
 
+let clientOrigin = 'unknown';
+
+export function setRedisClientOrigin(origin: string): void {
+  clientOrigin = origin;
+}
+
 export function getRedisClient(): Redis | null {
   if (client) return client;
   if (!isConfigured()) return null;
   if (isShuttingDown) return null;
+
+  logger.info(`Creating Redis client: ${clientOrigin}`);
 
   client = new Redis(config.redis.url, {
     maxRetriesPerRequest: null,

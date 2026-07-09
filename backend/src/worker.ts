@@ -1,15 +1,16 @@
-import { Worker, Queue } from 'bullmq';
+import { Worker } from 'bullmq';
 import { ensureRedisConnected, shutdownRedis } from '@/services/redis/manager';
 import { config } from '@/config';
 import { logger } from '@/utils/logger';
 import { downloadResumeFile } from '@/services/supabase/storage';
-import { updateCandidate, insertSkills, insertExperience, getPendingCandidates } from '@/services/supabase/database';
+import { updateCandidate, insertSkills, insertExperience } from '@/services/supabase/database';
 import { extractResumeText, sanitizeText } from '@/services/resume-parser';
 import { generateEmbedding } from '@/services/embedding';
 import { parseResume } from '@/services/llm/parseResume';
 import { calculateFlightRisk } from '@/services/llm/flightRisk';
 import { getQdrantClient } from '@/services/qdrant/client';
 import { publishEvent } from '@/services/events';
+import { runStartupRecovery } from '@/services/recovery';
 
 async function startWorker(): Promise<void> {
   logger.info('=== RecruitIQ Worker Starting ===');
@@ -161,38 +162,8 @@ async function startWorker(): Promise<void> {
 
   logger.info('BullMQ worker started and listening on queue: resume-processing');
 
-  // Scan for stuck candidates and re-enqueue them using existing storage files
-  try {
-    const pending = await getPendingCandidates();
-    if (pending.length > 0) {
-      logger.info(`Found ${pending.length} stuck candidate(s)`, {
-        statuses: pending.map(c => c.processing_status),
-      });
-      const reprocessQueue = new Queue('resume-processing', { connection: connection as any });
-      for (const c of pending) {
-        if (!c.resume_file_url) {
-          logger.warn('Cannot reprocess — no resume_file_url', { candidateId: c.id });
-          continue;
-        }
-        const urlParts = new URL(c.resume_file_url).pathname.split('/');
-        const storagePath = urlParts.slice(-2).join('/');
-
-        await reprocessQueue.add('process-resume', {
-          sessionId: c.upload_session_id,
-          storagePath,
-          mimeType: c.resume_file_url.endsWith('.pdf') ? 'application/pdf' : 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-          originalName: c.resume_file_url.split('/').pop() || 'resume',
-          source: c.source || '',
-          candidateId: c.id,
-        });
-      }
-      await reprocessQueue.close();
-    } else {
-      logger.info('No stuck candidates found');
-    }
-  } catch (err: any) {
-    logger.error('Reprocess scan failed', { error: err.message });
-  }
+  // Startup recovery: evaluate stuck candidates using the application's queue singleton
+  await runStartupRecovery();
 
   // Graceful shutdown
   const shutdown = async () => {
