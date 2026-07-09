@@ -50,7 +50,14 @@ function CandidatesContent() {
     setLoading(true)
     setError("")
     try {
-      const res = await searchCandidates(text, 20, filters)
+      const raw = filters as Record<string, unknown>;
+      const safeFilters: import('@/lib/api').SearchFilters = {};
+      if (Array.isArray(raw.skills)) safeFilters.skills = raw.skills as string[];
+      else if (typeof raw.skills === 'string' && (raw.skills as string).trim()) safeFilters.skills = (raw.skills as string).split(',').map(s => s.trim()).filter(Boolean);
+      if (raw.minExperience !== undefined) safeFilters.minExperience = Number(raw.minExperience);
+      if (raw.maxExperience !== undefined) safeFilters.maxExperience = Number(raw.maxExperience);
+      if (raw.educationLevel) safeFilters.educationLevel = String(raw.educationLevel);
+      const res = await searchCandidates(text, 20, safeFilters)
       if (res.success && res.data) {
         setResults(res.data.results, res.data.query)
         setActiveTab("results")

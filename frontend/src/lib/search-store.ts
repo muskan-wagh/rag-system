@@ -92,6 +92,16 @@ export const useSearchStore = create<SearchState>()(
     {
       name: "recruitiq-search",
       storage: createJSONStorage(() => localStorage),
+      version: 1,
+      migrate: (persisted: any, version: number) => {
+        if (version === 0) {
+          if (persisted.filters && !Array.isArray(persisted.filters.skills)) {
+            persisted.filterFormValues = persisted.filters;
+            persisted.filters = {};
+          }
+        }
+        return persisted as any;
+      },
       partialize: (state) => ({
         jdText: state.jdText,
         parsedJD: state.parsedJD,
