@@ -5,6 +5,7 @@
   "scripts": {
     "build": "tsc",
     "start": "node start.js",
+    "start:worker": "node start-worker.js",
     "dev": "ts-node-dev --respawn --require tsconfig-paths/register src/server.ts",
     "dev:all": "ts-node-dev --respawn --require tsconfig-paths/register src/worker.ts & ts-node-dev --respawn --require tsconfig-paths/register src/server.ts & wait",
     "test": "vitest run",

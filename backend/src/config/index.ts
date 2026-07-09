@@ -1,11 +1,54 @@
 import dotenv from "dotenv";
 
-dotenv.config();
+if (process.env.NODE_ENV !== "production") {
+  dotenv.config();
+}
+
+type Service = "api" | "worker" | "both";
+
+const SERVICE_TIPS: Record<string, { service: Service; hint: string }> = {
+  SUPABASE_URL: {
+    service: "both",
+    hint: "Find at Supabase Dashboard → Project Settings → API → Project URL",
+  },
+  SUPABASE_SERVICE_ROLE_KEY: {
+    service: "both",
+    hint: "Find at Supabase Dashboard → Project Settings → API → service_role key",
+  },
+  QWEN_API_KEY: {
+    service: "both",
+    hint: "Your OpenRouter API key for LLM calls",
+  },
+  QDRANT_URL: {
+    service: "both",
+    hint: "Find at Qdrant Cloud → Clusters → Cluster URL",
+  },
+  QDRANT_API_KEY: {
+    service: "both",
+    hint: "Find at Qdrant Cloud → Clusters → API Key",
+  },
+  REDIS_URL: {
+    service: "both",
+    hint: "Redis connection string (Upstash or similar). Required for BullMQ queue + rate limiting.",
+  },
+  RECRUITER_PASSWORD: {
+    service: "api",
+    hint: "Password used for dashboard access. Set this to a strong, unique value.",
+  },
+};
 
 function required(key: string): string {
   const value = process.env[key];
   if (!value) {
-    throw new Error(`Missing required environment variable: ${key}`);
+    const tip = SERVICE_TIPS[key];
+    const lines = [`Missing required environment variable: ${key}`];
+    if (tip) {
+      lines.push(`  Required by: ${tip.service === "both" ? "API + Worker" : tip.service} service`);
+      lines.push(`  Hint: ${tip.hint}`);
+    }
+    lines.push(`  Set this in your Render dashboard: Dashboard → your-service → Environment → add ${key}`);
+    lines.push(`  Or create a .env file for local development (see .env.example)`);
+    throw new Error(lines.join("\n"));
   }
   return value;
 }
@@ -23,7 +66,7 @@ export const config = Object.freeze({
     if (envOrigins) {
       return envOrigins.split(",").map((s) => s.trim());
     }
-    const origins = ["https://rag-system-vert.vercel.app"];
+    const origins: string[] = [];
     if (optional("NODE_ENV", "development") === "development") {
       origins.push("http://localhost:3000", "http://localhost:3001");
     }
