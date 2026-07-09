@@ -143,7 +143,9 @@ export function CandidateDetailModal({ open, onClose, candidate, onStatusChange 
         setNewNote("")
         setActiveTab("insights")
       })
-      fetchNotes()
+      startTransition(() => {
+        fetchNotes()
+      })
     }
   }, [open, candidate, fetchNotes])
 
@@ -217,7 +219,6 @@ export function CandidateDetailModal({ open, onClose, candidate, onStatusChange 
     setStatusLoading(true)
     try {
       await updateCandidateStatus(candidate.id, status)
-      if (candidate) candidate.current_status = status
       onStatusChange?.()
       const label = status.charAt(0).toUpperCase() + status.slice(1).toLowerCase()
       toast.success(`Candidate moved to ${label}!`)

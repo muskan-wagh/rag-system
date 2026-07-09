@@ -1,11 +1,10 @@
 "use client"
 
-import { Suspense, useState, useEffect, useCallback, useRef } from "react"
+import { Suspense, useState, useEffect, useCallback, useRef, startTransition } from "react"
 import { useSearchParams } from "next/navigation"
-import { motion } from "framer-motion"
 import Link from "next/link"
 import {
-  Search, Loader2, Users, FileText, ChevronLeft, ChevronRight,
+  Search, Users, FileText, ChevronLeft, ChevronRight,
   LayoutDashboard,
 } from "lucide-react"
 import { toast } from "sonner"
@@ -49,7 +48,7 @@ function getStatusColor(status?: string): string {
   return "bg-gray-100 text-gray-700 border-gray-200"
 }
 
-function getFlightRiskColor(risk?: string): string {
+function getFlightRiskColor(risk?: string): "destructive" | "default" | "outline" {
   const r = (risk || "").toLowerCase()
   if (r === "high") return "destructive"
   if (r === "medium") return "default"
@@ -99,15 +98,19 @@ function CandidatesContent() {
   }, [])
 
   useEffect(() => {
-    fetchSessions()
+    startTransition(() => {
+      fetchSessions()
+    })
   }, [fetchSessions])
 
   // Read session from URL on mount
   useEffect(() => {
-    const sessionFromUrl = searchParams.get("session")
-    if (sessionFromUrl) {
-      setSelectedSessionId(sessionFromUrl)
-    }
+    startTransition(() => {
+      const sessionFromUrl = searchParams.get("session")
+      if (sessionFromUrl) {
+        setSelectedSessionId(sessionFromUrl)
+      }
+    })
   }, [searchParams])
 
   // Fetch candidates
@@ -133,8 +136,10 @@ function CandidatesContent() {
   }, [])
 
   useEffect(() => {
-    fetchCandidates(selectedSessionId, searchQuery, page)
-  }, [selectedSessionId, page, fetchCandidates])
+    startTransition(() => {
+      fetchCandidates(selectedSessionId, searchQuery, page)
+    })
+  }, [selectedSessionId, searchQuery, page, fetchCandidates])
 
   // WebSocket updates
   useWebSocket("candidate:status_changed", useCallback(() => {
@@ -358,7 +363,7 @@ function CandidatesContent() {
                           </div>
                         </TableCell>
                         <TableCell className="hidden sm:table-cell">
-                          <Badge variant={getFlightRiskColor(candidate.flight_risk) as any} className="capitalize text-xs">
+                          <Badge variant={getFlightRiskColor(candidate.flight_risk)} className="capitalize text-xs">
                             {candidate.flight_risk || "—"}
                           </Badge>
                         </TableCell>
