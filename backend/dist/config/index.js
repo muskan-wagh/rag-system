@@ -68,8 +68,14 @@ exports.config = Object.freeze({
             return envOrigins.split(",").map((s) => s.trim());
         }
         const origins = [];
+        const clientUrl = optional("CLIENT_URL", "");
+        if (clientUrl)
+            origins.push(clientUrl);
         if (optional("NODE_ENV", "development") === "development") {
             origins.push("http://localhost:3000", "http://localhost:3001");
+        }
+        if (optional("NODE_ENV", "development") === "production") {
+            origins.push("https://rag-system-vert.vercel.app");
         }
         return origins;
     })(),

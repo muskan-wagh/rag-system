@@ -10,7 +10,7 @@ import {
 import { toast } from "sonner"
 import { CandidateDetailModal } from "@/components/candidate-detail-modal"
 import { apiFetch } from "@/lib/api-fetch"
-import { scanBias, getSessionStats } from "@/lib/api"
+import { scanBias, getSessionStats, getSessions } from "@/lib/api"
 import { useWebSocket } from "@/lib/use-websocket"
 import { ROUTES } from "@/lib/constants"
 import type { SessionStats } from "@/lib/api"
@@ -62,28 +62,6 @@ interface BiasIssue {
   suggestion: string
 }
 
-const SESSION_STORAGE_KEY = "rag_dashboard_session"
-
-function loadSavedSession(): { sessionId: string; jdText: string } | null {
-  try {
-    const raw = localStorage.getItem(SESSION_STORAGE_KEY)
-    if (raw) return JSON.parse(raw)
-  } catch {}
-  return null
-}
-
-function saveSession(sessionId: string, jdText: string) {
-  try {
-    localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify({ sessionId, jdText }))
-  } catch {}
-}
-
-function clearSavedSession() {
-  try {
-    localStorage.removeItem(SESSION_STORAGE_KEY)
-  } catch {}
-}
-
 function getInitials(name: string): string {
   return name
     .split(" ")
@@ -124,7 +102,6 @@ export default function DashboardPage() {
       const res = await apiFetch(`/api/sessions/${sessionId}`)
       if (!res.ok) {
         if (res.status === 401) {
-          clearSavedSession()
           setSession(null)
           return
         }
@@ -141,7 +118,6 @@ export default function DashboardPage() {
         }
       }
     } catch {
-      clearSavedSession()
       setSession(null)
     } finally {
       setLoadingCandidates(false)
@@ -159,7 +135,6 @@ export default function DashboardPage() {
         const res = await apiFetch(`/api/sessions/${id}`)
         if (!res.ok) {
           if (res.status === 401) {
-            clearSavedSession()
             setSession(null)
             return
           }
@@ -203,17 +178,25 @@ export default function DashboardPage() {
   }, [session?.sessionId, fetchStats, fetchCandidates]))
 
   useEffect(() => {
-    const saved = loadSavedSession()
-    if (saved) {
-      startTransition(() => {
-        setJdText(saved.jdText)
-        setSession({ sessionId: saved.sessionId, link: `/upload/${saved.sessionId}` })
-      })
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      fetchSessionData(saved.sessionId)
-    } else {
+    async function loadLatestSession() {
+      try {
+        const res = await getSessions()
+        if (res.success && res.data && res.data.length > 0) {
+          const latest = res.data[0]
+          startTransition(() => {
+            setJdText(latest.job_description_text)
+            setSession({ sessionId: latest.id, link: `/upload/${latest.id}` })
+          })
+          // eslint-disable-next-line react-hooks/set-state-in-effect
+          fetchSessionData(latest.id)
+          return
+        }
+      } catch {
+        // No sessions yet — user starts fresh
+      }
       setInitialLoading(false)
     }
+    loadLatestSession()
   }, [fetchSessionData])
 
   const generateLink = useCallback(async () => {
@@ -236,7 +219,6 @@ export default function DashboardPage() {
       if (data.success) {
         const sessionData = data.data
         setSession(sessionData)
-        saveSession(sessionData.sessionId, jdText)
         fetchCandidates(sessionData.sessionId)
         toast.success("Application link generated!")
       } else {
@@ -281,12 +263,12 @@ export default function DashboardPage() {
   }, [jdText])
 
   const handleNewSession = () => {
-    clearSavedSession()
     setSession(null)
     setCandidates([])
     setJdText("")
     setBiasResult(null)
     setError("")
+    setInitialLoading(false)
     toast.info("Started a new session")
   }
 

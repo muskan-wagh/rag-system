@@ -80,6 +80,10 @@ app.use((err, _req, res, next) => {
         res.status(400).json({ success: false, code: errorCodes_1.ErrorCodes.VALIDATION_ERROR, error: err.message });
         return;
     }
+    if (err.message === 'Not allowed by CORS') {
+        res.status(403).json({ success: false, code: errorCodes_1.ErrorCodes.VALIDATION_ERROR, error: 'Origin not allowed by CORS' });
+        return;
+    }
     next(err);
 });
 app.use(errorHandler_1.errorHandler);
