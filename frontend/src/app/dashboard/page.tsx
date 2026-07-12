@@ -10,7 +10,7 @@ import {
 import { toast } from "sonner"
 import { CandidateDetailModal } from "@/components/candidate-detail-modal"
 import { apiFetch } from "@/lib/api-fetch"
-import { scanBias, getSessionStats, getSessions } from "@/lib/api"
+import { scanBias, getDashboard } from "@/lib/api"
 import { useWebSocket } from "@/lib/use-websocket"
 import { ROUTES } from "@/lib/constants"
 import type { SessionStats } from "@/lib/api"
@@ -94,28 +94,22 @@ export default function DashboardPage() {
   const [biasError, setBiasError] = useState("")
 
   const [stats, setStats] = useState<SessionStats | null>(null)
-  const [loadingStats, setLoadingStats] = useState(false)
 
-  const fetchSessionData = useCallback(async (sessionId: string) => {
+  // Single function that loads everything the Dashboard needs in ONE API call
+  const loadDashboard = useCallback(async () => {
     setLoadingCandidates(true)
     try {
-      const res = await apiFetch(`/api/sessions/${sessionId}`)
-      if (!res.ok) {
-        if (res.status === 401) {
-          setSession(null)
-          return
-        }
-        throw new Error(`HTTP ${res.status}`)
-      }
-      const data = await res.json()
-      if (data.success) {
-        setCandidates(data.data?.candidates || [])
-        if (data.data?.stats) {
-          setStats(data.data.stats)
-        }
-        if (data.data?.session?.job_description_text) {
-          setJdText(data.data.session.job_description_text)
-        }
+      const res = await getDashboard()
+      if (res.success && res.data) {
+        const { session: sess, candidates: cands, stats: s } = res.data
+        startTransition(() => {
+          if (sess) {
+            setSession({ sessionId: sess.id, link: sess.link })
+            setJdText(sess.job_description_text)
+          }
+          setCandidates(cands)
+          setStats(s)
+        })
       }
     } catch {
       setSession(null)
@@ -125,78 +119,22 @@ export default function DashboardPage() {
     }
   }, [])
 
-  const fetchCandidates = useCallback(
-    async (sessionId?: string) => {
-      const id = sessionId || session?.sessionId
-      if (!id) return
 
-      setLoadingCandidates(true)
-      try {
-        const res = await apiFetch(`/api/sessions/${id}`)
-        if (!res.ok) {
-          if (res.status === 401) {
-            setSession(null)
-            return
-          }
-          throw new Error(`HTTP ${res.status}`)
-        }
-        const data = await res.json()
-        if (data.success) {
-          setCandidates(data.data?.candidates || [])
-        }
-      } catch {
-        toast.error("Failed to refresh candidates")
-      } finally {
-        setLoadingCandidates(false)
-      }
-    },
-    [session],
-  )
 
-  const fetchStats = useCallback(async (sessionId: string) => {
-    if (!sessionId) return
-    setLoadingStats(true)
-    try {
-      const res = await getSessionStats(sessionId)
-      if (res.success && res.data) {
-        setStats(res.data)
-      }
-    } catch {
-      // fail silently - stats are non-critical
-    } finally {
-      setLoadingStats(false)
-    }
-  }, [])
-
-  // WebSocket listener for real-time updates
+  // WebSocket listener for real-time updates — single refetch gets everything
   useWebSocket('candidate:status_changed', useCallback((payload) => {
     const sid = payload.sessionId as string || session?.sessionId
     if (sid && session?.sessionId === sid) {
-      fetchStats(sid)
-      fetchCandidates(sid)
+      loadDashboard()
     }
-  }, [session?.sessionId, fetchStats, fetchCandidates]))
+  }, [session?.sessionId, loadDashboard]))
 
   useEffect(() => {
-    async function loadLatestSession() {
-      try {
-        const res = await getSessions()
-        if (res.success && res.data && res.data.length > 0) {
-          const latest = res.data[0]
-          startTransition(() => {
-            setJdText(latest.job_description_text)
-            setSession({ sessionId: latest.id, link: `/upload/${latest.id}` })
-          })
-          fetchSessionData(latest.id)
-          return
-        }
-      } catch {
-        // No sessions yet — user starts fresh
-      }
-      setInitialLoading(false)
+    async function init() {
+      await loadDashboard()
     }
-    loadLatestSession()
-  }, [fetchSessionData])
+    init()
+  }, [loadDashboard])
 
   const generateLink = useCallback(async () => {
     if (!jdText.trim()) return
@@ -218,7 +156,7 @@ export default function DashboardPage() {
       if (data.success) {
         const sessionData = data.data
         setSession(sessionData)
-        fetchCandidates(sessionData.sessionId)
+        loadDashboard()
         toast.success("Application link generated!")
       } else {
         setError(data.error || "Failed to generate link")
@@ -232,7 +170,7 @@ export default function DashboardPage() {
     } finally {
       setGenerating(false)
     }
-  }, [jdText, fetchCandidates])
+  }, [jdText, loadDashboard])
 
   const handleBiasScan = useCallback(async () => {
     if (!jdText.trim()) return
@@ -321,7 +259,7 @@ export default function DashboardPage() {
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => fetchCandidates()}
+                    onClick={() => loadDashboard()}
                     disabled={loadingCandidates}
                   >
                     <RefreshCw className={`h-3.5 w-3.5 mr-1 ${loadingCandidates ? "animate-spin" : ""}`} />
@@ -515,41 +453,30 @@ export default function DashboardPage() {
             transition={{ delay: 0.08 }}
           >
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-              {loadingStats ? (
-                Array.from({ length: 6 }).map((_, i) => (
-                  <Card key={i} className="p-4">
-                    <Skeleton className="h-3 w-20 mb-2" />
-                    <Skeleton className="h-7 w-12" />
-                  </Card>
-                ))
-              ) : (
-                <>
-                  <Card className="p-4 border-l-4 border-l-primary">
-                    <p className="text-xs text-muted-foreground font-medium">Total Candidates</p>
-                    <p className="text-2xl font-bold mt-1">{stats?.total ?? 0}</p>
-                  </Card>
-                  <Card className="p-4 border-l-4 border-l-blue-500">
-                    <p className="text-xs text-muted-foreground font-medium">Pending</p>
-                    <p className="text-2xl font-bold mt-1 text-blue-600">{stats?.pending ?? 0}</p>
-                  </Card>
-                  <Card className="p-4 border-l-4 border-l-amber-500">
-                    <p className="text-xs text-muted-foreground font-medium">Shortlisted</p>
-                    <p className="text-2xl font-bold mt-1 text-amber-600">{stats?.shortlisted ?? 0}</p>
-                  </Card>
-                  <Card className="p-4 border-l-4 border-l-violet-500">
-                    <p className="text-xs text-muted-foreground font-medium">Interview</p>
-                    <p className="text-2xl font-bold mt-1 text-violet-600">{stats?.interview ?? 0}</p>
-                  </Card>
-                  <Card className="p-4 border-l-4 border-l-red-500">
-                    <p className="text-xs text-muted-foreground font-medium">Rejected</p>
-                    <p className="text-2xl font-bold mt-1 text-red-600">{stats?.rejected ?? 0}</p>
-                  </Card>
-                  <Card className="p-4 border-l-4 border-l-emerald-500">
-                    <p className="text-xs text-muted-foreground font-medium">Hired</p>
-                    <p className="text-2xl font-bold mt-1 text-emerald-600">{stats?.hired ?? 0}</p>
-                  </Card>
-                </>
-              )}
+              <Card className="p-4 border-l-4 border-l-primary">
+                <p className="text-xs text-muted-foreground font-medium">Total Candidates</p>
+                <p className="text-2xl font-bold mt-1">{stats?.total ?? 0}</p>
+              </Card>
+              <Card className="p-4 border-l-4 border-l-blue-500">
+                <p className="text-xs text-muted-foreground font-medium">Pending</p>
+                <p className="text-2xl font-bold mt-1 text-blue-600">{stats?.pending ?? 0}</p>
+              </Card>
+              <Card className="p-4 border-l-4 border-l-amber-500">
+                <p className="text-xs text-muted-foreground font-medium">Shortlisted</p>
+                <p className="text-2xl font-bold mt-1 text-amber-600">{stats?.shortlisted ?? 0}</p>
+              </Card>
+              <Card className="p-4 border-l-4 border-l-violet-500">
+                <p className="text-xs text-muted-foreground font-medium">Interview</p>
+                <p className="text-2xl font-bold mt-1 text-violet-600">{stats?.interview ?? 0}</p>
+              </Card>
+              <Card className="p-4 border-l-4 border-l-red-500">
+                <p className="text-xs text-muted-foreground font-medium">Rejected</p>
+                <p className="text-2xl font-bold mt-1 text-red-600">{stats?.rejected ?? 0}</p>
+              </Card>
+              <Card className="p-4 border-l-4 border-l-emerald-500">
+                <p className="text-xs text-muted-foreground font-medium">Hired</p>
+                <p className="text-2xl font-bold mt-1 text-emerald-600">{stats?.hired ?? 0}</p>
+              </Card>
             </div>
           </motion.div>
         )}
@@ -700,7 +627,7 @@ export default function DashboardPage() {
           setSelectedCandidate(null)
         }}
         candidate={selectedCandidate}
-        onStatusChange={() => fetchCandidates()}
+        onStatusChange={() => loadDashboard()}
       />
     </>
   )

@@ -1,6 +1,6 @@
 "use client"
 
-import { Suspense, useState, useEffect, useCallback, useRef, startTransition } from "react"
+import { Suspense, useState, useEffect, useCallback, useRef } from "react"
 import { useSearchParams } from "next/navigation"
 import Link from "next/link"
 import {
@@ -9,7 +9,7 @@ import {
 } from "lucide-react"
 import { toast } from "sonner"
 import { CandidateDetailModal } from "@/components/candidate-detail-modal"
-import { getSessions, getAllCandidates } from "@/lib/api"
+import { getCandidatesPage } from "@/lib/api"
 import { useWebSocket } from "@/lib/use-websocket"
 import { ROUTES } from "@/lib/constants"
 import { Button } from "@/components/ui/button"
@@ -26,7 +26,7 @@ import {
   TableHead,
   TableCell,
 } from "@/components/ui/table"
-import type { SessionSummary, CandidateRecord, PaginatedCandidates } from "@/lib/api"
+import type { SessionSummary, CandidateRecord, CandidatesPageData } from "@/lib/api"
 
 function getInitials(name?: string): string {
   return (name || "?")
@@ -73,7 +73,7 @@ function CandidatesContent() {
   const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null)
   const [sessionsLoading, setSessionsLoading] = useState(true)
 
-  const [candidatesData, setCandidatesData] = useState<PaginatedCandidates | null>(null)
+  const [candidatesData, setCandidatesData] = useState<CandidatesPageData | null>(null)
   const [candidatesLoading, setCandidatesLoading] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
   const [page, setPage] = useState(1)
@@ -81,43 +81,14 @@ function CandidatesContent() {
   const [selectedCandidate, setSelectedCandidate] = useState<CandidateRecord | null>(null)
   const [showDetailModal, setShowDetailModal] = useState(false)
   const searchInputRef = useRef<HTMLInputElement>(null)
+  const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  // Load sessions
-  const fetchSessions = useCallback(async () => {
+  // Single function that loads everything the Candidates page needs in ONE API call
+  const loadCandidatesPage = useCallback(async (sessionId: string | null, query: string, currentPage: number) => {
+    setCandidatesLoading(true)
     setSessionsLoading(true)
     try {
-      const res = await getSessions()
-      if (res.success && res.data) {
-        setSessions(res.data)
-      }
-    } catch {
-      // fail silently
-    } finally {
-      setSessionsLoading(false)
-    }
-  }, [])
-
-  useEffect(() => {
-    startTransition(() => {
-      fetchSessions()
-    })
-  }, [fetchSessions])
-
-  // Read session from URL on mount
-  useEffect(() => {
-    startTransition(() => {
-      const sessionFromUrl = searchParams.get("session")
-      if (sessionFromUrl) {
-        setSelectedSessionId(sessionFromUrl)
-      }
-    })
-  }, [searchParams])
-
-  // Fetch candidates
-  const fetchCandidates = useCallback(async (sessionId: string | null, query: string, currentPage: number) => {
-    setCandidatesLoading(true)
-    try {
-      const res = await getAllCandidates({
+      const res = await getCandidatesPage({
         page: currentPage,
         limit: PAGE_SIZE,
         search: query || undefined,
@@ -126,26 +97,46 @@ function CandidatesContent() {
         sortOrder: "desc",
       })
       if (res.success && res.data) {
+        setSessions(res.data.sessions)
         setCandidatesData(res.data)
       }
-    } catch {
+    } catch (e) {
+      console.error("Failed to load candidates page:", e)
       toast.error("Failed to load candidates")
     } finally {
       setCandidatesLoading(false)
+      setSessionsLoading(false)
     }
   }, [])
 
+  // Read session from URL on mount, then load everything
   useEffect(() => {
-    startTransition(() => {
-      fetchCandidates(selectedSessionId, searchQuery, page)
-    })
-  }, [selectedSessionId, searchQuery, page, fetchCandidates])
+    async function init() {
+      const sessionFromUrl = searchParams.get("session")
+      if (sessionFromUrl) {
+        setSelectedSessionId(sessionFromUrl)
+      }
+    }
+    init()
+  }, [searchParams])
 
-  // WebSocket updates
-  useWebSocket("candidate:status_changed", useCallback(() => {
-    fetchCandidates(selectedSessionId, searchQuery, page)
-    fetchSessions()
-  }, [selectedSessionId, searchQuery, page, fetchCandidates, fetchSessions]))
+  // Load candidates page data — single API call replaces the old 2-request waterfall
+  useEffect(() => {
+    async function init() {
+      await loadCandidatesPage(selectedSessionId, searchQuery, page)
+    }
+    init()
+  }, [selectedSessionId, searchQuery, page, loadCandidatesPage])
+
+  // WebSocket updates — debounced to prevent burst refetches on rapid status changes
+  const handleWebSocketUpdate = useCallback(() => {
+    if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current)
+    debounceTimerRef.current = setTimeout(() => {
+      loadCandidatesPage(selectedSessionId, searchQuery, page)
+    }, 500)
+  }, [selectedSessionId, searchQuery, page, loadCandidatesPage])
+
+  useWebSocket("candidate:status_changed", handleWebSocketUpdate)
 
   const handleSearch = useCallback((value: string) => {
     setSearchQuery(value)
@@ -470,7 +461,7 @@ function CandidatesContent() {
           setSelectedCandidate(null)
         }}
         candidate={selectedCandidate || null}
-        onStatusChange={() => fetchCandidates(selectedSessionId, searchQuery, page)}
+        onStatusChange={() => loadCandidatesPage(selectedSessionId, searchQuery, page)}
       />
     </div>
   )

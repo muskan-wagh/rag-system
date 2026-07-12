@@ -124,7 +124,7 @@ CREATE INDEX IF NOT EXISTS idx_candidates_upload_session_id ON candidates(upload
 CREATE INDEX IF NOT EXISTS idx_candidates_processing_status ON candidates(processing_status);
 CREATE INDEX IF NOT EXISTS idx_candidates_current_status ON candidates(current_status);
 CREATE INDEX IF NOT EXISTS idx_candidates_created_at ON candidates(created_at DESC);
-CREATE INDEX IF NOT EXISTS idx_candidates_session_status ON candidates(upload_session_id, current_status);
+CREATE INDEX IF NOT EXISTS idx_candidates_session_created ON candidates(upload_session_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_candidate_skills_candidate_id ON candidate_skills(candidate_id);
 CREATE INDEX IF NOT EXISTS idx_candidate_skills_skill_name ON candidate_skills(skill_name);
 CREATE INDEX IF NOT EXISTS idx_candidate_experience_candidate_id ON candidate_experience(candidate_id);

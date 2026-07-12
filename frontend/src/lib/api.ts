@@ -233,3 +233,48 @@ export async function getAllCandidates(params: {
 export async function getCandidateRecord(id: string) {
   return request<CandidateRecord>(`/candidates/${id}`, { method: "GET" })
 }
+
+// --- Combined single-response endpoints (eliminate waterfall) ---
+
+export interface DashboardData {
+  session: {
+    id: string
+    job_description_text: string
+    created_at: string
+    link: string
+  } | null
+  candidates: CandidateRecord[]
+  stats: SessionStats
+}
+
+export async function getDashboard() {
+  return request<DashboardData>("/dashboard", { method: "GET" })
+}
+
+export interface CandidatesPageData {
+  sessions: SessionSummary[]
+  candidates: CandidateRecord[]
+  total: number
+  page: number
+  limit: number
+  totalPages: number
+}
+
+export async function getCandidatesPage(params: {
+  page?: number
+  limit?: number
+  search?: string
+  sortBy?: string
+  sortOrder?: "asc" | "desc"
+  sessionId?: string
+} = {}) {
+  const searchParams = new URLSearchParams()
+  if (params.page) searchParams.set("page", String(params.page))
+  if (params.limit) searchParams.set("limit", String(params.limit))
+  if (params.search) searchParams.set("search", params.search)
+  if (params.sortBy) searchParams.set("sortBy", params.sortBy)
+  if (params.sortOrder) searchParams.set("sortOrder", params.sortOrder)
+  if (params.sessionId) searchParams.set("sessionId", params.sessionId)
+  const qs = searchParams.toString()
+  return request<CandidatesPageData>(`/candidates-page${qs ? `?${qs}` : ""}`, { method: "GET" })
+}

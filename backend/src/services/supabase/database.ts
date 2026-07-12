@@ -58,7 +58,7 @@ export async function getSession(sessionId: string): Promise<UploadSession | nul
   const supabase = getSupabaseClient();
   const { data, error } = await supabase
     .from('upload_sessions')
-    .select()
+    .select('id, job_description_text, created_at')
     .eq('id', sessionId)
     .single();
 
@@ -116,9 +116,10 @@ export async function updateCandidate(id: string, updates: Partial<CandidateReco
 
 export async function getCandidatesBySession(sessionId: string): Promise<CandidateRecord[]> {
   const supabase = getSupabaseClient();
+  // Select only columns needed for list views — exclude raw_resume_text (potentially MBs of text)
   const { data, error } = await supabase
     .from('candidates')
-    .select()
+    .select('id, upload_session_id, full_name, email, phone, location, current_company, current_title, total_experience_years, resume_file_url, flight_risk, growth_trajectory, current_status, created_at, processing_status, source, error_message')
     .eq('upload_session_id', sessionId);
 
   if (error) {
@@ -225,24 +226,23 @@ export async function insertExperience(
 export async function updateCandidateStatus(candidateId: string, status: string): Promise<void> {
   const supabase = getSupabaseClient();
 
-  // Use direct raw query to bypass schema cache issues
-  const { error: logError } = await supabase
-    .from('candidate_status_log')
-    .insert({ candidate_id: candidateId, status })
-    .select()
-    .maybeSingle();
+  // Run both writes in parallel — they're independent
+  const [logResult, updateResult] = await Promise.all([
+    supabase
+      .from('candidate_status_log')
+      .insert({ candidate_id: candidateId, status }),
+    supabase
+      .from('candidates')
+      .update({ current_status: status })
+      .eq('id', candidateId),
+  ]);
 
-  if (logError) {
-    logger.error('Failed to log status change', { error: logError.message });
+  if (logResult.error) {
+    logger.error('Failed to log status change', { error: logResult.error.message });
   }
 
-  const { error } = await supabase
-    .from('candidates')
-    .update({ current_status: status })
-    .eq('id', candidateId);
-
-  if (error) {
-    throw new AppError(`Failed to update candidate status: ${error.message}`, 500, ErrorCodes.DATABASE_ERROR);
+  if (updateResult.error) {
+    throw new AppError(`Failed to update candidate status: ${updateResult.error.message}`, 500, ErrorCodes.DATABASE_ERROR);
   }
 }
 
@@ -255,38 +255,27 @@ export interface SessionWithCount {
 
 export async function getAllSessions(): Promise<SessionWithCount[]> {
   const supabase = getSupabaseClient();
+
+  // Exclude job_description_text — it's 2-10KB per session and unnecessary for the list view.
+  // The sidebar only shows a 55-char truncated preview; the full text comes from getSession().
   const { data, error } = await supabase
     .from('upload_sessions')
-    .select('id, job_description_text, created_at')
+    .select('id, created_at, candidates(count)')
     .order('created_at', { ascending: false });
 
   if (error) {
     throw new AppError('Failed to get sessions', 500, ErrorCodes.DATABASE_ERROR);
   }
 
-  const sessions = (data || []) as UploadSession[];
-
-  const { data: counts, error: countError } = await supabase
-    .from('candidates')
-    .select('upload_session_id')
-    .not('upload_session_id', 'is', null);
-
-  if (countError) {
-    throw new AppError('Failed to get candidate counts', 500, ErrorCodes.DATABASE_ERROR);
-  }
-
-  const countMap = new Map<string, number>();
-  for (const row of (counts || [])) {
-    const sid = row.upload_session_id as string;
-    countMap.set(sid, (countMap.get(sid) || 0) + 1);
-  }
-
-  return sessions.map((s) => ({
-    id: s.id,
-    job_description_text: s.job_description_text,
-    created_at: s.created_at,
-    candidate_count: countMap.get(s.id) || 0,
-  }));
+  return (data || []).map((s: Record<string, unknown>) => {
+    const candidates = s.candidates as Array<{ count: number }> | undefined;
+    return {
+      id: s.id as string,
+      job_description_text: '',
+      created_at: s.created_at as string,
+      candidate_count: candidates?.[0]?.count ?? 0,
+    };
+  });
 }
 
 export interface SessionStats {
@@ -300,6 +289,8 @@ export interface SessionStats {
 
 export async function getSessionStats(sessionId: string): Promise<SessionStats> {
   const supabase = getSupabaseClient();
+  // Only select the single column needed for aggregation — no large text fields
+  // Uses composite index: idx_candidates_session_status(upload_session_id, current_status)
   const { data, error } = await supabase
     .from('candidates')
     .select('current_status')
@@ -310,17 +301,25 @@ export async function getSessionStats(sessionId: string): Promise<SessionStats> 
   }
 
   const rows = (data || []) as Array<{ current_status: string }>;
-  const stats: SessionStats = { total: 0, pending: 0, shortlisted: 0, interview: 0, rejected: 0, hired: 0 };
+  const stats: SessionStats = {
+    total: rows.length,
+    pending: 0,
+    shortlisted: 0,
+    interview: 0,
+    rejected: 0,
+    hired: 0,
+  };
+
+  const interviewStatuses = new Set(['interview', 'screening', 'technical interview', 'hr interview']);
 
   for (const row of rows) {
-    stats.total++;
     const status = (row.current_status || 'Pending').toLowerCase();
     if (status === 'pending' || status === 'applied') stats.pending++;
     else if (status === 'shortlisted') stats.shortlisted++;
-    else if (status === 'interview' || status === 'screening' || status === 'technical interview' || status === 'hr interview') stats.interview++;
+    else if (interviewStatuses.has(status)) stats.interview++;
     else if (status === 'rejected') stats.rejected++;
     else if (status === 'hired') stats.hired++;
-    else stats.pending++; // default fallback
+    else stats.pending++;
   }
 
   return stats;
@@ -382,15 +381,11 @@ export async function getAllCandidatesPaginated(params: {
     countQuery = countQuery.or(`full_name.ilike.${searchTerm},email.ilike.${searchTerm},current_company.ilike.${searchTerm}`);
   }
 
-  const { count, error: countError } = await countQuery;
-  if (countError) {
-    throw new AppError('Failed to count candidates', 500, ErrorCodes.DATABASE_ERROR);
-  }
-
-  // Build query for data
+  // Build query for data — select only columns needed for list views
+  // Exclude raw_resume_text (potentially MBs of text per candidate)
   let query = supabase
     .from('candidates')
-    .select('*');
+    .select('id, upload_session_id, full_name, email, phone, location, current_company, current_title, total_experience_years, resume_file_url, flight_risk, growth_trajectory, current_status, created_at');
 
   if (params.sessionId) {
     query = query.eq('upload_session_id', params.sessionId);
@@ -407,7 +402,18 @@ export async function getAllCandidatesPaginated(params: {
   query = query.order(safeSortBy, { ascending: sortOrder === 'asc' });
   query = query.range(offset, offset + limit - 1);
 
-  const { data, error } = await query;
+  // Run count and data queries in parallel — they use identical filters but are independent
+  const [countResult, dataResult] = await Promise.all([
+    countQuery,
+    query,
+  ]);
+
+  const { count, error: countError } = countResult;
+  if (countError) {
+    throw new AppError('Failed to count candidates', 500, ErrorCodes.DATABASE_ERROR);
+  }
+
+  const { data, error } = dataResult;
   if (error) {
     throw new AppError('Failed to get candidates', 500, ErrorCodes.DATABASE_ERROR);
   }
@@ -480,7 +486,7 @@ export async function getPendingCandidates(): Promise<CandidateRecord[]> {
   const supabase = getSupabaseClient();
   const { data, error } = await supabase
     .from('candidates')
-    .select()
+    .select('id, upload_session_id, raw_resume_text, processing_status, source, resume_file_url')
     .in('processing_status', ['PENDING'])
     .limit(100);
 
