@@ -26,7 +26,8 @@ import {
   TableHead,
   TableCell,
 } from "@/components/ui/table"
-import type { SessionSummary, CandidateRecord, CandidatesPageData } from "@/lib/api"
+import { getStatusColor } from "@/lib/constants"
+import type { SessionSummary, CandidateRecord, CandidatesPageData, StatusFilter } from "@/lib/api"
 
 function getInitials(name?: string): string {
   return (name || "?")
@@ -35,17 +36,6 @@ function getInitials(name?: string): string {
     .join("")
     .slice(0, 2)
     .toUpperCase()
-}
-
-function getStatusColor(status?: string): string {
-  const s = (status || "").toLowerCase()
-  if (s === "pending" || s === "applied") return "bg-blue-100 text-blue-700 border-blue-200"
-  if (s === "shortlisted") return "bg-amber-100 text-amber-700 border-amber-200"
-  if (s === "interview" || s === "screening" || s === "technical interview" || s === "hr interview") return "bg-violet-100 text-violet-700 border-violet-200"
-  if (s === "rejected") return "bg-red-100 text-red-700 border-red-200"
-  if (s === "hired") return "bg-emerald-100 text-emerald-700 border-emerald-200"
-  if (s === "offer") return "bg-teal-100 text-teal-700 border-teal-200"
-  return "bg-gray-100 text-gray-700 border-gray-200"
 }
 
 function getFlightRiskColor(risk?: string): "destructive" | "default" | "outline" {
@@ -83,8 +73,11 @@ function CandidatesContent() {
   const searchInputRef = useRef<HTMLInputElement>(null)
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
+  // Read status filter from URL
+  const statusFilterParam = searchParams.get("status") as StatusFilter | null
+
   // Single function that loads everything the Candidates page needs in ONE API call
-  const loadCandidatesPage = useCallback(async (sessionId: string | null, query: string, currentPage: number) => {
+  const loadCandidatesPage = useCallback(async (sessionId: string | null, query: string, currentPage: number, statusFilter?: string | null) => {
     setCandidatesLoading(true)
     setSessionsLoading(true)
     try {
@@ -95,6 +88,7 @@ function CandidatesContent() {
         sessionId: sessionId || undefined,
         sortBy: "created_at",
         sortOrder: "desc",
+        status: statusFilter || undefined,
       })
       if (res.success && res.data) {
         setSessions(res.data.sessions)
@@ -123,18 +117,18 @@ function CandidatesContent() {
   // Load candidates page data — single API call replaces the old 2-request waterfall
   useEffect(() => {
     async function init() {
-      await loadCandidatesPage(selectedSessionId, searchQuery, page)
+      await loadCandidatesPage(selectedSessionId, searchQuery, page, statusFilterParam)
     }
     init()
-  }, [selectedSessionId, searchQuery, page, loadCandidatesPage])
+  }, [selectedSessionId, searchQuery, page, statusFilterParam, loadCandidatesPage])
 
   // WebSocket updates — debounced to prevent burst refetches on rapid status changes
   const handleWebSocketUpdate = useCallback(() => {
     if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current)
     debounceTimerRef.current = setTimeout(() => {
-      loadCandidatesPage(selectedSessionId, searchQuery, page)
+      loadCandidatesPage(selectedSessionId, searchQuery, page, statusFilterParam)
     }, 500)
-  }, [selectedSessionId, searchQuery, page, loadCandidatesPage])
+  }, [selectedSessionId, searchQuery, page, statusFilterParam, loadCandidatesPage])
 
   useWebSocket("candidate:status_changed", handleWebSocketUpdate)
 
@@ -461,7 +455,7 @@ function CandidatesContent() {
           setSelectedCandidate(null)
         }}
         candidate={selectedCandidate || null}
-        onStatusChange={() => loadCandidatesPage(selectedSessionId, searchQuery, page)}
+        onStatusChange={() => loadCandidatesPage(selectedSessionId, searchQuery, page, statusFilterParam)}
       />
     </div>
   )

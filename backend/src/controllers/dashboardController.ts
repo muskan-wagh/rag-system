@@ -3,22 +3,7 @@ import { asyncHandler } from '@/utils/asyncHandler';
 import { getSupabaseClient } from '@/services/supabase/client';
 import { AppError } from '@/middleware/errorHandler';
 import { ErrorCodes } from '@/middleware/errorCodes';
-import { CandidateRecord, SessionStats } from '@/services/supabase/database';
-
-function computeStats(candidates: CandidateRecord[]): SessionStats {
-  const stats: SessionStats = { total: candidates.length, pending: 0, shortlisted: 0, interview: 0, rejected: 0, hired: 0 };
-  const interviewStatuses = new Set(['interview', 'screening', 'technical interview', 'hr interview']);
-  for (const c of candidates) {
-    const s = (c.current_status || 'Pending').toLowerCase();
-    if (s === 'pending' || s === 'applied') stats.pending++;
-    else if (s === 'shortlisted') stats.shortlisted++;
-    else if (interviewStatuses.has(s)) stats.interview++;
-    else if (s === 'rejected') stats.rejected++;
-    else if (s === 'hired') stats.hired++;
-    else stats.pending++;
-  }
-  return stats;
-}
+import { CandidateRecord, getNewSessionStats } from '@/services/supabase/database';
 
 export const getDashboardHandler = asyncHandler(async (_req: Request, res: Response) => {
   const supabase = getSupabaseClient();
@@ -40,7 +25,7 @@ export const getDashboardHandler = asyncHandler(async (_req: Request, res: Respo
       data: {
         session: null,
         candidates: [],
-        stats: { total: 0, pending: 0, shortlisted: 0, interview: 0, rejected: 0, hired: 0 },
+        stats: { open: 0, screening: 0, interviewsToday: 0, offered: 0, hired: 0, rejected: 0 },
       },
     });
     return;
@@ -59,7 +44,9 @@ export const getDashboardHandler = asyncHandler(async (_req: Request, res: Respo
   }
 
   const candidateList = (candidates || []) as CandidateRecord[];
-  const stats = computeStats(candidateList);
+
+  // Step 3: Get new stats (open, screening, interviewsToday, offered, hired, rejected)
+  const stats = await getNewSessionStats(latestSession.id);
 
   res.status(200).json({
     success: true,

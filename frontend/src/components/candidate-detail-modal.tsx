@@ -5,10 +5,18 @@ import {
   X, Loader2, Brain, Target, ThumbsUp, ArrowRight,
   AlertTriangle, Sparkles, FileText, CheckCircle2,
   User, Mail, Phone, MapPin, Briefcase, ExternalLink,
-  Wand2, Lightbulb, MessageSquare,
+  Wand2, MessageSquare,
 } from "lucide-react"
 import { toast } from "sonner"
-import { updateCandidateStatus, addCandidateNote, getCandidateNotes, getScreeningQuestions, getClosingStrategy } from "@/lib/api"
+import {
+  updateCandidateStatus,
+  addCandidateNote,
+  getCandidateNotes,
+  getScreeningQuestions,
+  getClosingStrategy,
+  acceptOffer,
+  sendInterviewEmail,
+} from "@/lib/api"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Textarea } from "@/components/ui/textarea"
@@ -17,6 +25,11 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Dialog, DialogContent } from "@/components/ui/dialog"
 import { Tabs, TabsList, TabsTab, TabsPanel } from "@/components/ui/tabs"
+import { HiringActions } from "@/components/hiring-actions"
+import { ScheduleInterviewModal } from "@/components/schedule-interview-modal"
+import { RejectModal } from "@/components/reject-modal"
+import { MakeOfferModal } from "@/components/make-offer-modal"
+import { CandidateTimeline } from "@/components/candidate-timeline"
 
 interface CandidateDetail {
   id: string
@@ -60,8 +73,6 @@ interface Note {
   created_at: string
 }
 
-const statusFlow = ["Pending", "Shortlisted", "Interview", "Offer", "Hired", "Rejected"]
-
 function getInitials(name: string): string {
   return name
     .split(" ")
@@ -91,12 +102,13 @@ function formatDate(dateStr: string): string {
 
 function getStatusColor(status?: string): string {
   const s = (status || "").toLowerCase()
-  if (s === "pending" || s === "applied") return "bg-blue-100 text-blue-700 border-blue-200"
-  if (s === "shortlisted") return "bg-amber-100 text-amber-700 border-amber-200"
-  if (s === "interview" || s === "screening" || s === "technical interview" || s === "hr interview") return "bg-violet-100 text-violet-700 border-violet-200"
-  if (s === "rejected") return "bg-red-100 text-red-700 border-red-200"
+  if (s === "applied") return "bg-blue-100 text-blue-700 border-blue-200"
+  if (s === "shortlisted") return "bg-purple-100 text-purple-700 border-purple-200"
+  if (s === "screening") return "bg-orange-100 text-orange-700 border-orange-200"
+  if (s === "interview scheduled" || s === "interview completed" || s === "technical round" || s === "hr round") return "bg-yellow-100 text-yellow-700 border-yellow-200"
+  if (s === "offered") return "bg-green-100 text-green-700 border-green-200"
   if (s === "hired") return "bg-emerald-100 text-emerald-700 border-emerald-200"
-  if (s === "offer") return "bg-teal-100 text-teal-700 border-teal-200"
+  if (s === "rejected") return "bg-red-100 text-red-700 border-red-200"
   return "bg-gray-100 text-gray-700 border-gray-200"
 }
 
@@ -117,6 +129,10 @@ export function CandidateDetailModal({ open, onClose, candidate, onStatusChange 
 
   const [statusLoading, setStatusLoading] = useState(false)
   const [activeTab, setActiveTab] = useState<TabId>("insights")
+
+  const [showScheduleModal, setShowScheduleModal] = useState(false)
+  const [showRejectModal, setShowRejectModal] = useState(false)
+  const [showOfferModal, setShowOfferModal] = useState(false)
 
   const fetchNotes = useCallback(async () => {
     if (!candidate) return
@@ -220,8 +236,7 @@ export function CandidateDetailModal({ open, onClose, candidate, onStatusChange 
     try {
       await updateCandidateStatus(candidate.id, status)
       onStatusChange?.()
-      const label = status.charAt(0).toUpperCase() + status.slice(1).toLowerCase()
-      toast.success(`Candidate moved to ${label}!`)
+      toast.success(`Candidate moved to ${status}!`)
     } catch {
       toast.error("Failed to update status")
     } finally {
@@ -229,13 +244,67 @@ export function CandidateDetailModal({ open, onClose, candidate, onStatusChange 
     }
   }
 
-  const currentStatus = candidate?.current_status || "Pending"
-  const statusIndex = statusFlow.indexOf(currentStatus)
+  const handleAction = async (action: string) => {
+    if (!candidate) return
 
-  const canShortlist = currentStatus === "Pending"
-  const canMoveToInterview = currentStatus === "Shortlisted"
-  const canHire = currentStatus === "Interview" || currentStatus === "Offer"
-  const canReject = !["Hired", "Rejected"].includes(currentStatus)
+    switch (action) {
+      case "shortlisted":
+      case "screening":
+      case "interview-completed":
+      case "technical-round":
+      case "hr-round":
+        await handleStatusChange(
+          action === "interview-completed" ? "Interview Completed"
+          : action === "shortlisted" ? "Shortlisted"
+          : action === "screening" ? "Screening"
+          : action === "technical-round" ? "Technical Round"
+          : action === "hr-round" ? "HR Round"
+          : action,
+        )
+        break
+      case "schedule-interview":
+        setShowScheduleModal(true)
+        break
+      case "reschedule":
+        setShowScheduleModal(true)
+        break
+      case "send-reminder":
+        setStatusLoading(true)
+        try {
+          const res = await sendInterviewEmail(candidate.id)
+          if (res.success) {
+            toast.success("Reminder email sent!")
+          } else {
+            toast.error(res.error || "Failed to send email")
+          }
+        } catch {
+          toast.error("Failed to send email")
+        } finally {
+          setStatusLoading(false)
+        }
+        break
+      case "make-offer":
+        setShowOfferModal(true)
+        break
+      case "hired":
+        setStatusLoading(true)
+        try {
+          await acceptOffer(candidate.id)
+          onStatusChange?.()
+          toast.success("Candidate marked as hired!")
+        } catch {
+          toast.error("Failed to mark as hired")
+        } finally {
+          setStatusLoading(false)
+        }
+        break
+      case "reject":
+        setShowRejectModal(true)
+        break
+    }
+  }
+
+  const currentStatus = candidate?.current_status || "Applied"
 
   if (!candidate) return null
 
@@ -836,76 +905,14 @@ export function CandidateDetailModal({ open, onClose, candidate, onStatusChange 
           </TabsPanel>
         </Tabs>
 
-        {/* Footer Actions */}
-        <div className="flex items-center justify-between p-4 border-t bg-muted/10 shrink-0">
-          <div className="flex items-center gap-1">
-            {statusFlow.map((step, i) => (
-              <div key={step} className="flex items-center">
-                <span
-                  className={`inline-flex items-center justify-center h-5 w-5 rounded-full text-[9px] font-medium border ${
-                    i <= statusIndex
-                      ? "bg-primary text-white border-primary"
-                      : "bg-muted text-muted-foreground border-border"
-                  }`}
-                >
-                  {i + 1}
-                </span>
-                {i < statusFlow.length - 1 && (
-                  <span className={`h-px w-4 mx-0.5 ${i < statusIndex ? "bg-primary" : "bg-border"}`} />
-                )}
-              </div>
-            ))}
-          </div>
-          <div className="flex items-center gap-2">
-            {canShortlist && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => handleStatusChange("Shortlisted")}
-                disabled={statusLoading}
-              >
-                <ThumbsUp className="h-3.5 w-3.5 mr-1" />
-                Shortlist
-              </Button>
-            )}
-            {canMoveToInterview && (
-              <Button
-                size="sm"
-                onClick={() => handleStatusChange("Interview")}
-                disabled={statusLoading}
-              >
-                <Lightbulb className="h-3.5 w-3.5 mr-1" />
-                Move to Interview
-              </Button>
-            )}
-            {canHire && (
-              <Button
-                variant="default"
-                size="sm"
-                className="bg-emerald-600 hover:bg-emerald-700"
-                onClick={() => handleStatusChange("Hired")}
-                disabled={statusLoading}
-              >
-                <CheckCircle2 className="h-3.5 w-3.5 mr-1" />
-                Hire
-              </Button>
-            )}
-            {canReject && (
-              <Button
-                variant="destructive"
-                size="sm"
-                onClick={() => handleStatusChange("Rejected")}
-                disabled={statusLoading}
-              >
-                Reject
-              </Button>
-            )}
-            {!canShortlist && !canMoveToInterview && !canHire && !canReject && (
-              <span className="text-xs text-muted-foreground">
-                {currentStatus === "Hired" ? "Candidate hired" : "Candidate rejected"}
-              </span>
-            )}
-          </div>
+        {/* Hiring Actions + Timeline Footer */}
+        <div className="flex flex-col gap-4 p-4 border-t bg-muted/10 shrink-0">
+          <HiringActions
+            currentStatus={currentStatus}
+            onAction={handleAction}
+            loading={statusLoading}
+          />
+          <CandidateTimeline candidateId={candidate.id} />
         </div>
 
         {/* Close button override */}
@@ -916,6 +923,27 @@ export function CandidateDetailModal({ open, onClose, candidate, onStatusChange 
           <X className="h-4 w-4" />
         </button>
       </DialogContent>
+
+      <ScheduleInterviewModal
+        open={showScheduleModal}
+        onClose={() => setShowScheduleModal(false)}
+        candidateId={candidate.id}
+        onSuccess={onStatusChange}
+      />
+
+      <RejectModal
+        open={showRejectModal}
+        onClose={() => setShowRejectModal(false)}
+        candidateId={candidate.id}
+        onSuccess={onStatusChange}
+      />
+
+      <MakeOfferModal
+        open={showOfferModal}
+        onClose={() => setShowOfferModal(false)}
+        candidateId={candidate.id}
+        onSuccess={onStatusChange}
+      />
     </Dialog>
   )
 }

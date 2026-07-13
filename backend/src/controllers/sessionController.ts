@@ -5,25 +5,23 @@ import {
   getSession,
   getCandidatesBySession,
   getAllSessions,
-  getSessionStats,
+  getNewSessionStats,
   CandidateRecord,
-  SessionStats,
+  NewSessionStats,
 } from '@/services/supabase/database';
 import { logger } from '@/utils/logger';
 import { AppError } from '@/middleware/errorHandler';
 import { ErrorCodes } from '@/middleware/errorCodes';
 
-function computeStats(candidates: CandidateRecord[]): SessionStats {
-  const stats: SessionStats = { total: candidates.length, pending: 0, shortlisted: 0, interview: 0, rejected: 0, hired: 0 };
-  const interviewStatuses = new Set(['interview', 'screening', 'technical interview', 'hr interview']);
+function computeStats(candidates: CandidateRecord[]): NewSessionStats {
+  const stats: NewSessionStats = { open: 0, screening: 0, interviewsToday: 0, offered: 0, hired: 0, rejected: 0 };
   for (const c of candidates) {
-    const s = (c.current_status || 'Pending').toLowerCase();
-    if (s === 'pending' || s === 'applied') stats.pending++;
-    else if (s === 'shortlisted') stats.shortlisted++;
-    else if (interviewStatuses.has(s)) stats.interview++;
-    else if (s === 'rejected') stats.rejected++;
+    const s = (c.current_status || 'Applied').toLowerCase();
+    if (s === 'applied' || s === 'shortlisted') stats.open++;
+    else if (s === 'screening') stats.screening++;
+    else if (s === 'offered') stats.offered++;
     else if (s === 'hired') stats.hired++;
-    else stats.pending++;
+    else if (s === 'rejected') stats.rejected++;
   }
   return stats;
 }
@@ -83,8 +81,7 @@ export const getAllSessionsHandler = asyncHandler(async (_req: Request, res: Res
 export const getSessionStatsHandler = asyncHandler(async (req: Request, res: Response) => {
   const id = req.params.id as string;
 
-  // No need to verify session exists separately — getSessionStats returns zeroed stats for non-existent sessions
-  const stats = await getSessionStats(id);
+  const stats = await getNewSessionStats(id);
   res.status(200).json({
     success: true,
     data: stats,

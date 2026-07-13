@@ -287,6 +287,47 @@ export interface SessionStats {
   hired: number;
 }
 
+export interface NewSessionStats {
+  open: number;
+  screening: number;
+  interviewsToday: number;
+  offered: number;
+  hired: number;
+  rejected: number;
+}
+
+export interface InterviewRecord {
+  id: string;
+  candidate_id: string;
+  scheduled_date: string;
+  scheduled_time: string;
+  interview_type: string;
+  interviewer_name: string;
+  notes: string;
+  meeting_link: string;
+  status: string;
+  created_at: string;
+}
+
+export interface OfferRecord {
+  id: string;
+  candidate_id: string;
+  salary: number | null;
+  joining_date: string | null;
+  notes: string;
+  status: string;
+  created_at: string;
+}
+
+export interface TimelineEntry {
+  id: string;
+  candidate_id: string;
+  status: string;
+  changed_at: string;
+  changed_by: string;
+  details: Record<string, unknown> | null;
+}
+
 export async function getSessionStats(sessionId: string): Promise<SessionStats> {
   const supabase = getSupabaseClient();
   // Only select the single column needed for aggregation — no large text fields
@@ -353,6 +394,28 @@ export interface PaginatedCandidatesResult {
   totalPages: number;
 }
 
+function buildStatusFilterParam(status?: string): (q: any) => any {
+  return (query: any) => {
+    if (!status) return query;
+    switch (status) {
+      case 'open':
+        return query.in('current_status', ['Applied', 'Shortlisted']);
+      case 'screening':
+        return query.eq('current_status', 'Screening');
+      case 'interviews-today':
+        return query;
+      case 'offered':
+        return query.eq('current_status', 'Offered');
+      case 'hired':
+        return query.eq('current_status', 'Hired');
+      case 'rejected':
+        return query.eq('current_status', 'Rejected');
+      default:
+        return query;
+    }
+  };
+}
+
 export async function getAllCandidatesPaginated(params: {
   page?: number;
   limit?: number;
@@ -360,6 +423,8 @@ export async function getAllCandidatesPaginated(params: {
   sortBy?: string;
   sortOrder?: 'asc' | 'desc';
   sessionId?: string;
+  status?: string;
+  interviewCandidateIds?: string[];
 }): Promise<PaginatedCandidatesResult> {
   const supabase = getSupabaseClient();
   const page = params.page || 1;
@@ -369,10 +434,14 @@ export async function getAllCandidatesPaginated(params: {
   const sortOrder = params.sortOrder || 'desc';
 
   // Build query for count
-  let countQuery = supabase
+  let countQuery: any = supabase
     .from('candidates')
     .select('id', { count: 'exact', head: true });
 
+  countQuery = buildStatusFilterParam(params.status)(countQuery);
+  if (params.interviewCandidateIds) {
+    countQuery = countQuery.in('id', params.interviewCandidateIds);
+  }
   if (params.sessionId) {
     countQuery = countQuery.eq('upload_session_id', params.sessionId);
   }
@@ -383,10 +452,14 @@ export async function getAllCandidatesPaginated(params: {
 
   // Build query for data — select only columns needed for list views
   // Exclude raw_resume_text (potentially MBs of text per candidate)
-  let query = supabase
+  let query: any = supabase
     .from('candidates')
     .select('id, upload_session_id, full_name, email, phone, location, current_company, current_title, total_experience_years, resume_file_url, flight_risk, growth_trajectory, current_status, created_at');
 
+  query = buildStatusFilterParam(params.status)(query);
+  if (params.interviewCandidateIds) {
+    query = query.in('id', params.interviewCandidateIds);
+  }
   if (params.sessionId) {
     query = query.eq('upload_session_id', params.sessionId);
   }
@@ -480,6 +553,290 @@ export async function getCandidateNotes(candidateId: string): Promise<Array<{ id
     throw new AppError('Failed to get notes', 500, ErrorCodes.DATABASE_ERROR);
   }
   return (data || []) as Array<{ id: string; note_text: string; created_at: string }>;
+}
+
+// === NEW CANDIDATE WORKFLOW FUNCTIONS ===
+
+export async function updateCandidateStatusExtended(
+  candidateId: string,
+  status: string,
+  changedBy?: string,
+  details?: Record<string, unknown>
+): Promise<void> {
+  const supabase = getSupabaseClient();
+
+  const [logResult, updateResult] = await Promise.all([
+    supabase
+      .from('candidate_status_log')
+      .insert({
+        candidate_id: candidateId,
+        status,
+        changed_by: changedBy || '',
+        details: details || {},
+      }),
+    supabase
+      .from('candidates')
+      .update({ current_status: status })
+      .eq('id', candidateId),
+  ]);
+
+  if (logResult.error) {
+    logger.error('Failed to log status change', { error: logResult.error.message });
+  }
+  if (updateResult.error) {
+    throw new AppError(`Failed to update candidate status: ${updateResult.error.message}`, 500, ErrorCodes.DATABASE_ERROR);
+  }
+}
+
+export async function scheduleInterview(
+  candidateId: string,
+  data: {
+    scheduledDate: string;
+    scheduledTime: string;
+    interviewType: string;
+    interviewerName?: string;
+    notes?: string;
+  }
+): Promise<InterviewRecord> {
+  const supabase = getSupabaseClient();
+
+  const meetingLinks: Record<string, string> = {
+    google_meet: 'https://meet.google.com/',
+    zoom: 'https://zoom.us/j/',
+    ms_teams: 'https://teams.microsoft.com/l/meetup-join/',
+  };
+
+  const meetingLink = meetingLinks[data.interviewType] || '';
+
+  const { data: interview, error } = await supabase
+    .from('interviews')
+    .insert({
+      candidate_id: candidateId,
+      scheduled_date: data.scheduledDate,
+      scheduled_time: data.scheduledTime,
+      interview_type: data.interviewType,
+      interviewer_name: data.interviewerName || '',
+      notes: data.notes || '',
+      meeting_link: meetingLink,
+      status: 'scheduled',
+    })
+    .select()
+    .single();
+
+  if (error) {
+    throw new AppError(`Failed to schedule interview: ${error.message}`, 500, ErrorCodes.DATABASE_ERROR);
+  }
+
+  return interview as InterviewRecord;
+}
+
+export async function getCandidateInterviews(candidateId: string): Promise<InterviewRecord[]> {
+  const supabase = getSupabaseClient();
+  const { data, error } = await supabase
+    .from('interviews')
+    .select('*')
+    .eq('candidate_id', candidateId)
+    .order('scheduled_date', { ascending: false });
+
+  if (error) {
+    throw new AppError('Failed to get interviews', 500, ErrorCodes.DATABASE_ERROR);
+  }
+  return (data || []) as InterviewRecord[];
+}
+
+export async function updateInterview(
+  interviewId: string,
+  data: Partial<{
+    scheduledDate: string;
+    scheduledTime: string;
+    interviewType: string;
+    interviewerName: string;
+    notes: string;
+    status: string;
+  }>
+): Promise<void> {
+  const supabase = getSupabaseClient();
+
+  const updates: Record<string, unknown> = {};
+  if (data.scheduledDate) updates.scheduled_date = data.scheduledDate;
+  if (data.scheduledTime) updates.scheduled_time = data.scheduledTime;
+  if (data.interviewType) updates.interview_type = data.interviewType;
+  if (data.interviewerName !== undefined) updates.interviewer_name = data.interviewerName;
+  if (data.notes !== undefined) updates.notes = data.notes;
+  if (data.status) updates.status = data.status;
+
+  const { error } = await supabase
+    .from('interviews')
+    .update(updates)
+    .eq('id', interviewId);
+
+  if (error) {
+    throw new AppError(`Failed to update interview: ${error.message}`, 500, ErrorCodes.DATABASE_ERROR);
+  }
+}
+
+export async function createOffer(
+  candidateId: string,
+  data: { salary?: number; joiningDate?: string; notes?: string }
+): Promise<OfferRecord> {
+  const supabase = getSupabaseClient();
+
+  const { data: offer, error } = await supabase
+    .from('offers')
+    .insert({
+      candidate_id: candidateId,
+      salary: data.salary || null,
+      joining_date: data.joiningDate || null,
+      notes: data.notes || '',
+      status: 'offered',
+    })
+    .select()
+    .single();
+
+  if (error) {
+    throw new AppError(`Failed to create offer: ${error.message}`, 500, ErrorCodes.DATABASE_ERROR);
+  }
+
+  return offer as OfferRecord;
+}
+
+export async function acceptOffer(candidateId: string): Promise<void> {
+  const supabase = getSupabaseClient();
+
+  const { error: offerError } = await supabase
+    .from('offers')
+    .update({ status: 'accepted' })
+    .eq('candidate_id', candidateId)
+    .eq('status', 'offered');
+
+  if (offerError) {
+    logger.error('Failed to update offer status', { error: offerError.message });
+  }
+}
+
+export async function rejectCandidateWithReason(
+  candidateId: string,
+  reason: string,
+  notes?: string,
+  changedBy?: string
+): Promise<void> {
+  const supabase = getSupabaseClient();
+
+  const details: Record<string, unknown> = { rejection_reason: reason };
+  if (notes) details.rejection_notes = notes;
+
+  const [logResult, updateResult] = await Promise.all([
+    supabase
+      .from('candidate_status_log')
+      .insert({
+        candidate_id: candidateId,
+        status: 'Rejected',
+        changed_by: changedBy || '',
+        details,
+      }),
+    supabase
+      .from('candidates')
+      .update({ current_status: 'Rejected' })
+      .eq('id', candidateId),
+  ]);
+
+  if (logResult.error) {
+    logger.error('Failed to log rejection', { error: logResult.error.message });
+  }
+  if (updateResult.error) {
+    throw new AppError(`Failed to reject candidate: ${updateResult.error.message}`, 500, ErrorCodes.DATABASE_ERROR);
+  }
+}
+
+export async function getCandidateTimeline(candidateId: string): Promise<TimelineEntry[]> {
+  const supabase = getSupabaseClient();
+  const { data, error } = await supabase
+    .from('candidate_status_log')
+    .select('*')
+    .eq('candidate_id', candidateId)
+    .order('changed_at', { ascending: true });
+
+  if (error) {
+    throw new AppError('Failed to get timeline', 500, ErrorCodes.DATABASE_ERROR);
+  }
+  return (data || []) as TimelineEntry[];
+}
+
+export async function logEmail(
+  candidateId: string,
+  emailType: string,
+  subject: string,
+  body: string
+): Promise<void> {
+  const supabase = getSupabaseClient();
+  const { error } = await supabase.from('email_logs').insert({
+    candidate_id: candidateId,
+    email_type: emailType,
+    subject,
+    body,
+  });
+  if (error) {
+    logger.error('Failed to log email', { error: error.message });
+  }
+}
+
+export async function getNewSessionStats(sessionId: string): Promise<NewSessionStats> {
+  const supabase = getSupabaseClient();
+
+  // Query 1: Aggregate candidate statuses and get IDs for interviews count
+  const { data: candidates, error: candError } = await supabase
+    .from('candidates')
+    .select('id, current_status')
+    .eq('upload_session_id', sessionId);
+
+  if (candError) {
+    throw new AppError('Failed to get session stats', 500, ErrorCodes.DATABASE_ERROR);
+  }
+
+  type CandRow = { id: string; current_status: string };
+  const rows = (candidates || []) as CandRow[];
+  let open = 0;
+  let screening = 0;
+  let offered = 0;
+  let hired = 0;
+  let rejected = 0;
+
+  for (const row of rows) {
+    const s = (row.current_status || '').toLowerCase();
+    if (s === 'applied' || s === 'shortlisted') open++;
+    else if (s === 'screening') screening++;
+    else if (s === 'offered') offered++;
+    else if (s === 'hired') hired++;
+    else if (s === 'rejected') rejected++;
+  }
+
+  // Query 2: Count today's scheduled interviews for candidates in this session
+  const todayStr = new Date().toISOString().split('T')[0];
+  let interviewsToday = 0;
+  if (rows.length > 0) {
+    const ids = rows.map((r) => r.id);
+    const { count, error: intError } = await supabase
+      .from('interviews')
+      .select('*', { count: 'exact', head: true })
+      .eq('scheduled_date', todayStr)
+      .eq('status', 'scheduled')
+      .in('candidate_id', ids);
+
+    if (intError) {
+      logger.error('Failed to count today interviews', { error: intError.message });
+    } else {
+      interviewsToday = count || 0;
+    }
+  }
+
+  return {
+    open,
+    screening,
+    interviewsToday,
+    offered,
+    hired,
+    rejected,
+  };
 }
 
 export async function getPendingCandidates(): Promise<CandidateRecord[]> {

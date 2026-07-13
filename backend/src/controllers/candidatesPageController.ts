@@ -12,6 +12,29 @@ interface SessionSummary {
   candidate_count: number;
 }
 
+function buildStatusFilter(status?: string): (q: any) => any {
+  return (query: any) => {
+    if (!status) return query;
+    switch (status) {
+      case 'open':
+        return query.in('current_status', ['Applied', 'Shortlisted']);
+      case 'screening':
+        return query.eq('current_status', 'Screening');
+      case 'interviews-today':
+        // Handled separately — return query unchanged
+        return query;
+      case 'offered':
+        return query.eq('current_status', 'Offered');
+      case 'hired':
+        return query.eq('current_status', 'Hired');
+      case 'rejected':
+        return query.eq('current_status', 'Rejected');
+      default:
+        return query;
+    }
+  };
+}
+
 export const getCandidatesPageHandler = asyncHandler(async (req: Request, res: Response) => {
   const supabase = getSupabaseClient();
   const {
@@ -21,23 +44,75 @@ export const getCandidatesPageHandler = asyncHandler(async (req: Request, res: R
     sortBy = 'created_at',
     sortOrder = 'desc',
     sessionId,
+    status,
   } = req.query as Record<string, string | undefined>;
 
   const pageNum = parseInt(page || '1', 10);
   const limitNum = Math.min(parseInt(limit || '20', 10), 100);
   const offset = (pageNum - 1) * limitNum;
 
-  // Step 1: Fetch sessions list for sidebar + paginated candidates in parallel
+  // For "interviews-today", we need to find candidates with interviews scheduled today
+  let interviewCandidateIds: string[] | undefined;
+  if (status === 'interviews-today') {
+    const todayStr = new Date().toISOString().split('T')[0];
+    let intQuery = supabase
+      .from('interviews')
+      .select('candidate_id')
+      .eq('scheduled_date', todayStr)
+      .eq('status', 'scheduled');
+    if (sessionId) {
+      const { data: sessCandidates } = await supabase
+        .from('candidates')
+        .select('id')
+        .eq('upload_session_id', sessionId);
+      const ids = (sessCandidates || []).map((c: any) => c.id);
+      if (ids.length > 0) {
+        intQuery = intQuery.in('candidate_id', ids);
+      }
+    }
+    const { data: intData } = await intQuery;
+    interviewCandidateIds = [...new Set((intData || []).map((r: any) => r.candidate_id))];
+
+    // If no interviews today, return empty result quickly
+    if (interviewCandidateIds.length === 0) {
+      const sessionsResult = await supabase
+        .from('upload_sessions')
+        .select('id, job_description_text, created_at, candidates(count)')
+        .order('created_at', { ascending: false });
+
+      const sessions: SessionSummary[] = (sessionsResult.data || []).map((s: Record<string, unknown>) => {
+        const cands = s.candidates as Array<{ count: number }> | undefined;
+        return {
+          id: s.id as string,
+          job_description_text: '',
+          created_at: s.created_at as string,
+          candidate_count: cands?.[0]?.count ?? 0,
+        };
+      });
+
+      res.status(200).json({
+        success: true,
+        data: { sessions, candidates: [], total: 0, page: pageNum, limit: limitNum, totalPages: 0 },
+      });
+      return;
+    }
+  }
+
+  // Step 1: Fetch sessions list for sidebar
   const sessionsPromise = supabase
     .from('upload_sessions')
     .select('id, job_description_text, created_at, candidates(count)')
     .order('created_at', { ascending: false });
 
   // Build count query
-  let countQuery = supabase
+  let countQuery: any = supabase
     .from('candidates')
     .select('id', { count: 'exact', head: true });
 
+  countQuery = buildStatusFilter(status)(countQuery);
+  if (interviewCandidateIds) {
+    countQuery = countQuery.in('id', interviewCandidateIds);
+  }
   if (sessionId) {
     countQuery = countQuery.eq('upload_session_id', sessionId);
   }
@@ -47,10 +122,14 @@ export const getCandidatesPageHandler = asyncHandler(async (req: Request, res: R
   }
 
   // Build data query
-  let dataQuery = supabase
+  let dataQuery: any = supabase
     .from('candidates')
     .select('id, upload_session_id, full_name, email, phone, location, current_company, current_title, total_experience_years, resume_file_url, flight_risk, growth_trajectory, current_status, created_at');
 
+  dataQuery = buildStatusFilter(status)(dataQuery);
+  if (interviewCandidateIds) {
+    dataQuery = dataQuery.in('id', interviewCandidateIds);
+  }
   if (sessionId) {
     dataQuery = dataQuery.eq('upload_session_id', sessionId);
   }

@@ -171,12 +171,12 @@ export async function getSessions() {
 }
 
 export interface SessionStats {
-  total: number
-  pending: number
-  shortlisted: number
-  interview: number
-  rejected: number
+  open: number
+  screening: number
+  interviewsToday: number
+  offered: number
   hired: number
+  rejected: number
 }
 
 export async function getSessionStats(sessionId: string) {
@@ -234,6 +234,141 @@ export async function getCandidateRecord(id: string) {
   return request<CandidateRecord>(`/candidates/${id}`, { method: "GET" })
 }
 
+// --- New Candidate Workflow API functions ---
+
+export interface InterviewData {
+  id: string
+  candidate_id: string
+  scheduled_date: string
+  scheduled_time: string
+  interview_type: string
+  interviewer_name: string
+  notes: string
+  meeting_link: string
+  status: string
+  created_at: string
+}
+
+export interface OfferData {
+  id: string
+  candidate_id: string
+  salary: number | null
+  joining_date: string | null
+  notes: string
+  status: string
+  created_at: string
+}
+
+export interface TimelineEntry {
+  id: string
+  candidate_id: string
+  status: string
+  changed_at: string
+  changed_by: string
+  details: Record<string, unknown> | null
+}
+
+export async function scheduleInterview(
+  candidateId: string,
+  data: {
+    scheduledDate: string
+    scheduledTime: string
+    interviewType: string
+    interviewerName?: string
+    notes?: string
+  },
+) {
+  return request<InterviewData>(
+    `/candidates/${candidateId}/interviews`,
+    {
+      method: "POST",
+      body: JSON.stringify(data),
+    },
+  )
+}
+
+export async function getCandidateInterviews(candidateId: string) {
+  return request<InterviewData[]>(
+    `/candidates/${candidateId}/interviews`,
+    { method: "GET" },
+  )
+}
+
+export async function rescheduleInterview(
+  candidateId: string,
+  interviewId: string,
+  data: {
+    scheduledDate?: string
+    scheduledTime?: string
+    interviewType?: string
+    interviewerName?: string
+    notes?: string
+    status?: string
+  },
+) {
+  return request<{ message: string }>(
+    `/candidates/${candidateId}/interviews/${interviewId}`,
+    {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    },
+  )
+}
+
+export async function makeOffer(
+  candidateId: string,
+  data: { salary?: number; joiningDate?: string; notes?: string },
+) {
+  return request<OfferData>(
+    `/candidates/${candidateId}/offer`,
+    {
+      method: "POST",
+      body: JSON.stringify(data),
+    },
+  )
+}
+
+export async function acceptOffer(candidateId: string) {
+  return request<{ message: string }>(
+    `/candidates/${candidateId}/hire`,
+    { method: "POST" },
+  )
+}
+
+export async function rejectCandidate(
+  candidateId: string,
+  reason: string,
+  notes?: string,
+  changedBy?: string,
+) {
+  return request<{ message: string }>(
+    `/candidates/${candidateId}/reject`,
+    {
+      method: "POST",
+      body: JSON.stringify({ reason, notes, changedBy }),
+    },
+  )
+}
+
+export async function sendInterviewEmail(candidateId: string, interviewId?: string) {
+  return request<{ message: string; subject?: string; body?: string }>(
+    `/candidates/${candidateId}/send-email`,
+    {
+      method: "POST",
+      body: JSON.stringify({ interviewId }),
+    },
+  )
+}
+
+export async function getCandidateTimeline(candidateId: string) {
+  return request<TimelineEntry[]>(
+    `/candidates/${candidateId}/timeline`,
+    { method: "GET" },
+  )
+}
+
+export type StatusFilter = 'open' | 'screening' | 'interviews-today' | 'offered' | 'hired' | 'rejected' | 'all'
+
 // --- Combined single-response endpoints (eliminate waterfall) ---
 
 export interface DashboardData {
@@ -267,6 +402,7 @@ export async function getCandidatesPage(params: {
   sortBy?: string
   sortOrder?: "asc" | "desc"
   sessionId?: string
+  status?: string
 } = {}) {
   const searchParams = new URLSearchParams()
   if (params.page) searchParams.set("page", String(params.page))
@@ -275,6 +411,7 @@ export async function getCandidatesPage(params: {
   if (params.sortBy) searchParams.set("sortBy", params.sortBy)
   if (params.sortOrder) searchParams.set("sortOrder", params.sortOrder)
   if (params.sessionId) searchParams.set("sessionId", params.sessionId)
+  if (params.status) searchParams.set("status", params.status)
   const qs = searchParams.toString()
   return request<CandidatesPageData>(`/candidates-page${qs ? `?${qs}` : ""}`, { method: "GET" })
 }

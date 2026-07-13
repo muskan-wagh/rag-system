@@ -12,10 +12,19 @@ import { generateClosingStrategy } from '@/services/llm/closingStrategy';
 import { getSupabaseClient } from '@/services/supabase/client';
 import {
   updateCandidateStatus,
+  updateCandidateStatusExtended,
   addCandidateNote,
   getCandidateNotes,
   saveSearchSession,
   getAllCandidatesPaginated,
+  scheduleInterview,
+  getCandidateInterviews,
+  updateInterview,
+  createOffer,
+  acceptOffer,
+  rejectCandidateWithReason,
+  getCandidateTimeline,
+  logEmail,
 } from '@/services/supabase/database';
 import { Candidate } from '@/types';
 import { logger } from '@/utils/logger';
@@ -173,11 +182,133 @@ export const compareCandidatesHandler = asyncHandler(async (req: Request, res: R
 
 export const updateCandidateStatusHandler = asyncHandler(async (req: Request, res: Response) => {
   const id = req.params.id as string;
-  const { status } = req.body;
+  const { status, changedBy, details } = req.body;
 
-  await updateCandidateStatus(id, status);
+  if (changedBy || details) {
+    await updateCandidateStatusExtended(id, status, changedBy, details);
+  } else {
+    await updateCandidateStatus(id, status);
+  }
   broadcast('candidate:status_changed', { candidateId: id, status });
   res.status(200).json({ success: true, data: { message: `Candidate status updated to ${status}` } });
+});
+
+export const scheduleInterviewHandler = asyncHandler(async (req: Request, res: Response) => {
+  const id = req.params.id as string;
+  const { scheduledDate, scheduledTime, interviewType, interviewerName, notes } = req.body;
+
+  const interview = await scheduleInterview(id, {
+    scheduledDate,
+    scheduledTime,
+    interviewType,
+    interviewerName,
+    notes,
+  });
+
+  // Update candidate status to Interview Scheduled
+  await updateCandidateStatusExtended(id, 'Interview Scheduled', '', {
+    interview_id: interview.id,
+    interview_type: interviewType,
+    scheduled_date: scheduledDate,
+    scheduled_time: scheduledTime,
+  });
+
+  // Log email sent
+  const emailBody = `Dear Candidate,\n\nYour interview has been scheduled for ${scheduledDate} at ${scheduledTime}.\n\nInterview Type: ${interviewType}\n\nBest regards,\nRecruitIQ Team`;
+  await logEmail(id, 'interview_scheduled', 'Interview Scheduled', emailBody);
+
+  broadcast('candidate:status_changed', { candidateId: id, status: 'Interview Scheduled' });
+  broadcast('interview:scheduled', { candidateId: id, interviewId: interview.id });
+
+  res.status(200).json({ success: true, data: interview });
+});
+
+export const getCandidateInterviewsHandler = asyncHandler(async (req: Request, res: Response) => {
+  const id = req.params.id as string;
+  const interviews = await getCandidateInterviews(id);
+  res.status(200).json({ success: true, data: interviews });
+});
+
+export const updateInterviewHandler = asyncHandler(async (req: Request, res: Response) => {
+  const interviewId = req.params.interviewId as string;
+  const updateData = req.body;
+
+  await updateInterview(interviewId, updateData);
+
+  if (updateData.status === 'completed') {
+    const candidateId = req.params.id as string;
+    await updateCandidateStatusExtended(candidateId, 'Interview Completed', '', { interview_id: interviewId });
+    broadcast('candidate:status_changed', { candidateId, status: 'Interview Completed' });
+  }
+
+  broadcast('interview:updated', { interviewId });
+  res.status(200).json({ success: true, data: { message: 'Interview updated' } });
+});
+
+export const makeOfferHandler = asyncHandler(async (req: Request, res: Response) => {
+  const id = req.params.id as string;
+  const { salary, joiningDate, notes } = req.body;
+
+  const offer = await createOffer(id, { salary, joiningDate, notes });
+  await updateCandidateStatusExtended(id, 'Offered', '', {
+    offer_id: offer.id,
+    salary: salary || null,
+    joining_date: joiningDate || null,
+  });
+
+  const emailBody = `Dear Candidate,\n\nCongratulations! We are pleased to offer you the position.\n${salary ? `Salary: $${salary}\n` : ''}${joiningDate ? `Joining Date: ${joiningDate}\n` : ''}\n\nBest regards,\nRecruitIQ Team`;
+  await logEmail(id, 'offer_sent', 'Offer Letter', emailBody);
+
+  broadcast('candidate:status_changed', { candidateId: id, status: 'Offered' });
+  res.status(200).json({ success: true, data: offer });
+});
+
+export const acceptOfferHandler = asyncHandler(async (req: Request, res: Response) => {
+  const id = req.params.id as string;
+
+  await acceptOffer(id);
+  await updateCandidateStatusExtended(id, 'Hired', '', { accepted_offer: true });
+
+  broadcast('candidate:status_changed', { candidateId: id, status: 'Hired' });
+  res.status(200).json({ success: true, data: { message: 'Candidate marked as hired' } });
+});
+
+export const rejectCandidateHandler = asyncHandler(async (req: Request, res: Response) => {
+  const id = req.params.id as string;
+  const { reason, notes, changedBy } = req.body;
+
+  await rejectCandidateWithReason(id, reason, notes, changedBy);
+
+  broadcast('candidate:status_changed', { candidateId: id, status: 'Rejected' });
+  res.status(200).json({ success: true, data: { message: 'Candidate rejected' } });
+});
+
+export const sendInterviewEmailHandler = asyncHandler(async (req: Request, res: Response) => {
+  const id = req.params.id as string;
+  const { interviewId } = req.body;
+
+  // Fetch interview details for email generation
+  const interviews = await getCandidateInterviews(id);
+  const interview = interviewId
+    ? interviews.find((i) => i.id === interviewId)
+    : interviews[0];
+
+  if (!interview) {
+    throw new AppError('No interview found for this candidate', 404, ErrorCodes.NOT_FOUND);
+  }
+
+  const subject = 'Interview Confirmation';
+  const body = `Dear Candidate,\n\nYour interview has been confirmed.\n\nDate: ${interview.scheduled_date}\nTime: ${interview.scheduled_time}\nType: ${interview.interview_type}\n${interview.meeting_link ? `Link: ${interview.meeting_link}\n` : ''}\n\nBest regards,\nRecruitIQ Team`;
+
+  await logEmail(id, 'interview_email', subject, body);
+
+  res.status(200).json({ success: true, data: { message: 'Interview email sent', subject, body } });
+});
+
+export const getCandidateTimelineHandler = asyncHandler(async (req: Request, res: Response) => {
+  const id = req.params.id as string;
+  const timeline = await getCandidateTimeline(id);
+  res.status(200).json({ success: true, data: timeline });
 });
 
 export const addCandidateNoteHandler = asyncHandler(async (req: Request, res: Response) => {
@@ -222,7 +353,32 @@ export const getAllCandidatesHandler = asyncHandler(async (req: Request, res: Re
     sortBy,
     sortOrder,
     sessionId,
+    status,
   } = req.query as Record<string, string | undefined>;
+
+  // For "interviews-today", resolve candidate IDs first
+  let interviewCandidateIds: string[] | undefined;
+  if (status === 'interviews-today') {
+    const supabase = getSupabaseClient();
+    const todayStr = new Date().toISOString().split('T')[0];
+    let intQuery = supabase
+      .from('interviews')
+      .select('candidate_id')
+      .eq('scheduled_date', todayStr)
+      .eq('status', 'scheduled');
+    if (sessionId) {
+      const { data: sessCandidates } = await supabase
+        .from('candidates')
+        .select('id')
+        .eq('upload_session_id', sessionId);
+      const ids = (sessCandidates || []).map((c: any) => c.id);
+      if (ids.length > 0) {
+        intQuery = intQuery.in('candidate_id', ids);
+      }
+    }
+    const { data: intData } = await intQuery;
+    interviewCandidateIds = [...new Set((intData || []).map((r: any) => r.candidate_id))];
+  }
 
   const result = await getAllCandidatesPaginated({
     page: parseInt(page || '1', 10),
@@ -231,6 +387,8 @@ export const getAllCandidatesHandler = asyncHandler(async (req: Request, res: Re
     sortBy,
     sortOrder: (sortOrder as 'asc' | 'desc') || 'desc',
     sessionId,
+    status,
+    interviewCandidateIds,
   });
 
   res.status(200).json({ success: true, data: result });

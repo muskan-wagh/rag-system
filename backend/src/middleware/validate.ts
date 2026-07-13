@@ -21,9 +21,39 @@ export function validate(schema: z.ZodSchema, source: Source = 'body') {
 const nonEmptyString = z.string().min(1);
 
 export const candidateStatusEnum = z.enum([
-  'Pending', 'Shortlisted', 'Interview', 'Offer', 'Hired', 'Rejected',
-  'Applied', 'Screening', 'Technical Interview', 'HR Interview',
+  'Applied', 'Shortlisted', 'Screening', 'Interview Scheduled', 'Interview Completed',
+  'Technical Round', 'HR Round', 'Offered', 'Hired', 'Rejected',
 ]);
+
+export const interviewTypeEnum = z.enum(['google_meet','zoom','ms_teams','phone','in_person']);
+
+export const scheduleInterviewSchema = z.object({
+  scheduledDate: z.string().min(1),
+  scheduledTime: z.string().min(1),
+  interviewType: interviewTypeEnum,
+  interviewerName: z.string().optional().default(''),
+  notes: z.string().optional().default(''),
+});
+
+export const updateInterviewSchema = z.object({
+  scheduledDate: z.string().optional(),
+  scheduledTime: z.string().optional(),
+  interviewType: interviewTypeEnum.optional(),
+  interviewerName: z.string().optional(),
+  notes: z.string().optional(),
+  status: z.enum(['scheduled','completed','cancelled']).optional(),
+});
+
+export const rejectCandidateSchema = z.object({
+  reason: z.enum(['not_qualified','low_score','experience_mismatch','position_filled','other']),
+  notes: z.string().optional().default(''),
+});
+
+export const makeOfferSchema = z.object({
+  salary: z.number().positive().optional(),
+  joiningDate: z.string().optional(),
+  notes: z.string().optional().default(''),
+});
 
 export const jdTextSchema = z.object({
   jdText: nonEmptyString,

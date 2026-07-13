@@ -3,16 +3,18 @@
 import { useState, useCallback, useEffect, startTransition } from "react"
 import { motion } from "framer-motion"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import {
   Sparkles, Link2, RefreshCw, Loader2, ShieldAlert, Plus,
-  FilePlus, Copy, Check, Users, FileText,
+  FilePlus, Copy, Check, Users, FileText, Search, Calendar,
+  Gift, CheckCircle2, XCircle,
 } from "lucide-react"
 import { toast } from "sonner"
 import { CandidateDetailModal } from "@/components/candidate-detail-modal"
 import { apiFetch } from "@/lib/api-fetch"
 import { scanBias, getDashboard } from "@/lib/api"
 import { useWebSocket } from "@/lib/use-websocket"
-import { ROUTES } from "@/lib/constants"
+import { ROUTES, getStatusColor } from "@/lib/constants"
 import type { SessionStats } from "@/lib/api"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -78,6 +80,7 @@ function getFlightRiskVariant(risk?: string): "destructive" | "default" | "outli
 }
 
 export default function DashboardPage() {
+  const router = useRouter()
   const [jdText, setJdText] = useState("")
   const [session, setSession] = useState<SessionData | null>(null)
   const [generating, setGenerating] = useState(false)
@@ -453,30 +456,78 @@ export default function DashboardPage() {
             transition={{ delay: 0.08 }}
           >
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-              <Card className="p-4 border-l-4 border-l-primary">
-                <p className="text-xs text-muted-foreground font-medium">Total Candidates</p>
-                <p className="text-2xl font-bold mt-1">{stats?.total ?? 0}</p>
-              </Card>
-              <Card className="p-4 border-l-4 border-l-blue-500">
-                <p className="text-xs text-muted-foreground font-medium">Pending</p>
-                <p className="text-2xl font-bold mt-1 text-blue-600">{stats?.pending ?? 0}</p>
-              </Card>
-              <Card className="p-4 border-l-4 border-l-amber-500">
-                <p className="text-xs text-muted-foreground font-medium">Shortlisted</p>
-                <p className="text-2xl font-bold mt-1 text-amber-600">{stats?.shortlisted ?? 0}</p>
-              </Card>
-              <Card className="p-4 border-l-4 border-l-violet-500">
-                <p className="text-xs text-muted-foreground font-medium">Interview</p>
-                <p className="text-2xl font-bold mt-1 text-violet-600">{stats?.interview ?? 0}</p>
-              </Card>
-              <Card className="p-4 border-l-4 border-l-red-500">
-                <p className="text-xs text-muted-foreground font-medium">Rejected</p>
-                <p className="text-2xl font-bold mt-1 text-red-600">{stats?.rejected ?? 0}</p>
-              </Card>
-              <Card className="p-4 border-l-4 border-l-emerald-500">
-                <p className="text-xs text-muted-foreground font-medium">Hired</p>
-                <p className="text-2xl font-bold mt-1 text-emerald-600">{stats?.hired ?? 0}</p>
-              </Card>
+              <Link
+                href={`${ROUTES.candidates}?status=open&session=${session.sessionId}`}
+                className="block"
+              >
+                <Card className="p-4 border-l-4 border-l-blue-500 cursor-pointer hover:bg-muted/50 transition-colors">
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-xs text-muted-foreground font-medium">Open Candidates</p>
+                    <Users className="h-4 w-4 text-blue-500" />
+                  </div>
+                  <p className="text-2xl font-bold text-blue-600">{stats?.open ?? 0}</p>
+                </Card>
+              </Link>
+              <Link
+                href={`${ROUTES.candidates}?status=screening&session=${session.sessionId}`}
+                className="block"
+              >
+                <Card className="p-4 border-l-4 border-l-orange-500 cursor-pointer hover:bg-muted/50 transition-colors">
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-xs text-muted-foreground font-medium">Screening</p>
+                    <Search className="h-4 w-4 text-orange-500" />
+                  </div>
+                  <p className="text-2xl font-bold text-orange-600">{stats?.screening ?? 0}</p>
+                </Card>
+              </Link>
+              <Link
+                href={`${ROUTES.candidates}?status=interviews-today&session=${session.sessionId}`}
+                className="block"
+              >
+                <Card className="p-4 border-l-4 border-l-yellow-500 cursor-pointer hover:bg-muted/50 transition-colors">
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-xs text-muted-foreground font-medium">Interviews Today</p>
+                    <Calendar className="h-4 w-4 text-yellow-500" />
+                  </div>
+                  <p className="text-2xl font-bold text-yellow-600">{stats?.interviewsToday ?? 0}</p>
+                </Card>
+              </Link>
+              <Link
+                href={`${ROUTES.candidates}?status=offered&session=${session.sessionId}`}
+                className="block"
+              >
+                <Card className="p-4 border-l-4 border-l-green-500 cursor-pointer hover:bg-muted/50 transition-colors">
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-xs text-muted-foreground font-medium">Offers</p>
+                    <Gift className="h-4 w-4 text-green-500" />
+                  </div>
+                  <p className="text-2xl font-bold text-green-600">{stats?.offered ?? 0}</p>
+                </Card>
+              </Link>
+              <Link
+                href={`${ROUTES.candidates}?status=hired&session=${session.sessionId}`}
+                className="block"
+              >
+                <Card className="p-4 border-l-4 border-l-emerald-500 cursor-pointer hover:bg-muted/50 transition-colors">
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-xs text-muted-foreground font-medium">Hired</p>
+                    <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                  </div>
+                  <p className="text-2xl font-bold text-emerald-600">{stats?.hired ?? 0}</p>
+                </Card>
+              </Link>
+              <Link
+                href={`${ROUTES.candidates}?status=rejected&session=${session.sessionId}`}
+                className="block"
+              >
+                <Card className="p-4 border-l-4 border-l-red-500 cursor-pointer hover:bg-muted/50 transition-colors">
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-xs text-muted-foreground font-medium">Rejected</p>
+                    <XCircle className="h-4 w-4 text-red-500" />
+                  </div>
+                  <p className="text-2xl font-bold text-red-600">{stats?.rejected ?? 0}</p>
+                </Card>
+              </Link>
             </div>
           </motion.div>
         )}
@@ -582,9 +633,9 @@ export default function DashboardPage() {
                           </Badge>
                         </TableCell>
                         <TableCell>
-                          <Badge variant="secondary" className="capitalize">
-                            {candidate.current_status || candidate.status || "Pending"}
-                          </Badge>
+                          <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium border ${getStatusColor(candidate.current_status || candidate.status)}`}>
+                            {candidate.current_status || candidate.status || "Applied"}
+                          </span>
                         </TableCell>
                         <TableCell>
                           {candidate.resume_file_url ? (

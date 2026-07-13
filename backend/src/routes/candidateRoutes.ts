@@ -11,6 +11,14 @@ import {
   getCandidateNotesHandler,
   getSimilarCandidatesHandler,
   getAllCandidatesHandler,
+  scheduleInterviewHandler,
+  getCandidateInterviewsHandler,
+  updateInterviewHandler,
+  makeOfferHandler,
+  acceptOfferHandler,
+  rejectCandidateHandler,
+  sendInterviewEmailHandler,
+  getCandidateTimelineHandler,
 } from '@/controllers/candidateController';
 import {
   validate,
@@ -20,6 +28,10 @@ import {
   updateStatusSchema,
   addNoteSchema,
   idParamSchema,
+  scheduleInterviewSchema,
+  updateInterviewSchema,
+  rejectCandidateSchema,
+  makeOfferSchema,
 } from '@/middleware/validate';
 
 const router = Router();
@@ -34,6 +46,14 @@ router.post('/:id/notes', validate(idParamSchema, 'params'), validate(addNoteSch
 router.get('/:id/notes', validate(idParamSchema, 'params'), getCandidateNotesHandler);
 router.post('/:id/screening-questions', validate(idParamSchema, 'params'), screeningQuestionsHandler);
 router.post('/:id/closing-strategy', validate(idParamSchema, 'params'), closingStrategyHandler);
+router.post('/:id/interviews', validate(idParamSchema, 'params'), validate(scheduleInterviewSchema), scheduleInterviewHandler);
+router.get('/:id/interviews', validate(idParamSchema, 'params'), getCandidateInterviewsHandler);
+router.patch('/:id/interviews/:interviewId', validate(idParamSchema, 'params'), validate(updateInterviewSchema), updateInterviewHandler);
+router.post('/:id/offer', validate(idParamSchema, 'params'), validate(makeOfferSchema), makeOfferHandler);
+router.post('/:id/hire', validate(idParamSchema, 'params'), acceptOfferHandler);
+router.post('/:id/reject', validate(idParamSchema, 'params'), validate(rejectCandidateSchema), rejectCandidateHandler);
+router.post('/:id/send-email', validate(idParamSchema, 'params'), sendInterviewEmailHandler);
+router.get('/:id/timeline', validate(idParamSchema, 'params'), getCandidateTimelineHandler);
 router.get('/:id/similar', validate(idParamSchema, 'params'), getSimilarCandidatesHandler);
 
 export default router;

@@ -117,6 +117,40 @@ CREATE TABLE IF NOT EXISTS email_logs (
   sent_at TIMESTAMP DEFAULT NOW()
 );
 
+-- 9. Interviews table
+CREATE TABLE IF NOT EXISTS interviews (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  candidate_id UUID REFERENCES candidates(id) ON DELETE CASCADE,
+  scheduled_date DATE NOT NULL,
+  scheduled_time TIME NOT NULL,
+  interview_type TEXT NOT NULL CHECK (interview_type IN ('google_meet','zoom','ms_teams','phone','in_person')),
+  interviewer_name TEXT DEFAULT '',
+  notes TEXT DEFAULT '',
+  meeting_link TEXT DEFAULT '',
+  status TEXT DEFAULT 'scheduled' CHECK (status IN ('scheduled','completed','cancelled')),
+  created_at TIMESTAMP DEFAULT NOW()
+);
+
+-- 10. Offers table
+CREATE TABLE IF NOT EXISTS offers (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  candidate_id UUID REFERENCES candidates(id) ON DELETE CASCADE,
+  salary NUMERIC,
+  joining_date DATE,
+  notes TEXT DEFAULT '',
+  status TEXT DEFAULT 'offered' CHECK (status IN ('offered','accepted','declined')),
+  created_at TIMESTAMP DEFAULT NOW()
+);
+
+-- Extend candidate_status_log for richer audit trail
+ALTER TABLE candidate_status_log ADD COLUMN IF NOT EXISTS changed_by TEXT DEFAULT '';
+ALTER TABLE candidate_status_log ADD COLUMN IF NOT EXISTS details JSONB DEFAULT '{}';
+
+-- Update CHECK constraint on candidate_status_log.status to include new statuses
+ALTER TABLE candidate_status_log DROP CONSTRAINT IF EXISTS candidate_status_log_status_check;
+ALTER TABLE candidate_status_log ADD CONSTRAINT candidate_status_log_status_check
+  CHECK (status IN ('Applied','Shortlisted','Screening','Interview Scheduled','Interview Completed','Technical Round','HR Round','Offered','Hired','Rejected'));
+
 -- ============================================================
 -- INDEXES
 -- ============================================================
@@ -132,6 +166,10 @@ CREATE INDEX IF NOT EXISTS idx_candidate_notes_candidate_id ON candidate_notes(c
 CREATE INDEX IF NOT EXISTS idx_candidate_status_log_candidate_id ON candidate_status_log(candidate_id);
 CREATE INDEX IF NOT EXISTS idx_search_sessions_created_at ON search_sessions(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_upload_sessions_created_at ON upload_sessions(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_interviews_candidate ON interviews(candidate_id);
+CREATE INDEX IF NOT EXISTS idx_interviews_date ON interviews(scheduled_date);
+CREATE INDEX IF NOT EXISTS idx_offers_candidate ON offers(candidate_id);
+CREATE INDEX IF NOT EXISTS idx_status_log_candidate_time ON candidate_status_log(candidate_id, changed_at DESC);
 
 -- ============================================================
 -- Storage bucket
@@ -183,3 +221,62 @@ CREATE POLICY "anon_insert_candidate_skills" ON candidate_skills FOR INSERT TO a
 
 DROP POLICY IF EXISTS "anon_select_candidate_skills" ON candidate_skills;
 CREATE POLICY "anon_select_candidate_skills" ON candidate_skills FOR SELECT TO anon USING (true);
+
+ALTER TABLE interviews ENABLE ROW LEVEL SECURITY;
+ALTER TABLE offers ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "anon_insert_interviews" ON interviews;
+CREATE POLICY "anon_insert_interviews" ON interviews FOR INSERT TO anon WITH CHECK (true);
+
+DROP POLICY IF EXISTS "anon_select_interviews" ON interviews;
+CREATE POLICY "anon_select_interviews" ON interviews FOR SELECT TO anon USING (true);
+
+DROP POLICY IF EXISTS "anon_update_interviews" ON interviews;
+CREATE POLICY "anon_update_interviews" ON interviews FOR UPDATE TO anon USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "anon_insert_offers" ON offers;
+CREATE POLICY "anon_insert_offers" ON offers FOR INSERT TO anon WITH CHECK (true);
+
+DROP POLICY IF EXISTS "anon_select_offers" ON offers;
+CREATE POLICY "anon_select_offers" ON offers FOR SELECT TO anon USING (true);
+
+DROP POLICY IF EXISTS "anon_update_offers" ON offers;
+CREATE POLICY "anon_update_offers" ON offers FOR UPDATE TO anon USING (true) WITH CHECK (true);
+
+-- Stats RPC function for efficient dashboard aggregation
+CREATE OR REPLACE FUNCTION get_session_stats_new(p_session_id UUID)
+RETURNS JSON AS $$
+DECLARE
+  result JSON;
+BEGIN
+  WITH status_agg AS (
+    SELECT
+      COUNT(*) FILTER (WHERE LOWER(c.current_status) IN ('applied','shortlisted')) AS open,
+      COUNT(*) FILTER (WHERE LOWER(c.current_status) = 'screening') AS screening,
+      COUNT(*) FILTER (WHERE LOWER(c.current_status) = 'offered') AS offered,
+      COUNT(*) FILTER (WHERE LOWER(c.current_status) = 'hired') AS hired,
+      COUNT(*) FILTER (WHERE LOWER(c.current_status) = 'rejected') AS rejected
+    FROM candidates c
+    WHERE c.upload_session_id = p_session_id
+  ),
+  interview_count AS (
+    SELECT COUNT(*) AS interviews_today
+    FROM interviews i
+    JOIN candidates c ON c.id = i.candidate_id
+    WHERE c.upload_session_id = p_session_id
+      AND i.scheduled_date = CURRENT_DATE
+      AND i.status = 'scheduled'
+  )
+  SELECT json_build_object(
+    'open', sa.open,
+    'screening', sa.screening,
+    'interviewsToday', ic.interviews_today,
+    'offered', sa.offered,
+    'hired', sa.hired,
+    'rejected', sa.rejected
+  ) INTO result
+  FROM status_agg sa, interview_count ic;
+
+  RETURN result;
+END;
+$$ LANGUAGE plpgsql;
