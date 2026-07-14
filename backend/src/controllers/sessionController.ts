@@ -14,12 +14,14 @@ import { AppError } from '@/middleware/errorHandler';
 import { ErrorCodes } from '@/middleware/errorCodes';
 
 function computeStats(candidates: CandidateRecord[]): NewSessionStats {
-  const stats: NewSessionStats = { open: 0, screening: 0, interviewsToday: 0, offered: 0, hired: 0, rejected: 0 };
+  const stats: NewSessionStats = { open: 0, applied: 0, screening: 0, interview: 0, interviewsToday: 0, offered: 0, hired: 0, rejected: 0 };
   for (const c of candidates) {
     const s = (c.current_status || 'Applied').toLowerCase();
-    if (s === 'applied' || s === 'shortlisted') stats.open++;
+    if (s === 'applied') { stats.applied++; stats.open++; }
+    else if (s === 'shortlisted') stats.open++;
+    else if (s === 'interview') stats.interview++;
     else if (s === 'screening') stats.screening++;
-    else if (s === 'offered') stats.offered++;
+    else if (s === 'offer' || s === 'offered') stats.offered++;
     else if (s === 'hired') stats.hired++;
     else if (s === 'rejected') stats.rejected++;
   }

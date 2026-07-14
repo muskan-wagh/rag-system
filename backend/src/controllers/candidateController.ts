@@ -32,6 +32,7 @@ import { AppError } from '@/middleware/errorHandler';
 import { ErrorCodes } from '@/middleware/errorCodes';
 import { getCached, setCache } from '@/utils/cache';
 import { generateExplanations } from '@/services/llm/explainability';
+import { generateInterviewEmail } from '@/services/llm/emailTemplate';
 import { broadcast } from '@/services/websocket';
 
 export const searchCandidatesHandler = asyncHandler(async (req: Request, res: Response) => {
@@ -189,6 +190,23 @@ export const updateCandidateStatusHandler = asyncHandler(async (req: Request, re
   } else {
     await updateCandidateStatus(id, status);
   }
+
+  // Fetch candidate for email trigger
+  const supabase = getSupabaseClient();
+  const { data: candidate } = await supabase
+    .from('candidates')
+    .select('email, full_name')
+    .eq('id', id)
+    .single();
+
+  if (candidate?.email) {
+    if (status === 'Rejected') {
+      console.log(`📧 [Rejection] email would be sent to ${candidate.email} (${candidate.full_name || 'Unknown'})`);
+    } else if (status === 'Offered' || status === 'Offer') {
+      console.log(`📧 [Offer] email would be sent to ${candidate.email} (${candidate.full_name || 'Unknown'})`);
+    }
+  }
+
   broadcast('candidate:status_changed', { candidateId: id, status });
   res.status(200).json({ success: true, data: { message: `Candidate status updated to ${status}` } });
 });
@@ -283,9 +301,52 @@ export const rejectCandidateHandler = asyncHandler(async (req: Request, res: Res
   res.status(200).json({ success: true, data: { message: 'Candidate rejected' } });
 });
 
+export const generateEmailTemplateHandler = asyncHandler(async (req: Request, res: Response) => {
+  const id = req.params.id as string;
+
+  const supabase = getSupabaseClient();
+  const { data: candidate } = await supabase
+    .from('candidates')
+    .select('full_name, parsed_json, upload_session_id')
+    .eq('id', id)
+    .single();
+
+  if (!candidate) {
+    throw new AppError('Candidate not found', 404, ErrorCodes.NOT_FOUND);
+  }
+
+  let jobTitle = 'the position';
+  if (candidate.upload_session_id) {
+    const { data: session } = await supabase
+      .from('upload_sessions')
+      .select('job_description_text')
+      .eq('id', candidate.upload_session_id)
+      .single();
+    if (session?.job_description_text) {
+      const firstLine = session.job_description_text.split('\n')[0].trim();
+      if (firstLine) jobTitle = firstLine;
+    }
+  }
+
+  const parsedJson = candidate.parsed_json as Record<string, unknown> | null;
+  const candidateInfo = parsedJson?.summary
+    ? `Summary: ${parsedJson.summary}`
+    : `Skills: ${(parsedJson?.skills as string[] || []).join(', ')}`;
+
+  const emailBody = await generateInterviewEmail(
+    candidate.full_name || 'Candidate',
+    jobTitle,
+    candidateInfo,
+  );
+
+  const subject = `Interview Invitation: ${jobTitle}`;
+
+  res.status(200).json({ success: true, data: { subject, body: emailBody } });
+});
+
 export const sendInterviewEmailHandler = asyncHandler(async (req: Request, res: Response) => {
   const id = req.params.id as string;
-  const { interviewId } = req.body;
+  const { interviewId, subject, body } = req.body;
 
   // Fetch interview details for email generation
   const interviews = await getCandidateInterviews(id);
@@ -297,12 +358,12 @@ export const sendInterviewEmailHandler = asyncHandler(async (req: Request, res: 
     throw new AppError('No interview found for this candidate', 404, ErrorCodes.NOT_FOUND);
   }
 
-  const subject = 'Interview Confirmation';
-  const body = `Dear Candidate,\n\nYour interview has been confirmed.\n\nDate: ${interview.scheduled_date}\nTime: ${interview.scheduled_time}\nType: ${interview.interview_type}\n${interview.meeting_link ? `Link: ${interview.meeting_link}\n` : ''}\n\nBest regards,\nRecruitIQ Team`;
+  const emailSubject = subject || 'Interview Confirmation';
+  const emailBody = body || `Dear Candidate,\n\nYour interview has been confirmed.\n\nDate: ${interview.scheduled_date}\nTime: ${interview.scheduled_time}\nType: ${interview.interview_type}\n${interview.meeting_link ? `Link: ${interview.meeting_link}\n` : ''}\n\nBest regards,\nRecruitIQ Team`;
 
-  await logEmail(id, 'interview_email', subject, body);
+  await logEmail(id, 'interview_email', emailSubject, emailBody);
 
-  res.status(200).json({ success: true, data: { message: 'Interview email sent', subject, body } });
+  res.status(200).json({ success: true, data: { message: 'Interview email sent', subject: emailSubject, body: emailBody } });
 });
 
 export const getCandidateTimelineHandler = asyncHandler(async (req: Request, res: Response) => {

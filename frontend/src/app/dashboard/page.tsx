@@ -1,13 +1,13 @@
 "use client"
 
-import { useState, useCallback, useEffect, startTransition } from "react"
+import { useState, useCallback, useEffect, useRef, memo } from "react"
 import { motion } from "framer-motion"
 import Link from "next/link"
-import { useRouter } from "next/navigation"
+
 import {
   Sparkles, Link2, RefreshCw, Loader2, ShieldAlert, Plus,
-  FilePlus, Copy, Check, Users, FileText, Search, Calendar,
-  Gift, CheckCircle2, XCircle,
+  FilePlus, Copy, Check, Users, FileText,
+  FolderOpen, Calendar, BadgeCheck, XCircle,
 } from "lucide-react"
 import { toast } from "sonner"
 import { CandidateDetailModal } from "@/components/candidate-detail-modal"
@@ -79,8 +79,77 @@ function getFlightRiskVariant(risk?: string): "destructive" | "default" | "outli
   return "outline"
 }
 
+const CandidateTableRow = memo(function CandidateTableRow({
+  candidate,
+  onSelect,
+}: {
+  candidate: CandidateRow
+  onSelect: (c: CandidateRow) => void
+}) {
+  return (
+    <TableRow>
+      <TableCell>
+        <div className="flex items-center gap-3">
+          <Avatar className="h-8 w-8">
+            <AvatarFallback className="text-xs">
+              {getInitials(candidate.full_name || "?")}
+            </AvatarFallback>
+          </Avatar>
+          <div>
+            <p className="font-medium text-sm">{candidate.full_name || "Unknown"}</p>
+            <p className="text-xs text-muted-foreground">
+              {candidate.current_title || ""}
+              {candidate.current_title && candidate.current_company ? " @ " : ""}
+              {candidate.current_company || ""}
+            </p>
+          </div>
+        </div>
+      </TableCell>
+      <TableCell>
+        {candidate.match_score !== undefined ? (
+          <div className="flex items-center gap-2">
+            <Progress value={Math.round(candidate.match_score)} className="h-1.5 w-16" />
+            <span className="text-xs font-mono">{Math.round(candidate.match_score)}%</span>
+          </div>
+        ) : (
+          <span className="text-xs text-muted-foreground">—</span>
+        )}
+      </TableCell>
+      <TableCell>
+        <Badge variant={getFlightRiskVariant(candidate.flight_risk)} className="capitalize">
+          {candidate.flight_risk || "Unknown"}
+        </Badge>
+      </TableCell>
+      <TableCell>
+        <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium border ${getStatusColor(candidate.current_status || candidate.status)}`}>
+          {candidate.current_status || candidate.status || "Applied"}
+        </span>
+      </TableCell>
+      <TableCell>
+        {candidate.resume_file_url ? (
+          <a
+            href={candidate.resume_file_url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1 h-8 px-2.5 rounded-lg text-sm font-medium whitespace-nowrap transition-colors hover:bg-muted hover:text-foreground text-muted-foreground"
+          >
+            <FileText className="h-3.5 w-3.5" />
+            View
+          </a>
+        ) : (
+          <span className="text-xs text-muted-foreground">—</span>
+        )}
+      </TableCell>
+      <TableCell className="text-right">
+        <Button variant="ghost" size="sm" onClick={() => onSelect(candidate)}>
+          View
+        </Button>
+      </TableCell>
+    </TableRow>
+  )
+})
+
 export default function DashboardPage() {
-  const router = useRouter()
   const [jdText, setJdText] = useState("")
   const [session, setSession] = useState<SessionData | null>(null)
   const [generating, setGenerating] = useState(false)
@@ -97,22 +166,23 @@ export default function DashboardPage() {
   const [biasError, setBiasError] = useState("")
 
   const [stats, setStats] = useState<SessionStats | null>(null)
+  const [page, setPage] = useState(1)
 
-  // Single function that loads everything the Dashboard needs in ONE API call
-  const loadDashboard = useCallback(async () => {
+  const wsDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const loadDashboard = useCallback(async (p?: number) => {
+    const pageNum = p ?? page
     setLoadingCandidates(true)
     try {
-      const res = await getDashboard()
+      const res = await getDashboard(pageNum, 50)
       if (res.success && res.data) {
         const { session: sess, candidates: cands, stats: s } = res.data
-        startTransition(() => {
-          if (sess) {
-            setSession({ sessionId: sess.id, link: sess.link })
-            setJdText(sess.job_description_text)
-          }
-          setCandidates(cands)
-          setStats(s)
-        })
+        if (sess) {
+          setSession({ sessionId: sess.id, link: sess.link })
+          setJdText(sess.job_description_text)
+        }
+        setCandidates(cands)
+        setStats(s)
       }
     } catch {
       setSession(null)
@@ -120,24 +190,26 @@ export default function DashboardPage() {
       setLoadingCandidates(false)
       setInitialLoading(false)
     }
-  }, [])
+  }, [page])
 
-
-
-  // WebSocket listener for real-time updates — single refetch gets everything
+  // Debounced WebSocket handler: coalesces rapid status changes into a single refetch
   useWebSocket('candidate:status_changed', useCallback((payload) => {
     const sid = payload.sessionId as string || session?.sessionId
     if (sid && session?.sessionId === sid) {
-      loadDashboard()
+      if (wsDebounceRef.current) clearTimeout(wsDebounceRef.current)
+      wsDebounceRef.current = setTimeout(() => loadDashboard(), 500)
     }
   }, [session?.sessionId, loadDashboard]))
 
   useEffect(() => {
     async function init() {
-      await loadDashboard()
+      await loadDashboard(1)
     }
     init()
-  }, [loadDashboard])
+    return () => {
+      if (wsDebounceRef.current) clearTimeout(wsDebounceRef.current)
+    }
+  }, [])
 
   const generateLink = useCallback(async () => {
     if (!jdText.trim()) return
@@ -310,7 +382,6 @@ export default function DashboardPage() {
                 rows={6}
               />
 
-              {/* Error message */}
               {error && (
                 <Alert variant="destructive">
                   <AlertDescription className="flex items-center justify-between">
@@ -326,7 +397,6 @@ export default function DashboardPage() {
                 </Alert>
               )}
 
-              {/* Bias error */}
               {biasError && (
                 <Alert variant="destructive">
                   <AlertDescription className="flex items-center justify-between">
@@ -374,7 +444,6 @@ export default function DashboardPage() {
           </Card>
         </motion.div>
 
-        {/* Bias Results */}
         {biasResult && biasResult.has_bias && (
           <motion.div
             initial={{ opacity: 0, y: 10 }}
@@ -417,7 +486,6 @@ export default function DashboardPage() {
           </motion.div>
         )}
 
-        {/* Active Link Section */}
         {session && (
           <motion.div
             initial={{ opacity: 0, y: 10 }}
@@ -448,91 +516,72 @@ export default function DashboardPage() {
           </motion.div>
         )}
 
-        {/* Statistics Cards */}
         {session && (
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.08 }}
           >
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-              <Link
-                href={`${ROUTES.candidates}?status=open&session=${session.sessionId}`}
-                className="block"
-              >
-                <Card className="p-4 border-l-4 border-l-blue-500 cursor-pointer hover:bg-muted/50 transition-colors">
-                  <div className="flex items-center justify-between mb-2">
-                    <p className="text-xs text-muted-foreground font-medium">Open Candidates</p>
-                    <Users className="h-4 w-4 text-blue-500" />
+            <div className="flex items-center gap-2 mb-4">
+              <h2 className="text-lg font-semibold">Pipeline Overview</h2>
+            </div>
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+              <Link href={ROUTES.candidates} className="block group">
+                <Card className="p-5 cursor-pointer hover:shadow-md hover:border-blue-300 transition-all duration-200 border-t-4 border-t-blue-500">
+                  <div className="flex items-center justify-between mb-3">
+                    <p className="text-sm font-medium text-muted-foreground">Open Candidates</p>
+                    <div className="p-2 rounded-lg bg-blue-50">
+                      <FolderOpen className="h-5 w-5 text-blue-600" />
+                    </div>
                   </div>
-                  <p className="text-2xl font-bold text-blue-600">{stats?.open ?? 0}</p>
+                  <p className="text-3xl font-bold text-blue-600">{stats?.applied ?? 0}</p>
+                  <p className="text-xs text-blue-500 mt-2 group-hover:underline">View All &rarr;</p>
                 </Card>
               </Link>
-              <Link
-                href={`${ROUTES.candidates}?status=screening&session=${session.sessionId}`}
-                className="block"
-              >
-                <Card className="p-4 border-l-4 border-l-orange-500 cursor-pointer hover:bg-muted/50 transition-colors">
-                  <div className="flex items-center justify-between mb-2">
-                    <p className="text-xs text-muted-foreground font-medium">Screening</p>
-                    <Search className="h-4 w-4 text-orange-500" />
+              <Link href={ROUTES.interview} className="block group">
+                <Card className="p-5 cursor-pointer hover:shadow-md hover:border-purple-300 transition-all duration-200 border-t-4 border-t-purple-500">
+                  <div className="flex items-center justify-between mb-3">
+                    <p className="text-sm font-medium text-muted-foreground">Interview</p>
+                    <div className="p-2 rounded-lg bg-purple-50">
+                      <Calendar className="h-5 w-5 text-purple-600" />
+                    </div>
                   </div>
-                  <p className="text-2xl font-bold text-orange-600">{stats?.screening ?? 0}</p>
+                  <p className="text-3xl font-bold text-purple-600">{stats?.interview ?? 0}</p>
+                  <p className="text-xs text-purple-500 mt-2 group-hover:underline">Manage &rarr;</p>
                 </Card>
               </Link>
-              <Link
-                href={`${ROUTES.candidates}?status=interviews-today&session=${session.sessionId}`}
-                className="block"
-              >
-                <Card className="p-4 border-l-4 border-l-yellow-500 cursor-pointer hover:bg-muted/50 transition-colors">
-                  <div className="flex items-center justify-between mb-2">
-                    <p className="text-xs text-muted-foreground font-medium">Interviews Today</p>
-                    <Calendar className="h-4 w-4 text-yellow-500" />
+              <Link href={`${ROUTES.candidates}?status=hired,offer`} className="block group">
+                <Card className="p-5 cursor-pointer hover:shadow-md hover:border-green-300 transition-all duration-200 border-t-4 border-t-green-500">
+                  <div className="flex items-center justify-between mb-3">
+                    <p className="text-sm font-medium text-muted-foreground">Hired</p>
+                    <div className="p-2 rounded-lg bg-green-50">
+                      <BadgeCheck className="h-5 w-5 text-green-600" />
+                    </div>
                   </div>
-                  <p className="text-2xl font-bold text-yellow-600">{stats?.interviewsToday ?? 0}</p>
+                  <p className="text-3xl font-bold text-green-600">
+                    {(stats?.hired ?? 0) + (stats?.offered ?? 0)}
+                  </p>
+                  <p className="text-xs text-green-600 mt-2">
+                    {stats?.hired ?? 0} Hired | {stats?.offered ?? 0} Pending
+                  </p>
                 </Card>
               </Link>
-              <Link
-                href={`${ROUTES.candidates}?status=offered&session=${session.sessionId}`}
-                className="block"
-              >
-                <Card className="p-4 border-l-4 border-l-green-500 cursor-pointer hover:bg-muted/50 transition-colors">
-                  <div className="flex items-center justify-between mb-2">
-                    <p className="text-xs text-muted-foreground font-medium">Offers</p>
-                    <Gift className="h-4 w-4 text-green-500" />
+              <Link href={`${ROUTES.candidates}?status=rejected`} className="block group">
+                <Card className="p-5 cursor-pointer hover:shadow-md hover:border-red-300 transition-all duration-200 border-t-4 border-t-red-500">
+                  <div className="flex items-center justify-between mb-3">
+                    <p className="text-sm font-medium text-muted-foreground">Rejected</p>
+                    <div className="p-2 rounded-lg bg-red-50">
+                      <XCircle className="h-5 w-5 text-red-600" />
+                    </div>
                   </div>
-                  <p className="text-2xl font-bold text-green-600">{stats?.offered ?? 0}</p>
-                </Card>
-              </Link>
-              <Link
-                href={`${ROUTES.candidates}?status=hired&session=${session.sessionId}`}
-                className="block"
-              >
-                <Card className="p-4 border-l-4 border-l-emerald-500 cursor-pointer hover:bg-muted/50 transition-colors">
-                  <div className="flex items-center justify-between mb-2">
-                    <p className="text-xs text-muted-foreground font-medium">Hired</p>
-                    <CheckCircle2 className="h-4 w-4 text-emerald-500" />
-                  </div>
-                  <p className="text-2xl font-bold text-emerald-600">{stats?.hired ?? 0}</p>
-                </Card>
-              </Link>
-              <Link
-                href={`${ROUTES.candidates}?status=rejected&session=${session.sessionId}`}
-                className="block"
-              >
-                <Card className="p-4 border-l-4 border-l-red-500 cursor-pointer hover:bg-muted/50 transition-colors">
-                  <div className="flex items-center justify-between mb-2">
-                    <p className="text-xs text-muted-foreground font-medium">Rejected</p>
-                    <XCircle className="h-4 w-4 text-red-500" />
-                  </div>
-                  <p className="text-2xl font-bold text-red-600">{stats?.rejected ?? 0}</p>
+                  <p className="text-3xl font-bold text-red-600">{stats?.rejected ?? 0}</p>
+                  <p className="text-xs text-red-500 mt-2 group-hover:underline">View &rarr;</p>
                 </Card>
               </Link>
             </div>
           </motion.div>
         )}
 
-        {/* Candidates Table */}
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
@@ -549,9 +598,7 @@ export default function DashboardPage() {
                 )}
               </h3>
               <Link href={`${ROUTES.candidates}?session=${session?.sessionId}`}>
-                <Button variant="ghost" size="sm">
-                  View All
-                </Button>
+                <Button variant="ghost" size="sm">View All</Button>
               </Link>
             </div>
 
@@ -591,77 +638,11 @@ export default function DashboardPage() {
                   </TableHeader>
                   <TableBody>
                     {candidates.map((candidate) => (
-                      <TableRow key={candidate.id}>
-                        <TableCell>
-                          <div className="flex items-center gap-3">
-                            <Avatar className="h-8 w-8">
-                              <AvatarFallback className="text-xs">
-                                {getInitials(candidate.full_name || "?")}
-                              </AvatarFallback>
-                            </Avatar>
-                            <div>
-                              <p className="font-medium text-sm">{candidate.full_name || "Unknown"}</p>
-                              <p className="text-xs text-muted-foreground">
-                                {candidate.current_title || ""}
-                                {candidate.current_title && candidate.current_company ? " @ " : ""}
-                                {candidate.current_company || ""}
-                              </p>
-                            </div>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          {candidate.match_score !== undefined ? (
-                            <div className="flex items-center gap-2">
-                              <Progress
-                                value={Math.round(candidate.match_score)}
-                                className="h-1.5 w-16"
-                              />
-                              <span className="text-xs font-mono">
-                                {Math.round(candidate.match_score)}%
-                              </span>
-                            </div>
-                          ) : (
-                            <span className="text-xs text-muted-foreground">—</span>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          <Badge
-                            variant={getFlightRiskVariant(candidate.flight_risk)}
-                            className="capitalize"
-                          >
-                            {candidate.flight_risk || "Unknown"}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium border ${getStatusColor(candidate.current_status || candidate.status)}`}>
-                            {candidate.current_status || candidate.status || "Applied"}
-                          </span>
-                        </TableCell>
-                        <TableCell>
-                          {candidate.resume_file_url ? (
-                            <a
-                              href={candidate.resume_file_url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="inline-flex items-center gap-1 h-8 px-2.5 rounded-lg text-sm font-medium whitespace-nowrap transition-colors hover:bg-muted hover:text-foreground text-muted-foreground"
-                            >
-                              <FileText className="h-3.5 w-3.5" />
-                              View
-                            </a>
-                          ) : (
-                            <span className="text-xs text-muted-foreground">—</span>
-                          )}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleSelectCandidate(candidate)}
-                          >
-                            View
-                          </Button>
-                        </TableCell>
-                      </TableRow>
+                      <CandidateTableRow
+                        key={candidate.id}
+                        candidate={candidate}
+                        onSelect={handleSelectCandidate}
+                      />
                     ))}
                   </TableBody>
                 </Table>

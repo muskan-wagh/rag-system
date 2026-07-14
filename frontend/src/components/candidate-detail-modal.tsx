@@ -5,7 +5,7 @@ import {
   X, Loader2, Brain, Target, ThumbsUp, ArrowRight,
   AlertTriangle, Sparkles, FileText, CheckCircle2,
   User, Mail, Phone, MapPin, Briefcase, ExternalLink,
-  Wand2, MessageSquare,
+  Wand2, MessageSquare, ListChecks, Calendar, XCircle,
 } from "lucide-react"
 import { toast } from "sonner"
 import {
@@ -25,7 +25,6 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Dialog, DialogContent } from "@/components/ui/dialog"
 import { Tabs, TabsList, TabsTab, TabsPanel } from "@/components/ui/tabs"
-import { HiringActions } from "@/components/hiring-actions"
 import { ScheduleInterviewModal } from "@/components/schedule-interview-modal"
 import { RejectModal } from "@/components/reject-modal"
 import { MakeOfferModal } from "@/components/make-offer-modal"
@@ -128,6 +127,9 @@ export function CandidateDetailModal({ open, onClose, candidate, onStatusChange 
   const [savingNote, setSavingNote] = useState(false)
 
   const [statusLoading, setStatusLoading] = useState(false)
+  const [shortlisting, setShortlisting] = useState(false)
+  const [movingToInterview, setMovingToInterview] = useState(false)
+  const [rejecting, setRejecting] = useState(false)
   const [activeTab, setActiveTab] = useState<TabId>("insights")
 
   const [showScheduleModal, setShowScheduleModal] = useState(false)
@@ -301,6 +303,51 @@ export function CandidateDetailModal({ open, onClose, candidate, onStatusChange 
       case "reject":
         setShowRejectModal(true)
         break
+    }
+  }
+
+  const handleShortlist = async () => {
+    if (!candidate) return
+    setShortlisting(true)
+    try {
+      await updateCandidateStatus(candidate.id, 'Screening')
+      onStatusChange?.()
+      toast.success('Candidate moved to Screening')
+      onClose()
+    } catch {
+      toast.error('Failed to update status')
+    } finally {
+      setShortlisting(false)
+    }
+  }
+
+  const handleMoveToInterview = async () => {
+    if (!candidate) return
+    setMovingToInterview(true)
+    try {
+      await updateCandidateStatus(candidate.id, 'Interview')
+      onStatusChange?.()
+      toast.success('Candidate moved to Interview')
+      onClose()
+    } catch {
+      toast.error('Failed to update status')
+    } finally {
+      setMovingToInterview(false)
+    }
+  }
+
+  const handleReject = async () => {
+    if (!candidate) return
+    setRejecting(true)
+    try {
+      await updateCandidateStatus(candidate.id, 'Rejected')
+      onStatusChange?.()
+      toast.success('Candidate moved to Rejected')
+      onClose()
+    } catch {
+      toast.error('Failed to update status')
+    } finally {
+      setRejecting(false)
     }
   }
 
@@ -905,13 +952,52 @@ export function CandidateDetailModal({ open, onClose, candidate, onStatusChange 
           </TabsPanel>
         </Tabs>
 
-        {/* Hiring Actions + Timeline Footer */}
-        <div className="flex flex-col gap-4 p-4 border-t bg-muted/10 shrink-0">
-          <HiringActions
-            currentStatus={currentStatus}
-            onAction={handleAction}
-            loading={statusLoading}
-          />
+        {/* Pipeline Action Footer */}
+        <div className="sticky bottom-0 flex flex-col gap-3 p-4 border-t bg-white shrink-0">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-xs font-medium text-muted-foreground">Next Step</span>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleShortlist}
+                disabled={shortlisting || currentStatus === 'Rejected'}
+              >
+                {shortlisting ? (
+                  <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
+                ) : (
+                  <ListChecks className="h-3.5 w-3.5 mr-1" />
+                )}
+                {shortlisting ? 'Updating...' : 'Shortlist'}
+              </Button>
+              <Button
+                variant="default"
+                size="sm"
+                onClick={handleMoveToInterview}
+                disabled={movingToInterview || currentStatus === 'Rejected'}
+              >
+                {movingToInterview ? (
+                  <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
+                ) : (
+                  <Calendar className="h-3.5 w-3.5 mr-1" />
+                )}
+                {movingToInterview ? 'Updating...' : 'Move to Interview'}
+              </Button>
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={handleReject}
+                disabled={rejecting || currentStatus === 'Rejected'}
+              >
+                {rejecting ? (
+                  <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
+                ) : (
+                  <XCircle className="h-3.5 w-3.5 mr-1" />
+                )}
+                {rejecting ? 'Updating...' : 'Reject'}
+              </Button>
+            </div>
+          </div>
           <CandidateTimeline candidateId={candidate.id} />
         </div>
 

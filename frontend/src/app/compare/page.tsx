@@ -6,42 +6,53 @@ import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { ComparisonView } from "@/components/comparison-view"
 import { EmptyState } from "@/components/ui/empty-state"
+import { CandidateSearchInput } from "@/components/candidate-search-input"
 import { GitCompare, Sparkles, Loader2, Plus, Trash2, Users } from "lucide-react"
 import { compareCandidates, batchCandidates, type Candidate } from "@/lib/api"
 
+interface SelectedCandidate {
+  id: string
+  full_name?: string
+  current_title?: string
+  current_company?: string
+}
+
 export default function ComparePage() {
   const [jdText, setJdText] = useState("")
-  const [candidateIds, setCandidateIds] = useState<string[]>(["", ""])
+  const [selectedCandidates, setSelectedCandidates] = useState<(SelectedCandidate | null)[]>([null, null])
   const [comparison, setComparison] = useState("")
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
   const [foundCandidates, setFoundCandidates] = useState<Map<string, Candidate>>(new Map())
 
-  function updateId(index: number, value: string) {
-    const next = [...candidateIds]
-    next[index] = value
-    setCandidateIds(next)
+  function updateSelection(index: number, candidate: SelectedCandidate | null) {
+    const next = [...selectedCandidates]
+    next[index] = candidate
+    setSelectedCandidates(next)
   }
 
   function addRow() {
-    setCandidateIds([...candidateIds, ""])
+    setSelectedCandidates([...selectedCandidates, null])
   }
 
   function removeRow(index: number) {
-    if (candidateIds.length <= 2) return
-    setCandidateIds(candidateIds.filter((_, i) => i !== index))
+    if (selectedCandidates.length <= 2) return
+    setSelectedCandidates(selectedCandidates.filter((_, i) => i !== index))
   }
 
+  const allSelected = selectedCandidates.every((c) => c !== null)
+
   async function handleCompare() {
-    if (!jdText.trim() || candidateIds.some((id) => !id.trim())) {
+    if (!jdText.trim() || !allSelected) {
       setError("Please fill in all fields")
       return
     }
+    const ids = selectedCandidates.map((c) => c!.id)
     setLoading(true)
     setError("")
 
     try {
-      const batchRes = await batchCandidates(candidateIds)
+      const batchRes = await batchCandidates(ids)
       const nameMap = new Map<string, Candidate>()
       if (batchRes.success && batchRes.data) {
         for (const candidate of batchRes.data) {
@@ -50,7 +61,7 @@ export default function ComparePage() {
       }
       setFoundCandidates(nameMap)
 
-      const compareRes = await compareCandidates(jdText, candidateIds)
+      const compareRes = await compareCandidates(jdText, ids)
       if (compareRes.success && compareRes.data) {
         setComparison(compareRes.data.comparison)
       } else {
@@ -105,25 +116,17 @@ export default function ComparePage() {
           </div>
 
           <div className="space-y-2">
-            {candidateIds.map((id, index) => (
+            {selectedCandidates.map((selected, index) => (
               <div key={index} className="flex items-center gap-3">
                 <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-[11px] font-medium text-primary">
                   {index + 1}
                 </div>
-                <div className="flex-1">
-                  <input
-                    placeholder={`Candidate ID (e.g., cand-00${index + 1})`}
-                    value={id}
-                    onChange={(e) => updateId(index, e.target.value)}
-                    className="w-full bg-muted/30 text-sm text-foreground placeholder-muted-foreground/50 outline-none rounded-xl border border-border px-3 py-2 focus:border-primary/30 transition-colors"
-                  />
-                  {foundCandidates.has(id) && (
-                    <p className="text-[11px] text-primary mt-1 ml-1">
-                      {foundCandidates.get(id)?.name}
-                    </p>
-                  )}
-                </div>
-                {candidateIds.length > 2 && (
+                <CandidateSearchInput
+                  index={index}
+                  selected={selected}
+                  onSelect={(c) => updateSelection(index, c)}
+                />
+                {selectedCandidates.length > 2 && (
                   <button
                     onClick={() => removeRow(index)}
                     className="flex h-8 w-8 items-center justify-center rounded-lg hover:bg-muted/60 transition-colors"
@@ -146,7 +149,7 @@ export default function ComparePage() {
             </Button>
             <Button
               onClick={handleCompare}
-              disabled={loading}
+              disabled={loading || !allSelected}
               size="sm"
               className="bg-primary text-white hover:bg-primary/90 ml-auto shadow-sm"
             >
@@ -185,12 +188,12 @@ export default function ComparePage() {
             <ComparisonView
               comparison={comparison}
               candidates={foundCandidates}
-              candidateIds={candidateIds}
+              candidateIds={selectedCandidates.map((c) => c!.id)}
             />
           </div>
         )}
 
-        {!loading && !comparison && !error && !jdText && (
+        {!loading && !comparison && !error && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -200,7 +203,7 @@ export default function ComparePage() {
             <EmptyState
               icon={Users}
               title="Compare Candidates"
-              description="Add candidate IDs and a job description to get an AI-powered side-by-side comparison with score breakdowns."
+              description="Search and select candidates, then add a job description to get an AI-powered side-by-side comparison with score breakdowns."
             />
           </motion.div>
         )}

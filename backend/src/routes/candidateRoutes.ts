@@ -17,6 +17,7 @@ import {
   makeOfferHandler,
   acceptOfferHandler,
   rejectCandidateHandler,
+  generateEmailTemplateHandler,
   sendInterviewEmailHandler,
   getCandidateTimelineHandler,
 } from '@/controllers/candidateController';
@@ -52,6 +53,7 @@ router.patch('/:id/interviews/:interviewId', validate(idParamSchema, 'params'), 
 router.post('/:id/offer', validate(idParamSchema, 'params'), validate(makeOfferSchema), makeOfferHandler);
 router.post('/:id/hire', validate(idParamSchema, 'params'), acceptOfferHandler);
 router.post('/:id/reject', validate(idParamSchema, 'params'), validate(rejectCandidateSchema), rejectCandidateHandler);
+router.post('/:id/email-template', validate(idParamSchema, 'params'), generateEmailTemplateHandler);
 router.post('/:id/send-email', validate(idParamSchema, 'params'), sendInterviewEmailHandler);
 router.get('/:id/timeline', validate(idParamSchema, 'params'), getCandidateTimelineHandler);
 router.get('/:id/similar', validate(idParamSchema, 'params'), getSimilarCandidatesHandler);

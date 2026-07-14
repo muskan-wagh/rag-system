@@ -289,7 +289,9 @@ export interface SessionStats {
 
 export interface NewSessionStats {
   open: number;
+  applied: number;
   screening: number;
+  interview: number;
   interviewsToday: number;
   offered: number;
   hired: number;
@@ -397,15 +399,34 @@ export interface PaginatedCandidatesResult {
 function buildStatusFilterParam(status?: string): (q: any) => any {
   return (query: any) => {
     if (!status) return query;
+    // Support comma-separated multi-status: "hired,offer"
+    if (status.includes(',')) {
+      const statuses = status.split(',').map(s => s.trim());
+      const mapped = statuses.map(s => {
+        const lower = s.toLowerCase();
+        if (lower === 'hired') return 'Hired';
+        if (lower === 'offer' || lower === 'offered') return 'Offer';
+        if (lower === 'applied') return 'Applied';
+        if (lower === 'interview') return 'Interview';
+        if (lower === 'rejected') return 'Rejected';
+        return s.charAt(0).toUpperCase() + s.slice(1).toLowerCase();
+      });
+      return query.in('current_status', mapped);
+    }
     switch (status) {
+      case 'applied':
+        return query.eq('current_status', 'Applied');
       case 'open':
         return query.in('current_status', ['Applied', 'Shortlisted']);
+      case 'interview':
+        return query.eq('current_status', 'Interview');
       case 'screening':
         return query.eq('current_status', 'Screening');
       case 'interviews-today':
         return query;
+      case 'offer':
       case 'offered':
-        return query.eq('current_status', 'Offered');
+        return query.eq('current_status', 'Offer');
       case 'hired':
         return query.eq('current_status', 'Hired');
       case 'rejected':
@@ -783,7 +804,30 @@ export async function logEmail(
 export async function getNewSessionStats(sessionId: string): Promise<NewSessionStats> {
   const supabase = getSupabaseClient();
 
-  // Query 1: Aggregate candidate statuses and get IDs for interviews count
+  // Use the optimized PostgreSQL RPC function for in-database aggregation
+  try {
+    const { data, error } = await supabase
+      .rpc('get_session_stats_new', { p_session_id: sessionId });
+
+    if (!error && data) {
+      const r = data as Record<string, number>;
+
+      return {
+        open: r.open ?? 0,
+        applied: r.applied ?? 0,
+        screening: r.screening ?? 0,
+        interview: r.interview ?? 0,
+        interviewsToday: r.interviewsToday ?? 0,
+        offered: r.offered ?? 0,
+        hired: r.hired ?? 0,
+        rejected: r.rejected ?? 0,
+      };
+    }
+  } catch {
+    logger.warn('RPC get_session_stats_new failed, falling back to manual aggregation');
+  }
+
+  // Fallback: manual aggregation (only fetches current_status column)
   const { data: candidates, error: candError } = await supabase
     .from('candidates')
     .select('id, current_status')
@@ -796,15 +840,20 @@ export async function getNewSessionStats(sessionId: string): Promise<NewSessionS
   type CandRow = { id: string; current_status: string };
   const rows = (candidates || []) as CandRow[];
   let open = 0;
+  let applied = 0;
   let screening = 0;
+  let interview = 0;
   let offered = 0;
   let hired = 0;
   let rejected = 0;
 
   for (const row of rows) {
     const s = (row.current_status || '').toLowerCase();
-    if (s === 'applied' || s === 'shortlisted') open++;
+    if (s === 'applied') { applied++; open++; }
+    else if (s === 'shortlisted') open++;
+    else if (s === 'interview') interview++;
     else if (s === 'screening') screening++;
+    else if (s === 'offer') offered++;
     else if (s === 'offered') offered++;
     else if (s === 'hired') hired++;
     else if (s === 'rejected') rejected++;
@@ -831,7 +880,9 @@ export async function getNewSessionStats(sessionId: string): Promise<NewSessionS
 
   return {
     open,
+    applied,
     screening,
+    interview,
     interviewsToday,
     offered,
     hired,

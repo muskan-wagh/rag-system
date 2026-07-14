@@ -172,7 +172,9 @@ export async function getSessions() {
 
 export interface SessionStats {
   open: number
+  applied: number
   screening: number
+  interview: number
   interviewsToday: number
   offered: number
   hired: number
@@ -218,6 +220,7 @@ export async function getAllCandidates(params: {
   sortBy?: string
   sortOrder?: "asc" | "desc"
   sessionId?: string
+  status?: string
 } = {}) {
   const searchParams = new URLSearchParams()
   if (params.page) searchParams.set("page", String(params.page))
@@ -226,6 +229,7 @@ export async function getAllCandidates(params: {
   if (params.sortBy) searchParams.set("sortBy", params.sortBy)
   if (params.sortOrder) searchParams.set("sortOrder", params.sortOrder)
   if (params.sessionId) searchParams.set("sessionId", params.sessionId)
+  if (params.status) searchParams.set("status", params.status)
   const qs = searchParams.toString()
   return request<PaginatedCandidates>(`/candidates${qs ? `?${qs}` : ""}`, { method: "GET" })
 }
@@ -350,14 +354,25 @@ export async function rejectCandidate(
   )
 }
 
-export async function sendInterviewEmail(candidateId: string, interviewId?: string) {
+export async function generateEmailTemplate(candidateId: string) {
+  return request<{ subject: string; body: string }>(
+    `/candidates/${candidateId}/email-template`,
+    { method: "POST" },
+  )
+}
+
+export async function sendInterviewEmail(candidateId: string, interviewId?: string, subject?: string, body?: string) {
   return request<{ message: string; subject?: string; body?: string }>(
     `/candidates/${candidateId}/send-email`,
     {
       method: "POST",
-      body: JSON.stringify({ interviewId }),
+      body: JSON.stringify({ interviewId, subject, body }),
     },
   )
+}
+
+export async function markCandidateAsHired(candidateId: string) {
+  return updateCandidateStatus(candidateId, "Hired")
 }
 
 export async function getCandidateTimeline(candidateId: string) {
@@ -367,7 +382,7 @@ export async function getCandidateTimeline(candidateId: string) {
   )
 }
 
-export type StatusFilter = 'open' | 'screening' | 'interviews-today' | 'offered' | 'hired' | 'rejected' | 'all'
+export type StatusFilter = 'open' | 'screening' | 'offered' | 'hired' | 'rejected' | 'all'
 
 // --- Combined single-response endpoints (eliminate waterfall) ---
 
@@ -380,10 +395,14 @@ export interface DashboardData {
   } | null
   candidates: CandidateRecord[]
   stats: SessionStats
+  pagination?: {
+    page: number
+    limit: number
+  }
 }
 
-export async function getDashboard() {
-  return request<DashboardData>("/dashboard", { method: "GET" })
+export async function getDashboard(page = 1, limit = 50) {
+  return request<DashboardData>(`/dashboard?page=${page}&limit=${limit}`, { method: "GET" })
 }
 
 export interface CandidatesPageData {

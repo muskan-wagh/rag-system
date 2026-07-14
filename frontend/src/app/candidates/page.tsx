@@ -1,15 +1,15 @@
 "use client"
 
 import { Suspense, useState, useEffect, useCallback, useRef } from "react"
-import { useSearchParams } from "next/navigation"
+import { useSearchParams, useRouter } from "next/navigation"
 import Link from "next/link"
 import {
   Search, Users, FileText, ChevronLeft, ChevronRight,
-  LayoutDashboard,
+  LayoutDashboard, BadgeCheck, Loader2,
 } from "lucide-react"
 import { toast } from "sonner"
 import { CandidateDetailModal } from "@/components/candidate-detail-modal"
-import { getCandidatesPage } from "@/lib/api"
+import { getCandidatesPage, markCandidateAsHired } from "@/lib/api"
 import { useWebSocket } from "@/lib/use-websocket"
 import { ROUTES } from "@/lib/constants"
 import { Button } from "@/components/ui/button"
@@ -26,6 +26,7 @@ import {
   TableHead,
   TableCell,
 } from "@/components/ui/table"
+import { Dialog, DialogContent } from "@/components/ui/dialog"
 import { getStatusColor } from "@/lib/constants"
 import type { SessionSummary, CandidateRecord, CandidatesPageData, StatusFilter } from "@/lib/api"
 
@@ -57,6 +58,7 @@ function formatDate(dateStr?: string): string {
 const PAGE_SIZE = 20
 
 function CandidatesContent() {
+  const router = useRouter()
   const searchParams = useSearchParams()
 
   const [sessions, setSessions] = useState<SessionSummary[]>([])
@@ -70,11 +72,22 @@ function CandidatesContent() {
 
   const [selectedCandidate, setSelectedCandidate] = useState<CandidateRecord | null>(null)
   const [showDetailModal, setShowDetailModal] = useState(false)
+  const [showHireConfirm, setShowHireConfirm] = useState(false)
+  const [hireCandidate, setHireCandidate] = useState<CandidateRecord | null>(null)
+  const [hireLoading, setHireLoading] = useState(false)
   const searchInputRef = useRef<HTMLInputElement>(null)
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // Read status filter from URL
   const statusFilterParam = searchParams.get("status") as StatusFilter | null
+
+  // Filter tab configuration
+  const statusTabs = [
+    { label: "All", value: null },
+    { label: "Hired", value: "hired" },
+    { label: "Pending Offers", value: "offer" },
+    { label: "Rejected", value: "rejected" },
+  ] as const
 
   // Single function that loads everything the Candidates page needs in ONE API call
   const loadCandidatesPage = useCallback(async (sessionId: string | null, query: string, currentPage: number, statusFilter?: string | null) => {
@@ -147,6 +160,42 @@ function CandidatesContent() {
     setSelectedCandidate(candidate)
     setShowDetailModal(true)
   }, [])
+
+  const handleHireClick = useCallback((candidate: CandidateRecord) => {
+    setHireCandidate(candidate)
+    setShowHireConfirm(true)
+  }, [])
+
+  const confirmHire = async () => {
+    if (!hireCandidate) return
+    setHireLoading(true)
+    try {
+      const res = await markCandidateAsHired(hireCandidate.id)
+      if (res.success) {
+        toast.success("Candidate marked as Hired!")
+        setShowHireConfirm(false)
+        setHireCandidate(null)
+        loadCandidatesPage(selectedSessionId, searchQuery, page, statusFilterParam)
+      } else {
+        toast.error(res.error || "Failed to mark candidate as hired")
+      }
+    } catch {
+      toast.error("Failed to mark candidate as hired")
+    } finally {
+      setHireLoading(false)
+    }
+  }
+
+  const handleStatusTabClick = (value: string | null) => {
+    const params = new URLSearchParams(searchParams.toString())
+    if (value) {
+      params.set("status", value)
+    } else {
+      params.delete("status")
+    }
+    const qs = params.toString()
+    router.push(`${ROUTES.candidates}${qs ? `?${qs}` : ""}`)
+  }
 
   const totalPages = candidatesData?.totalPages || 0
   const startRow = candidatesData?.total ? (page - 1) * PAGE_SIZE + 1 : 0
@@ -237,6 +286,28 @@ function CandidatesContent() {
               ? "Candidates filtered by selected hiring session"
               : "All candidates across all hiring sessions"}
           </p>
+        </div>
+
+        {/* Status Filter Tabs */}
+        <div className="flex items-center gap-1 border-b border-border pb-3 -mb-2">
+          {statusTabs.map((tab) => {
+            const isActive = tab.value === null
+              ? !statusFilterParam
+              : statusFilterParam === tab.value || statusFilterParam?.split(",").includes(tab.value || "")
+            return (
+              <button
+                key={tab.label}
+                onClick={() => handleStatusTabClick(tab.value)}
+                className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${
+                  isActive
+                    ? "bg-primary/10 text-primary"
+                    : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                }`}
+              >
+                {tab.label}
+              </button>
+            )
+          })}
         </div>
 
         {/* Search & Filters */}
@@ -378,13 +449,27 @@ function CandidatesContent() {
                           )}
                         </TableCell>
                         <TableCell className="text-right">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleViewCandidate(candidate)}
-                          >
-                            View
-                          </Button>
+                          <div className="flex items-center justify-end gap-1">
+                            {candidate.current_status === "Offer" && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleHireClick(candidate)}
+                                className="h-8 px-2 text-xs text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
+                                title="Mark as Hired"
+                              >
+                                <BadgeCheck className="h-3.5 w-3.5 mr-1" />
+                                Mark as Hired
+                              </Button>
+                            )}
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleViewCandidate(candidate)}
+                            >
+                              View
+                            </Button>
+                          </div>
                         </TableCell>
                       </TableRow>
                     ))}
@@ -447,6 +532,31 @@ function CandidatesContent() {
           )}
         </Card>
       </div>
+
+      {/* Mark as Hired Confirmation */}
+      <Dialog open={showHireConfirm} onOpenChange={(o) => { if (!o) { setShowHireConfirm(false); setHireCandidate(null) } }}>
+        <DialogContent className="sm:max-w-md">
+          <div className="px-6 pt-6 pb-2">
+            <div className="flex items-center gap-2 text-emerald-600">
+              <BadgeCheck className="h-5 w-5" />
+              <h2 className="text-lg font-semibold">Mark as Hired</h2>
+            </div>
+            <p className="text-sm text-muted-foreground mt-0.5">
+              Confirm that <strong>{hireCandidate?.full_name || "this candidate"}</strong> has been hired.
+              This will update their status from Offer to Hired.
+            </p>
+          </div>
+          <div className="px-6 pb-6 flex justify-end gap-2">
+            <Button variant="outline" size="sm" onClick={() => { setShowHireConfirm(false); setHireCandidate(null) }} disabled={hireLoading}>
+              Cancel
+            </Button>
+            <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700" onClick={confirmHire} disabled={hireLoading}>
+              {hireLoading && <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />}
+              Confirm Hired
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <CandidateDetailModal
         open={showDetailModal}

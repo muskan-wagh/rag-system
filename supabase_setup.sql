@@ -149,7 +149,7 @@ ALTER TABLE candidate_status_log ADD COLUMN IF NOT EXISTS details JSONB DEFAULT 
 -- Update CHECK constraint on candidate_status_log.status to include new statuses
 ALTER TABLE candidate_status_log DROP CONSTRAINT IF EXISTS candidate_status_log_status_check;
 ALTER TABLE candidate_status_log ADD CONSTRAINT candidate_status_log_status_check
-  CHECK (status IN ('Applied','Shortlisted','Screening','Interview Scheduled','Interview Completed','Technical Round','HR Round','Offered','Hired','Rejected'));
+  CHECK (status IN ('Applied','Shortlisted','Screening','Interview','Interview Scheduled','Interview Completed','Technical Round','HR Round','Offered','Hired','Rejected'));
 
 -- ============================================================
 -- INDEXES
@@ -252,7 +252,9 @@ BEGIN
   WITH status_agg AS (
     SELECT
       COUNT(*) FILTER (WHERE LOWER(c.current_status) IN ('applied','shortlisted')) AS open,
+      COUNT(*) FILTER (WHERE LOWER(c.current_status) = 'applied') AS applied,
       COUNT(*) FILTER (WHERE LOWER(c.current_status) = 'screening') AS screening,
+      COUNT(*) FILTER (WHERE LOWER(c.current_status) = 'interview') AS interview,
       COUNT(*) FILTER (WHERE LOWER(c.current_status) = 'offered') AS offered,
       COUNT(*) FILTER (WHERE LOWER(c.current_status) = 'hired') AS hired,
       COUNT(*) FILTER (WHERE LOWER(c.current_status) = 'rejected') AS rejected
@@ -269,7 +271,9 @@ BEGIN
   )
   SELECT json_build_object(
     'open', sa.open,
+    'applied', sa.applied,
     'screening', sa.screening,
+    'interview', sa.interview,
     'interviewsToday', ic.interviews_today,
     'offered', sa.offered,
     'hired', sa.hired,

@@ -6,6 +6,7 @@ export const ROUTES = {
   candidates: "/candidates",
   candidateSearch: "/candidates/search",
   candidateDetail: (id: string) => `/candidates/${id}`,
+  interview: "/interview",
   compare: "/compare",
   howItWorks: "/how-it-works",
 } as const

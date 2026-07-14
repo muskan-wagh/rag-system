@@ -15,16 +15,34 @@ interface SessionSummary {
 function buildStatusFilter(status?: string): (q: any) => any {
   return (query: any) => {
     if (!status) return query;
+    // Support comma-separated multi-status: "hired,offer"
+    if (status.includes(',')) {
+      const statuses = status.split(',').map(s => s.trim());
+      const mapped = statuses.map(s => {
+        const lower = s.toLowerCase();
+        if (lower === 'hired') return 'Hired';
+        if (lower === 'offer' || lower === 'offered') return 'Offer';
+        if (lower === 'applied') return 'Applied';
+        if (lower === 'interview') return 'Interview';
+        if (lower === 'rejected') return 'Rejected';
+        return s.charAt(0).toUpperCase() + s.slice(1).toLowerCase();
+      });
+      return query.in('current_status', mapped);
+    }
     switch (status) {
+      case 'applied':
+        return query.eq('current_status', 'Applied');
       case 'open':
         return query.in('current_status', ['Applied', 'Shortlisted']);
+      case 'interview':
+        return query.eq('current_status', 'Interview');
       case 'screening':
         return query.eq('current_status', 'Screening');
       case 'interviews-today':
-        // Handled separately — return query unchanged
         return query;
+      case 'offer':
       case 'offered':
-        return query.eq('current_status', 'Offered');
+        return query.eq('current_status', 'Offer');
       case 'hired':
         return query.eq('current_status', 'Hired');
       case 'rejected':
