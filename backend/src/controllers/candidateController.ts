@@ -31,6 +31,7 @@ import { logger } from '@/utils/logger';
 import { AppError } from '@/middleware/errorHandler';
 import { ErrorCodes } from '@/middleware/errorCodes';
 import { getCached, setCache } from '@/utils/cache';
+import { memoryCache } from '@/utils/memory-cache';
 import { generateExplanations } from '@/services/llm/explainability';
 import { generateInterviewEmail } from '@/services/llm/emailTemplate';
 import { broadcast } from '@/services/websocket';
@@ -207,6 +208,7 @@ export const updateCandidateStatusHandler = asyncHandler(async (req: Request, re
     }
   }
 
+  memoryCache.delete('dashboard:overview:v2');
   broadcast('candidate:status_changed', { candidateId: id, status });
   res.status(200).json({ success: true, data: { message: `Candidate status updated to ${status}` } });
 });
@@ -235,6 +237,7 @@ export const scheduleInterviewHandler = asyncHandler(async (req: Request, res: R
   const emailBody = `Dear Candidate,\n\nYour interview has been scheduled for ${scheduledDate} at ${scheduledTime}.\n\nInterview Type: ${interviewType}\n\nBest regards,\nRecruitIQ Team`;
   await logEmail(id, 'interview_scheduled', 'Interview Scheduled', emailBody);
 
+  memoryCache.delete('dashboard:overview:v2');
   broadcast('candidate:status_changed', { candidateId: id, status: 'Interview Scheduled' });
   broadcast('interview:scheduled', { candidateId: id, interviewId: interview.id });
 
@@ -256,6 +259,7 @@ export const updateInterviewHandler = asyncHandler(async (req: Request, res: Res
   if (updateData.status === 'completed') {
     const candidateId = req.params.id as string;
     await updateCandidateStatusExtended(candidateId, 'Interview Completed', '', { interview_id: interviewId });
+    memoryCache.delete('dashboard:overview:v2');
     broadcast('candidate:status_changed', { candidateId, status: 'Interview Completed' });
   }
 
@@ -277,6 +281,7 @@ export const makeOfferHandler = asyncHandler(async (req: Request, res: Response)
   const emailBody = `Dear Candidate,\n\nCongratulations! We are pleased to offer you the position.\n${salary ? `Salary: $${salary}\n` : ''}${joiningDate ? `Joining Date: ${joiningDate}\n` : ''}\n\nBest regards,\nRecruitIQ Team`;
   await logEmail(id, 'offer_sent', 'Offer Letter', emailBody);
 
+  memoryCache.delete('dashboard:overview:v2');
   broadcast('candidate:status_changed', { candidateId: id, status: 'Offered' });
   res.status(200).json({ success: true, data: offer });
 });
@@ -287,6 +292,7 @@ export const acceptOfferHandler = asyncHandler(async (req: Request, res: Respons
   await acceptOffer(id);
   await updateCandidateStatusExtended(id, 'Hired', '', { accepted_offer: true });
 
+  memoryCache.delete('dashboard:overview:v2');
   broadcast('candidate:status_changed', { candidateId: id, status: 'Hired' });
   res.status(200).json({ success: true, data: { message: 'Candidate marked as hired' } });
 });
@@ -297,6 +303,7 @@ export const rejectCandidateHandler = asyncHandler(async (req: Request, res: Res
 
   await rejectCandidateWithReason(id, reason, notes, changedBy);
 
+  memoryCache.delete('dashboard:overview:v2');
   broadcast('candidate:status_changed', { candidateId: id, status: 'Rejected' });
   res.status(200).json({ success: true, data: { message: 'Candidate rejected' } });
 });

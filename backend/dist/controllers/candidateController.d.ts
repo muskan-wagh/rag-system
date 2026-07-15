@@ -6,6 +6,15 @@ export declare const screeningQuestionsHandler: (req: Request, res: Response, ne
 export declare const closingStrategyHandler: (req: Request, res: Response, next: import("express").NextFunction) => void;
 export declare const compareCandidatesHandler: (req: Request, res: Response, next: import("express").NextFunction) => void;
 export declare const updateCandidateStatusHandler: (req: Request, res: Response, next: import("express").NextFunction) => void;
+export declare const scheduleInterviewHandler: (req: Request, res: Response, next: import("express").NextFunction) => void;
+export declare const getCandidateInterviewsHandler: (req: Request, res: Response, next: import("express").NextFunction) => void;
+export declare const updateInterviewHandler: (req: Request, res: Response, next: import("express").NextFunction) => void;
+export declare const makeOfferHandler: (req: Request, res: Response, next: import("express").NextFunction) => void;
+export declare const acceptOfferHandler: (req: Request, res: Response, next: import("express").NextFunction) => void;
+export declare const rejectCandidateHandler: (req: Request, res: Response, next: import("express").NextFunction) => void;
+export declare const generateEmailTemplateHandler: (req: Request, res: Response, next: import("express").NextFunction) => void;
+export declare const sendInterviewEmailHandler: (req: Request, res: Response, next: import("express").NextFunction) => void;
+export declare const getCandidateTimelineHandler: (req: Request, res: Response, next: import("express").NextFunction) => void;
 export declare const addCandidateNoteHandler: (req: Request, res: Response, next: import("express").NextFunction) => void;
 export declare const getCandidateNotesHandler: (req: Request, res: Response, next: import("express").NextFunction) => void;
 export declare const getSimilarCandidatesHandler: (req: Request, res: Response, next: import("express").NextFunction) => void;

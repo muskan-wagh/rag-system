@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getAllCandidatesHandler = exports.getSimilarCandidatesHandler = exports.getCandidateNotesHandler = exports.addCandidateNoteHandler = exports.updateCandidateStatusHandler = exports.compareCandidatesHandler = exports.closingStrategyHandler = exports.screeningQuestionsHandler = exports.batchCandidatesHandler = exports.getCandidateHandler = exports.searchCandidatesHandler = void 0;
+exports.getAllCandidatesHandler = exports.getSimilarCandidatesHandler = exports.getCandidateNotesHandler = exports.addCandidateNoteHandler = exports.getCandidateTimelineHandler = exports.sendInterviewEmailHandler = exports.generateEmailTemplateHandler = exports.rejectCandidateHandler = exports.acceptOfferHandler = exports.makeOfferHandler = exports.updateInterviewHandler = exports.getCandidateInterviewsHandler = exports.scheduleInterviewHandler = exports.updateCandidateStatusHandler = exports.compareCandidatesHandler = exports.closingStrategyHandler = exports.screeningQuestionsHandler = exports.batchCandidatesHandler = exports.getCandidateHandler = exports.searchCandidatesHandler = void 0;
 const crypto_1 = __importDefault(require("crypto"));
 const asyncHandler_1 = require("@/utils/asyncHandler");
 const parseJD_1 = require("@/services/llm/parseJD");
@@ -20,7 +20,9 @@ const logger_1 = require("@/utils/logger");
 const errorHandler_1 = require("@/middleware/errorHandler");
 const errorCodes_1 = require("@/middleware/errorCodes");
 const cache_1 = require("@/utils/cache");
+const memory_cache_1 = require("@/utils/memory-cache");
 const explainability_1 = require("@/services/llm/explainability");
+const emailTemplate_1 = require("@/services/llm/emailTemplate");
 const websocket_1 = require("@/services/websocket");
 exports.searchCandidatesHandler = (0, asyncHandler_1.asyncHandler)(async (req, res) => {
     const startTime = Date.now();
@@ -142,10 +144,158 @@ exports.compareCandidatesHandler = (0, asyncHandler_1.asyncHandler)(async (req, 
 });
 exports.updateCandidateStatusHandler = (0, asyncHandler_1.asyncHandler)(async (req, res) => {
     const id = req.params.id;
-    const { status } = req.body;
-    await (0, database_1.updateCandidateStatus)(id, status);
+    const { status, changedBy, details } = req.body;
+    if (changedBy || details) {
+        await (0, database_1.updateCandidateStatusExtended)(id, status, changedBy, details);
+    }
+    else {
+        await (0, database_1.updateCandidateStatus)(id, status);
+    }
+    // Fetch candidate for email trigger
+    const supabase = (0, client_1.getSupabaseClient)();
+    const { data: candidate } = await supabase
+        .from('candidates')
+        .select('email, full_name')
+        .eq('id', id)
+        .single();
+    if (candidate?.email) {
+        if (status === 'Rejected') {
+            console.log(`📧 [Rejection] email would be sent to ${candidate.email} (${candidate.full_name || 'Unknown'})`);
+        }
+        else if (status === 'Offered' || status === 'Offer') {
+            console.log(`📧 [Offer] email would be sent to ${candidate.email} (${candidate.full_name || 'Unknown'})`);
+        }
+    }
+    memory_cache_1.memoryCache.delete('dashboard:overview:v2');
     (0, websocket_1.broadcast)('candidate:status_changed', { candidateId: id, status });
     res.status(200).json({ success: true, data: { message: `Candidate status updated to ${status}` } });
+});
+exports.scheduleInterviewHandler = (0, asyncHandler_1.asyncHandler)(async (req, res) => {
+    const id = req.params.id;
+    const { scheduledDate, scheduledTime, interviewType, interviewerName, notes } = req.body;
+    const interview = await (0, database_1.scheduleInterview)(id, {
+        scheduledDate,
+        scheduledTime,
+        interviewType,
+        interviewerName,
+        notes,
+    });
+    // Update candidate status to Interview Scheduled
+    await (0, database_1.updateCandidateStatusExtended)(id, 'Interview Scheduled', '', {
+        interview_id: interview.id,
+        interview_type: interviewType,
+        scheduled_date: scheduledDate,
+        scheduled_time: scheduledTime,
+    });
+    // Log email sent
+    const emailBody = `Dear Candidate,\n\nYour interview has been scheduled for ${scheduledDate} at ${scheduledTime}.\n\nInterview Type: ${interviewType}\n\nBest regards,\nRecruitIQ Team`;
+    await (0, database_1.logEmail)(id, 'interview_scheduled', 'Interview Scheduled', emailBody);
+    memory_cache_1.memoryCache.delete('dashboard:overview:v2');
+    (0, websocket_1.broadcast)('candidate:status_changed', { candidateId: id, status: 'Interview Scheduled' });
+    (0, websocket_1.broadcast)('interview:scheduled', { candidateId: id, interviewId: interview.id });
+    res.status(200).json({ success: true, data: interview });
+});
+exports.getCandidateInterviewsHandler = (0, asyncHandler_1.asyncHandler)(async (req, res) => {
+    const id = req.params.id;
+    const interviews = await (0, database_1.getCandidateInterviews)(id);
+    res.status(200).json({ success: true, data: interviews });
+});
+exports.updateInterviewHandler = (0, asyncHandler_1.asyncHandler)(async (req, res) => {
+    const interviewId = req.params.interviewId;
+    const updateData = req.body;
+    await (0, database_1.updateInterview)(interviewId, updateData);
+    if (updateData.status === 'completed') {
+        const candidateId = req.params.id;
+        await (0, database_1.updateCandidateStatusExtended)(candidateId, 'Interview Completed', '', { interview_id: interviewId });
+        memory_cache_1.memoryCache.delete('dashboard:overview:v2');
+        (0, websocket_1.broadcast)('candidate:status_changed', { candidateId, status: 'Interview Completed' });
+    }
+    (0, websocket_1.broadcast)('interview:updated', { interviewId });
+    res.status(200).json({ success: true, data: { message: 'Interview updated' } });
+});
+exports.makeOfferHandler = (0, asyncHandler_1.asyncHandler)(async (req, res) => {
+    const id = req.params.id;
+    const { salary, joiningDate, notes } = req.body;
+    const offer = await (0, database_1.createOffer)(id, { salary, joiningDate, notes });
+    await (0, database_1.updateCandidateStatusExtended)(id, 'Offered', '', {
+        offer_id: offer.id,
+        salary: salary || null,
+        joining_date: joiningDate || null,
+    });
+    const emailBody = `Dear Candidate,\n\nCongratulations! We are pleased to offer you the position.\n${salary ? `Salary: $${salary}\n` : ''}${joiningDate ? `Joining Date: ${joiningDate}\n` : ''}\n\nBest regards,\nRecruitIQ Team`;
+    await (0, database_1.logEmail)(id, 'offer_sent', 'Offer Letter', emailBody);
+    memory_cache_1.memoryCache.delete('dashboard:overview:v2');
+    (0, websocket_1.broadcast)('candidate:status_changed', { candidateId: id, status: 'Offered' });
+    res.status(200).json({ success: true, data: offer });
+});
+exports.acceptOfferHandler = (0, asyncHandler_1.asyncHandler)(async (req, res) => {
+    const id = req.params.id;
+    await (0, database_1.acceptOffer)(id);
+    await (0, database_1.updateCandidateStatusExtended)(id, 'Hired', '', { accepted_offer: true });
+    memory_cache_1.memoryCache.delete('dashboard:overview:v2');
+    (0, websocket_1.broadcast)('candidate:status_changed', { candidateId: id, status: 'Hired' });
+    res.status(200).json({ success: true, data: { message: 'Candidate marked as hired' } });
+});
+exports.rejectCandidateHandler = (0, asyncHandler_1.asyncHandler)(async (req, res) => {
+    const id = req.params.id;
+    const { reason, notes, changedBy } = req.body;
+    await (0, database_1.rejectCandidateWithReason)(id, reason, notes, changedBy);
+    memory_cache_1.memoryCache.delete('dashboard:overview:v2');
+    (0, websocket_1.broadcast)('candidate:status_changed', { candidateId: id, status: 'Rejected' });
+    res.status(200).json({ success: true, data: { message: 'Candidate rejected' } });
+});
+exports.generateEmailTemplateHandler = (0, asyncHandler_1.asyncHandler)(async (req, res) => {
+    const id = req.params.id;
+    const supabase = (0, client_1.getSupabaseClient)();
+    const { data: candidate } = await supabase
+        .from('candidates')
+        .select('full_name, parsed_json, upload_session_id')
+        .eq('id', id)
+        .single();
+    if (!candidate) {
+        throw new errorHandler_1.AppError('Candidate not found', 404, errorCodes_1.ErrorCodes.NOT_FOUND);
+    }
+    let jobTitle = 'the position';
+    if (candidate.upload_session_id) {
+        const { data: session } = await supabase
+            .from('upload_sessions')
+            .select('job_description_text')
+            .eq('id', candidate.upload_session_id)
+            .single();
+        if (session?.job_description_text) {
+            const firstLine = session.job_description_text.split('\n')[0].trim();
+            if (firstLine)
+                jobTitle = firstLine;
+        }
+    }
+    const parsedJson = candidate.parsed_json;
+    const candidateInfo = parsedJson?.summary
+        ? `Summary: ${parsedJson.summary}`
+        : `Skills: ${(parsedJson?.skills || []).join(', ')}`;
+    const emailBody = await (0, emailTemplate_1.generateInterviewEmail)(candidate.full_name || 'Candidate', jobTitle, candidateInfo);
+    const subject = `Interview Invitation: ${jobTitle}`;
+    res.status(200).json({ success: true, data: { subject, body: emailBody } });
+});
+exports.sendInterviewEmailHandler = (0, asyncHandler_1.asyncHandler)(async (req, res) => {
+    const id = req.params.id;
+    const { interviewId, subject, body } = req.body;
+    // Fetch interview details for email generation
+    const interviews = await (0, database_1.getCandidateInterviews)(id);
+    const interview = interviewId
+        ? interviews.find((i) => i.id === interviewId)
+        : interviews[0];
+    if (!interview) {
+        throw new errorHandler_1.AppError('No interview found for this candidate', 404, errorCodes_1.ErrorCodes.NOT_FOUND);
+    }
+    const emailSubject = subject || 'Interview Confirmation';
+    const emailBody = body || `Dear Candidate,\n\nYour interview has been confirmed.\n\nDate: ${interview.scheduled_date}\nTime: ${interview.scheduled_time}\nType: ${interview.interview_type}\n${interview.meeting_link ? `Link: ${interview.meeting_link}\n` : ''}\n\nBest regards,\nRecruitIQ Team`;
+    await (0, database_1.logEmail)(id, 'interview_email', emailSubject, emailBody);
+    res.status(200).json({ success: true, data: { message: 'Interview email sent', subject: emailSubject, body: emailBody } });
+});
+exports.getCandidateTimelineHandler = (0, asyncHandler_1.asyncHandler)(async (req, res) => {
+    const id = req.params.id;
+    const timeline = await (0, database_1.getCandidateTimeline)(id);
+    res.status(200).json({ success: true, data: timeline });
 });
 exports.addCandidateNoteHandler = (0, asyncHandler_1.asyncHandler)(async (req, res) => {
     const id = req.params.id;
@@ -173,7 +323,30 @@ exports.getSimilarCandidatesHandler = (0, asyncHandler_1.asyncHandler)(async (re
     res.status(200).json({ success: true, data: filtered.slice(0, 5).map((r) => r.candidate) });
 });
 exports.getAllCandidatesHandler = (0, asyncHandler_1.asyncHandler)(async (req, res) => {
-    const { page = '1', limit = '20', search, sortBy, sortOrder, sessionId, } = req.query;
+    const { page = '1', limit = '20', search, sortBy, sortOrder, sessionId, status, } = req.query;
+    // For "interviews-today", resolve candidate IDs first
+    let interviewCandidateIds;
+    if (status === 'interviews-today') {
+        const supabase = (0, client_1.getSupabaseClient)();
+        const todayStr = new Date().toISOString().split('T')[0];
+        let intQuery = supabase
+            .from('interviews')
+            .select('candidate_id')
+            .eq('scheduled_date', todayStr)
+            .eq('status', 'scheduled');
+        if (sessionId) {
+            const { data: sessCandidates } = await supabase
+                .from('candidates')
+                .select('id')
+                .eq('upload_session_id', sessionId);
+            const ids = (sessCandidates || []).map((c) => c.id);
+            if (ids.length > 0) {
+                intQuery = intQuery.in('candidate_id', ids);
+            }
+        }
+        const { data: intData } = await intQuery;
+        interviewCandidateIds = [...new Set((intData || []).map((r) => r.candidate_id))];
+    }
     const result = await (0, database_1.getAllCandidatesPaginated)({
         page: parseInt(page || '1', 10),
         limit: parseInt(limit || '20', 10),
@@ -181,6 +354,8 @@ exports.getAllCandidatesHandler = (0, asyncHandler_1.asyncHandler)(async (req, r
         sortBy,
         sortOrder: sortOrder || 'desc',
         sessionId,
+        status,
+        interviewCandidateIds,
     });
     res.status(200).json({ success: true, data: result });
 });

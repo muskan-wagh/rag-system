@@ -558,7 +558,7 @@ export async function addCandidateNote(candidateId: string, noteText: string): P
   });
 
   if (error) {
-    throw new AppError('Failed to add note', 500, ErrorCodes.DATABASE_ERROR);
+    logger.warn('Failed to add note', { candidateId, error: error.message });
   }
 }
 
@@ -571,7 +571,8 @@ export async function getCandidateNotes(candidateId: string): Promise<Array<{ id
     .order('created_at', { ascending: false });
 
   if (error) {
-    throw new AppError('Failed to get notes', 500, ErrorCodes.DATABASE_ERROR);
+    logger.warn('Failed to get notes', { candidateId, error: error.message });
+    return [];
   }
   return (data || []) as Array<{ id: string; note_text: string; created_at: string }>;
 }

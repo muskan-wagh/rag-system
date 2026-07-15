@@ -14,6 +14,15 @@ router.post('/:id/notes', (0, validate_1.validate)(validate_1.idParamSchema, 'pa
 router.get('/:id/notes', (0, validate_1.validate)(validate_1.idParamSchema, 'params'), candidateController_1.getCandidateNotesHandler);
 router.post('/:id/screening-questions', (0, validate_1.validate)(validate_1.idParamSchema, 'params'), candidateController_1.screeningQuestionsHandler);
 router.post('/:id/closing-strategy', (0, validate_1.validate)(validate_1.idParamSchema, 'params'), candidateController_1.closingStrategyHandler);
+router.post('/:id/interviews', (0, validate_1.validate)(validate_1.idParamSchema, 'params'), (0, validate_1.validate)(validate_1.scheduleInterviewSchema), candidateController_1.scheduleInterviewHandler);
+router.get('/:id/interviews', (0, validate_1.validate)(validate_1.idParamSchema, 'params'), candidateController_1.getCandidateInterviewsHandler);
+router.patch('/:id/interviews/:interviewId', (0, validate_1.validate)(validate_1.idParamSchema, 'params'), (0, validate_1.validate)(validate_1.updateInterviewSchema), candidateController_1.updateInterviewHandler);
+router.post('/:id/offer', (0, validate_1.validate)(validate_1.idParamSchema, 'params'), (0, validate_1.validate)(validate_1.makeOfferSchema), candidateController_1.makeOfferHandler);
+router.post('/:id/hire', (0, validate_1.validate)(validate_1.idParamSchema, 'params'), candidateController_1.acceptOfferHandler);
+router.post('/:id/reject', (0, validate_1.validate)(validate_1.idParamSchema, 'params'), (0, validate_1.validate)(validate_1.rejectCandidateSchema), candidateController_1.rejectCandidateHandler);
+router.post('/:id/email-template', (0, validate_1.validate)(validate_1.idParamSchema, 'params'), candidateController_1.generateEmailTemplateHandler);
+router.post('/:id/send-email', (0, validate_1.validate)(validate_1.idParamSchema, 'params'), candidateController_1.sendInterviewEmailHandler);
+router.get('/:id/timeline', (0, validate_1.validate)(validate_1.idParamSchema, 'params'), candidateController_1.getCandidateTimelineHandler);
 router.get('/:id/similar', (0, validate_1.validate)(validate_1.idParamSchema, 'params'), candidateController_1.getSimilarCandidatesHandler);
 exports.default = router;
 //# sourceMappingURL=candidateRoutes.js.map
