@@ -8,8 +8,18 @@ const listeners = new Map<string, Set<EventHandler>>()
 
 function getWsUrl(): string {
   if (typeof window === "undefined") return ""
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL
+  if (apiUrl) {
+    const host = apiUrl.replace(/^https?:\/\//, "").replace(/\/+$/, "")
+    const proto = apiUrl.startsWith("https") ? "wss:" : "ws:"
+    return `${proto}//${host}/ws`
+  }
   const proto = window.location.protocol === "https:" ? "wss:" : "ws:"
-  return `${proto}//${window.location.host}/ws`
+  const host = window.location.host
+  if (host === "localhost:3000" || host === "127.0.0.1:3000") {
+    return `${proto}//localhost:8080/ws`
+  }
+  return `${proto}//${host}/ws`
 }
 
 let ws: WebSocket | null = null

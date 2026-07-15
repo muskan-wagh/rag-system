@@ -16,12 +16,16 @@ import { ErrorCodes } from '@/middleware/errorCodes';
 function computeStats(candidates: CandidateRecord[]): NewSessionStats {
   const stats: NewSessionStats = { open: 0, applied: 0, screening: 0, interview: 0, interviewsToday: 0, offered: 0, hired: 0, rejected: 0 };
   for (const c of candidates) {
-    const s = (c.current_status || 'Applied').toLowerCase();
+    const s = (c.current_status || '').toLowerCase();
     if (s === 'applied') { stats.applied++; stats.open++; }
     else if (s === 'shortlisted') stats.open++;
-    else if (s === 'interview') stats.interview++;
-    else if (s === 'screening') stats.screening++;
-    else if (s === 'offer' || s === 'offered') stats.offered++;
+    else if (s === 'screening') { stats.screening++; stats.open++; }
+    else if (s === 'interview'
+      || s === 'interview scheduled'
+      || s === 'interview completed'
+      || s === 'technical round'
+      || s === 'hr round') { stats.interview++; stats.open++; }
+    else if (s === 'offer' || s === 'offered') { stats.offered++; stats.open++; }
     else if (s === 'hired') stats.hired++;
     else if (s === 'rejected') stats.rejected++;
   }

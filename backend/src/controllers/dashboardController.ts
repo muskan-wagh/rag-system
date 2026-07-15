@@ -12,8 +12,8 @@ const DEFAULT_LIMIT = 50;
 export const getDashboardHandler = asyncHandler(async (req: Request, res: Response) => {
   const supabase = getSupabaseClient();
 
-  // Check cache first
-  const cacheKey = 'dashboard:overview';
+  // Check cache first (v2 to invalidate any stale cache from old format)
+  const cacheKey = 'dashboard:overview:v2';
   const cached = await getCached<DashboardCache>(cacheKey);
   if (cached) {
     res.status(200).json({ success: true, data: cached });

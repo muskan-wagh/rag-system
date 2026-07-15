@@ -812,16 +812,22 @@ export async function getNewSessionStats(sessionId: string): Promise<NewSessionS
     if (!error && data) {
       const r = data as Record<string, number>;
 
-      return {
-        open: r.open ?? 0,
-        applied: r.applied ?? 0,
-        screening: r.screening ?? 0,
-        interview: r.interview ?? 0,
-        interviewsToday: r.interviewsToday ?? 0,
-        offered: r.offered ?? 0,
-        hired: r.hired ?? 0,
-        rejected: r.rejected ?? 0,
-      };
+      // Detect old RPC format: if 'total' or 'pending' exists, the function hasn't been updated
+      const isOldFormat = 'total' in r || 'pending' in r;
+      if (!isOldFormat) {
+        return {
+          open: r.open ?? 0,
+          applied: r.applied ?? 0,
+          screening: r.screening ?? 0,
+          interview: r.interview ?? 0,
+          interviewsToday: r.interviewsToday ?? 0,
+          offered: r.offered ?? 0,
+          hired: r.hired ?? 0,
+          rejected: r.rejected ?? 0,
+        };
+      }
+      // Old format detected — fall through to manual aggregation
+      logger.warn('RPC returned old format, falling back to manual aggregation');
     }
   } catch {
     logger.warn('RPC get_session_stats_new failed, falling back to manual aggregation');
@@ -849,14 +855,22 @@ export async function getNewSessionStats(sessionId: string): Promise<NewSessionS
 
   for (const row of rows) {
     const s = (row.current_status || '').toLowerCase();
+
+    // Active, non-final statuses count toward "open"
+    // Open includes: applied, shortlisted, screening, interview (and variants),
+    //                offer/offered — anything that is NOT rejected or hired
     if (s === 'applied') { applied++; open++; }
     else if (s === 'shortlisted') open++;
-    else if (s === 'interview') interview++;
-    else if (s === 'screening') screening++;
-    else if (s === 'offer') offered++;
-    else if (s === 'offered') offered++;
+    else if (s === 'screening') { screening++; open++; }
+    else if (s === 'interview'
+      || s === 'interview scheduled'
+      || s === 'interview completed'
+      || s === 'technical round'
+      || s === 'hr round') { interview++; open++; }
+    else if (s === 'offer' || s === 'offered') { offered++; open++; }
     else if (s === 'hired') hired++;
     else if (s === 'rejected') rejected++;
+    // Unknown statuses: don't count toward anything, but don't break
   }
 
   // Query 2: Count today's scheduled interviews for candidates in this session
