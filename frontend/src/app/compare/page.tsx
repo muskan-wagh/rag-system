@@ -8,7 +8,8 @@ import { EmptyState } from "@/components/ui/empty-state"
 import { PageHeader } from "@/components/ui/page-header"
 import { CandidateSearchInput } from "@/components/candidate-search-input"
 import { GitCompare, Sparkles, Loader2, Plus, Trash2, Users } from "lucide-react"
-import { compareCandidates, batchCandidates, type Candidate } from "@/lib/api"
+import { useApi } from "@/hooks/use-api"
+import type { Candidate } from "@/lib/api"
 
 interface SelectedCandidate {
   id: string
@@ -24,6 +25,7 @@ export default function ComparePage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
   const [foundCandidates, setFoundCandidates] = useState<Map<string, Candidate>>(new Map())
+  const api = useApi()
 
   function updateSelection(index: number, candidate: SelectedCandidate | null) {
     const next = [...selectedCandidates]
@@ -52,7 +54,7 @@ export default function ComparePage() {
     setError("")
 
     try {
-      const batchRes = await batchCandidates(ids)
+      const batchRes = await api.batchCandidates(ids)
       const nameMap = new Map<string, Candidate>()
       if (batchRes.success && batchRes.data) {
         for (const candidate of batchRes.data) {
@@ -61,7 +63,7 @@ export default function ComparePage() {
       }
       setFoundCandidates(nameMap)
 
-      const compareRes = await compareCandidates(jdText, ids)
+      const compareRes = await api.compareCandidates(jdText, ids)
       if (compareRes.success && compareRes.data) {
         setComparison(compareRes.data.comparison)
       } else {

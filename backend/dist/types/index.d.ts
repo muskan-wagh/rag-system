@@ -81,4 +81,12 @@ export interface CompareCandidatesResponse {
     comparison: CompareResult;
     query: ParsedJD;
 }
+import { RecruiterRecord } from '@/services/supabase/database';
+declare global {
+    namespace Express {
+        interface Request {
+            recruiter?: RecruiterRecord;
+        }
+    }
+}
 //# sourceMappingURL=index.d.ts.map

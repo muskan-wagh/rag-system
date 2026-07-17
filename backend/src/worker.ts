@@ -3,7 +3,7 @@ import { ensureRedisConnected, shutdownRedis } from '@/services/redis/manager';
 import { config } from '@/config';
 import { logger } from '@/utils/logger';
 import { downloadResumeFile } from '@/services/supabase/storage';
-import { updateCandidate, insertSkills, insertExperience } from '@/services/supabase/database';
+import { updateCandidate, updateCandidateSafe, insertSkills, insertExperience } from '@/services/supabase/database';
 import { extractResumeText, sanitizeText } from '@/services/resume-parser';
 import { generateEmbedding } from '@/services/embedding';
 import { parseResume } from '@/services/llm/parseResume';
@@ -68,7 +68,7 @@ async function startWorker(): Promise<void> {
       // Step 6: Update candidate in DB (sequential — must succeed before Qdrant)
       logger.info('WORKER: Step 6/8 — Updating candidate in database', logCtx);
       const currentTitle = parsed.work_history?.[0]?.title || '';
-      await updateCandidate(candidateId, {
+      await updateCandidateSafe(candidateId, {
         full_name: parsed.full_name || 'Unknown',
         email: parsed.email || '',
         phone: parsed.phone || '',

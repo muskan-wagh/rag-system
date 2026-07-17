@@ -1,5 +1,7 @@
 import type { Metadata } from "next"
 import { Geist, Geist_Mono } from "next/font/google"
+import { ClerkProvider } from "@clerk/nextjs"
+import { shadcn } from "@clerk/ui/themes"
 import "./globals.css"
 import { Toaster } from "sonner"
 
@@ -27,11 +29,17 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en" className={`${geistSans.variable} ${geistMono.variable}`}>
-      <body className="min-h-screen flex flex-col antialiased bg-background">
-        {children}
-        <Toaster position="bottom-right" richColors closeButton />
-      </body>
-    </html>
+    <ClerkProvider
+      appearance={{
+        theme: shadcn,
+      }}
+    >
+      <html lang="en" className={`${geistSans.variable} ${geistMono.variable}`}>
+        <body className="min-h-screen flex flex-col antialiased bg-background">
+          {children}
+          <Toaster position="bottom-right" richColors closeButton />
+        </body>
+      </html>
+    </ClerkProvider>
   )
 }

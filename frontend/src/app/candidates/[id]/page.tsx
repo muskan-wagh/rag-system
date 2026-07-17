@@ -8,12 +8,14 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import { ArrowLeft, Mail, Phone, GraduationCap, Briefcase, Wrench, Sparkles, Award, CheckCircle2 } from "lucide-react"
-import { getCandidate, type Candidate } from "@/lib/api"
+import { useApi } from "@/hooks/use-api"
+import type { Candidate } from "@/lib/api"
 import { ROUTES } from "@/lib/constants"
 
 export default function CandidateDetailPage() {
   const params = useParams()
   const candidateId = params.id as string
+  const api = useApi()
 
   const [candidate, setCandidate] = useState<Candidate | null>(null)
   const [loading, setLoading] = useState(true)
@@ -22,7 +24,7 @@ export default function CandidateDetailPage() {
   useEffect(() => {
     async function load() {
       try {
-        const res = await getCandidate(candidateId)
+        const res = await api.getCandidate(candidateId)
         if (res.success && res.data) {
           setCandidate(res.data)
         } else {

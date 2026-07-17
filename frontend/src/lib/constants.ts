@@ -21,4 +21,4 @@ export const NAV_ITEMS = [
 ] as const
 
 // Backward compatibility re-exports
-export { getStatusColor, getFlightRiskColor, getInitials, formatDate, formatDateTime } from "./helpers"
+export { getStatusColor, CANDIDATE_STATUS, getFlightRiskColor, getInitials, formatDate, formatDateTime } from "./helpers"

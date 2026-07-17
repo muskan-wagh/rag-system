@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback } from "react"
 import { Search, X, Loader2, User } from "lucide-react"
-import { getAllCandidates } from "@/lib/api"
+import { useApi } from "@/hooks/use-api"
 
 interface CandidateSearchResult {
   id: string
@@ -24,6 +24,7 @@ export function CandidateSearchInput({ index, selected, onSelect }: CandidateSea
   const [searching, setSearching] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const api = useApi()
 
   const doSearch = useCallback(async (q: string) => {
     if (!q.trim()) {
@@ -33,7 +34,7 @@ export function CandidateSearchInput({ index, selected, onSelect }: CandidateSea
     }
     setSearching(true)
     try {
-      const res = await getAllCandidates({ search: q, limit: 10 })
+      const res = await api.getAllCandidates({ search: q, limit: 10 })
       if (res.success && res.data) {
         setResults(res.data.candidates)
         setIsOpen(true)

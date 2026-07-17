@@ -13,34 +13,34 @@ import { memoryCache } from '@/utils/memory-cache';
 import { logger } from '@/utils/logger';
 import { AppError } from '@/middleware/errorHandler';
 import { ErrorCodes } from '@/middleware/errorCodes';
+import { AGGREGATION_STATUS_GROUPS } from '@/constants/candidateStatus';
 
 function computeStats(candidates: CandidateRecord[]): NewSessionStats {
   const stats: NewSessionStats = { open: 0, applied: 0, screening: 0, interview: 0, interviewsToday: 0, offered: 0, hired: 0, rejected: 0 };
   for (const c of candidates) {
     const s = (c.current_status || '').toLowerCase();
-    if (s === 'applied') { stats.applied++; stats.open++; }
-    else if (s === 'shortlisted') stats.open++;
-    else if (s === 'screening') { stats.screening++; stats.open++; }
-    else if (s === 'interview'
-      || s === 'interview scheduled'
-      || s === 'interview completed'
-      || s === 'technical round'
-      || s === 'hr round') { stats.interview++; stats.open++; }
-    else if (s === 'offer' || s === 'offered') { stats.offered++; stats.open++; }
-    else if (s === 'hired') stats.hired++;
-    else if (s === 'rejected') stats.rejected++;
+    if (AGGREGATION_STATUS_GROUPS.applied.map(st => st.toLowerCase()).includes(s)) { stats.applied++; stats.open++; }
+    else if (AGGREGATION_STATUS_GROUPS.open.map(st => st.toLowerCase()).includes(s)) stats.open++;
+    else if (AGGREGATION_STATUS_GROUPS.screening.map(st => st.toLowerCase()).includes(s)) { stats.screening++; stats.open++; }
+    else if (AGGREGATION_STATUS_GROUPS.interview.map(st => st.toLowerCase()).includes(s)) { stats.interview++; stats.open++; }
+    else if (AGGREGATION_STATUS_GROUPS.offered.map(st => st.toLowerCase()).includes(s)) { stats.offered++; stats.open++; }
+    else if (AGGREGATION_STATUS_GROUPS.hired.map(st => st.toLowerCase()).includes(s)) stats.hired++;
+    else if (AGGREGATION_STATUS_GROUPS.rejected.map(st => st.toLowerCase()).includes(s)) stats.rejected++;
   }
   return stats;
 }
 
 export const generateLinkHandler = asyncHandler(async (req: Request, res: Response) => {
   const { jdText } = req.body;
+  const recruiterId = req.recruiter?.id;
 
-  logger.info('Generate link request', { textLength: jdText.length });
+  logger.info('Generate link request', { textLength: jdText.length, recruiterId });
 
-  const session = await createUploadSession(jdText);
+  const session = await createUploadSession(jdText, recruiterId);
 
-  memoryCache.delete('dashboard:overview:v2');
+  if (recruiterId) {
+    memoryCache.delete(`dashboard:recruiter:${recruiterId}`);
+  }
 
   res.status(201).json({
     success: true,
@@ -79,8 +79,9 @@ export const getSessionHandler = asyncHandler(async (req: Request, res: Response
   });
 });
 
-export const getAllSessionsHandler = asyncHandler(async (_req: Request, res: Response) => {
-  const sessions = await getAllSessions();
+export const getAllSessionsHandler = asyncHandler(async (req: Request, res: Response) => {
+  const recruiterId = req.recruiter?.id;
+  const sessions = await getAllSessions(recruiterId);
   res.status(200).json({
     success: true,
     data: sessions,

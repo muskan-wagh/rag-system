@@ -8,7 +8,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { ProgressBar } from "@/components/ui/progress-bar"
 import { EmptyState } from "@/components/ui/empty-state"
 import { Search, Sparkles, Loader2, SlidersHorizontal, ListFilter, LayoutGrid, X } from "lucide-react"
-import { searchCandidates } from "@/lib/api"
+import { useApi } from "@/hooks/use-api"
 import { CandidateCard } from "@/components/candidate-card"
 import { AiInsightsPanel } from "@/components/ai-insights-panel"
 import { ResumeDrawer } from "@/components/resume-drawer"
@@ -45,6 +45,8 @@ function CandidatesContent() {
   const setShowMobileFilters = useSearchStore((s) => s.setShowMobileFilters)
   const lastSearchTimestamp = useSearchStore((s) => s.lastSearchTimestamp)
 
+  const api = useApi()
+
   const performSearch = useCallback(async (text: string) => {
     const { filters, setLoading, setError, setResults, setActiveTab } = useSearchStore.getState()
     setLoading(true)
@@ -57,7 +59,7 @@ function CandidatesContent() {
       if (raw.minExperience !== undefined) safeFilters.minExperience = Number(raw.minExperience);
       if (raw.maxExperience !== undefined) safeFilters.maxExperience = Number(raw.maxExperience);
       if (raw.educationLevel) safeFilters.educationLevel = String(raw.educationLevel);
-      const res = await searchCandidates(text, 20, safeFilters)
+      const res = await api.searchCandidates(text, 20, safeFilters)
       if (res.success && res.data) {
         setResults(res.data.results, res.data.query)
         setActiveTab("results")

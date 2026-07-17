@@ -1,16 +1,30 @@
 import { Request, Response, NextFunction } from 'express';
+import { createClerkClient } from '@clerk/backend';
 import { config } from '@/config';
+import { getOrCreateRecruiter } from '@/services/recruiter';
+import { logger } from '@/utils/logger';
 
-// These paths are accessible WITHOUT authentication.
-// Paths are matched against req.path (which is the full path at the app level).
-const PUBLIC_PATHS = ['/api/upload', '/api/generate-link', '/api/sessions'];
+const clerkClient = createClerkClient({ secretKey: config.clerkSecretKey });
 
-export function authMiddleware(req: Request, res: Response, next: NextFunction): void {
-  if (!config.apiKey) {
-    return next();
+const PUBLIC_PATHS = ['/api/upload'];
+
+function isPublicPath(req: Request): boolean {
+  return PUBLIC_PATHS.some((path) => req.path === path || req.path.startsWith(path + '/'));
+}
+
+function decodeJwtPayload(token: string): Record<string, unknown> | null {
+  try {
+    const parts = token.split('.');
+    if (parts.length !== 3) return null;
+    const decoded = Buffer.from(parts[1].replace(/-/g, '+').replace(/_/g, '/'), 'base64').toString('utf-8');
+    return JSON.parse(decoded);
+  } catch {
+    return null;
   }
+}
 
-  if (PUBLIC_PATHS.some((path) => req.path === path || req.path.startsWith(path + '/'))) {
+export async function authMiddleware(req: Request, res: Response, next: NextFunction): Promise<void> {
+  if (isPublicPath(req)) {
     return next();
   }
 
@@ -22,11 +36,22 @@ export function authMiddleware(req: Request, res: Response, next: NextFunction):
   }
 
   const token = authHeader.slice(7);
+  const payload = decodeJwtPayload(token);
 
-  if (token !== config.apiKey) {
-    res.status(403).json({ success: false, error: 'Invalid API key' });
+  if (!payload || !payload.sub || typeof payload.sub !== 'string') {
+    res.status(401).json({ success: false, error: 'Invalid token format' });
     return;
   }
 
-  next();
+  const clerkId = payload.sub;
+
+  try {
+    const recruiter = await getOrCreateRecruiter({ clerkId });
+    req.recruiter = recruiter;
+    next();
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    logger.warn('[auth] Failed to get or create recruiter', { message, clerkId });
+    res.status(401).json({ success: false, error: 'Authentication failed' });
+  }
 }

@@ -3,7 +3,7 @@
 import { useState } from "react"
 import { Loader2, XCircle } from "lucide-react"
 import { toast } from "sonner"
-import { rejectCandidate } from "@/lib/api"
+import { useApi } from "@/hooks/use-api"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent } from "@/components/ui/dialog"
 
@@ -26,11 +26,12 @@ export function RejectModal({ open, onClose, candidateId, onSuccess }: RejectMod
   const [reason, setReason] = useState("not_qualified")
   const [notes, setNotes] = useState("")
   const [saving, setSaving] = useState(false)
+  const api = useApi()
 
   const handleReject = async () => {
     setSaving(true)
     try {
-      const res = await rejectCandidate(candidateId, reason, notes)
+      const res = await api.rejectCandidate(candidateId, reason, notes)
       if (res.success) {
         toast.success("Candidate rejected")
         onClose()

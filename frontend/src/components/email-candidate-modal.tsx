@@ -3,7 +3,7 @@
 import { useState, useCallback } from "react"
 import { Loader2, Mail, Sparkles } from "lucide-react"
 import { toast } from "sonner"
-import { generateEmailTemplate, sendInterviewEmail } from "@/lib/api"
+import { useApi } from "@/hooks/use-api"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent } from "@/components/ui/dialog"
 
@@ -27,11 +27,12 @@ export function EmailCandidateModal({
   const [body, setBody] = useState("")
   const [sending, setSending] = useState(false)
   const [hasGenerated, setHasGenerated] = useState(false)
+  const api = useApi()
 
   const generate = useCallback(async () => {
     setGenerating(true)
     try {
-      const res = await generateEmailTemplate(candidateId)
+      const res = await api.generateEmailTemplate(candidateId)
       if (res.success && res.data) {
         setSubject(res.data.subject || "")
         setBody(res.data.body || "")
@@ -63,7 +64,7 @@ export function EmailCandidateModal({
     }
     setSending(true)
     try {
-      const res = await sendInterviewEmail(candidateId, undefined, subject, body)
+      const res = await api.sendInterviewEmail(candidateId, undefined, subject, body)
       if (res.success) {
         toast.success(`Email sent to ${candidateName}`)
         onClose()

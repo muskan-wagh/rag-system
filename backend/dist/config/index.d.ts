@@ -2,6 +2,7 @@ export declare const config: Readonly<{
     port: number;
     nodeEnv: string;
     clientUrl: string;
+    clerkSecretKey: string;
     allowedOrigins: string[];
     supabase: {
         url: string;
@@ -20,7 +21,6 @@ export declare const config: Readonly<{
     redis: {
         url: string;
     };
-    apiKey: string;
     qdrant: {
         url: string;
         apiKey: string;

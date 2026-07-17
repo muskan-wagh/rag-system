@@ -8,13 +8,7 @@ import {
   Wand2, MessageSquare, ListChecks, Calendar, XCircle,
 } from "lucide-react"
 import { toast } from "sonner"
-import {
-  updateCandidateStatus,
-  addCandidateNote,
-  getCandidateNotes,
-  getScreeningQuestions,
-  getClosingStrategy,
-} from "@/lib/api"
+import { useApi } from "@/hooks/use-api"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Textarea } from "@/components/ui/textarea"
@@ -22,6 +16,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Dialog, DialogContent } from "@/components/ui/dialog"
+import { getStatusColor } from "@/lib/constants"
 import { Tabs, TabsList, TabsTab, TabsPanel } from "@/components/ui/tabs"
 import { ScheduleInterviewModal } from "@/components/schedule-interview-modal"
 import { RejectModal } from "@/components/reject-modal"
@@ -97,21 +92,10 @@ function formatDate(dateStr: string): string {
   }
 }
 
-function getStatusColor(status?: string): string {
-  const s = (status || "").toLowerCase()
-  if (s === "applied") return "bg-blue-100 text-blue-700 border-blue-200"
-  if (s === "shortlisted") return "bg-purple-100 text-purple-700 border-purple-200"
-  if (s === "screening") return "bg-orange-100 text-orange-700 border-orange-200"
-  if (s === "interview scheduled" || s === "interview completed" || s === "technical round" || s === "hr round") return "bg-yellow-100 text-yellow-700 border-yellow-200"
-  if (s === "offered") return "bg-green-100 text-green-700 border-green-200"
-  if (s === "hired") return "bg-emerald-100 text-emerald-700 border-emerald-200"
-  if (s === "rejected") return "bg-red-100 text-red-700 border-red-200"
-  return "bg-gray-100 text-gray-700 border-gray-200"
-}
-
 type TabId = "insights" | "profile" | "notes" | "generate" | "screening" | "closing"
 
 export function CandidateDetailModal({ open, onClose, candidate, onStatusChange }: CandidateDetailModalProps) {
+  const api = useApi()
   const [screeningQuestions, setScreeningQuestions] = useState<ScreeningQuestion[] | null>(null)
   const [closingStrategy, setClosingStrategy] = useState<ClosingStrategy | null>(null)
   const [loadingQuestions, setLoadingQuestions] = useState(false)
@@ -137,7 +121,7 @@ export function CandidateDetailModal({ open, onClose, candidate, onStatusChange 
     if (!candidate) return
     setLoadingNotes(true)
     try {
-      const result = await getCandidateNotes(candidate.id)
+      const result = await api.getCandidateNotes(candidate.id)
       if (result.success && result.data) {
         setNotes(result.data)
       }
@@ -169,7 +153,7 @@ export function CandidateDetailModal({ open, onClose, candidate, onStatusChange 
     setLoadingQuestions(true)
     setQuestionsError("")
     try {
-      const result = await getScreeningQuestions(candidate.id)
+      const result = await api.getScreeningQuestions(candidate.id)
       if (result.success && result.data?.questions) {
         setScreeningQuestions(result.data.questions)
         setActiveTab("screening")
@@ -190,7 +174,7 @@ export function CandidateDetailModal({ open, onClose, candidate, onStatusChange 
     setLoadingStrategy(true)
     setStrategyError("")
     try {
-      const result = await getClosingStrategy(candidate.id)
+      const result = await api.getClosingStrategy(candidate.id)
       if (result.success && result.data?.selling_points) {
         setClosingStrategy(result.data)
         setActiveTab("closing")
@@ -218,7 +202,7 @@ export function CandidateDetailModal({ open, onClose, candidate, onStatusChange 
     if (!newNote.trim() || !candidate) return
     setSavingNote(true)
     try {
-      await addCandidateNote(candidate.id, newNote.trim())
+      await api.addCandidateNote(candidate.id, newNote.trim())
       setNewNote("")
       fetchNotes()
       toast.success("Note saved!")
@@ -233,7 +217,7 @@ export function CandidateDetailModal({ open, onClose, candidate, onStatusChange 
     if (!candidate) return
     setShortlisting(true)
     try {
-      await updateCandidateStatus(candidate.id, 'Screening')
+      await api.updateCandidateStatus(candidate.id, 'Screening')
       onStatusChange?.()
       toast.success('Candidate moved to Screening')
       onClose()
@@ -248,7 +232,7 @@ export function CandidateDetailModal({ open, onClose, candidate, onStatusChange 
     if (!candidate) return
     setMovingToInterview(true)
     try {
-      await updateCandidateStatus(candidate.id, 'Interview')
+      await api.updateCandidateStatus(candidate.id, 'Interview Scheduled')
       onStatusChange?.()
       toast.success('Candidate moved to Interview')
       onClose()
@@ -263,7 +247,7 @@ export function CandidateDetailModal({ open, onClose, candidate, onStatusChange 
     if (!candidate) return
     setRejecting(true)
     try {
-      await updateCandidateStatus(candidate.id, 'Rejected')
+      await api.updateCandidateStatus(candidate.id, 'Rejected')
       onStatusChange?.()
       toast.success('Candidate moved to Rejected')
       onClose()

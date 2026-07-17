@@ -40,11 +40,12 @@ export const uploadResumeHandler = asyncHandler(async (req: Request, res: Respon
   logger.info('UPLOAD: Public URL generated', { resumeFileUrl });
 
   // Step 5: Create candidate record in DB (must succeed — or we roll back the storage file)
-  logger.info('UPLOAD: Step 5/7 — Creating candidate record', { sessionId: uuid });
+  logger.info('UPLOAD: Step 5/7 — Creating candidate record', { sessionId: uuid, recruiterId: session.recruiter_id });
   let candidate;
   try {
     candidate = await createCandidate({
       upload_session_id: uuid,
+      recruiter_id: session.recruiter_id,
       raw_resume_text: '',
       processing_status: 'PENDING',
       source,

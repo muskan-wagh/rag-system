@@ -6,9 +6,9 @@ import {
   BadgeCheck, XCircle,
 } from "lucide-react"
 import { toast } from "sonner"
-import { getAllCandidates, updateCandidateStatus } from "@/lib/api"
+import { useApi } from "@/hooks/use-api"
 import { useWebSocket } from "@/lib/use-websocket"
-import { getStatusColor, getInitials, formatDate } from "@/lib/constants"
+import { getStatusColor, getInitials, formatDate, CANDIDATE_STATUS } from "@/lib/constants"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
@@ -34,6 +34,7 @@ export default function InterviewPage() {
   const [candidates, setCandidates] = useState<CandidateRecord[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState("")
+  const api = useApi()
 
   const [selectedCandidate, setSelectedCandidate] = useState<CandidateRecord | null>(null)
   const [showScheduleModal, setShowScheduleModal] = useState(false)
@@ -44,11 +45,11 @@ export default function InterviewPage() {
 
   const loadCandidates = useCallback(async () => {
     try {
-      const res = await getAllCandidates({
+      const res = await api.getAllCandidates({
         limit: 100,
         sortBy: "created_at",
         sortOrder: "desc",
-        status: "interview",
+        status: CANDIDATE_STATUS.INTERVIEW_SCHEDULED,
       })
       if (res.success && res.data) {
         const data = res.data
@@ -98,7 +99,7 @@ export default function InterviewPage() {
     if (!selectedCandidate) return
     setOfferLoading(true)
     try {
-      const res = await updateCandidateStatus(selectedCandidate.id, "Offer")
+      const res = await api.updateCandidateStatus(selectedCandidate.id, CANDIDATE_STATUS.OFFERED)
       if (res.success) {
         toast.success("Candidate moved to Offer (Pending Hire)")
         setShowOfferConfirm(false)

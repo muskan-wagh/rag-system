@@ -3,7 +3,7 @@
 import { useState } from "react"
 import { Loader2, Gift } from "lucide-react"
 import { toast } from "sonner"
-import { makeOffer } from "@/lib/api"
+import { useApi } from "@/hooks/use-api"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent } from "@/components/ui/dialog"
 
@@ -19,11 +19,12 @@ export function MakeOfferModal({ open, onClose, candidateId, onSuccess }: MakeOf
   const [joiningDate, setJoiningDate] = useState("")
   const [notes, setNotes] = useState("")
   const [saving, setSaving] = useState(false)
+  const api = useApi()
 
   const handleSubmit = async () => {
     setSaving(true)
     try {
-      const res = await makeOffer(candidateId, {
+      const res = await api.makeOffer(candidateId, {
         salary: salary ? parseFloat(salary) : undefined,
         joiningDate: joiningDate || undefined,
         notes,

@@ -2,16 +2,19 @@ import { getSupabaseClient } from './client';
 import { logger } from '@/utils/logger';
 import { AppError } from '@/middleware/errorHandler';
 import { ErrorCodes } from '@/middleware/errorCodes';
+import { CANDIDATE_STATUS, STATUS_FILTER_MAP, AGGREGATION_STATUS_GROUPS } from '@/constants/candidateStatus';
 
 export interface UploadSession {
   id: string;
   job_description_text: string;
+  recruiter_id?: string;
   created_at: string;
 }
 
 export interface CandidateRecord {
   id: string;
   upload_session_id?: string;
+  recruiter_id?: string;
   full_name?: string;
   email?: string;
   phone?: string;
@@ -33,17 +36,20 @@ export interface CandidateRecord {
 
 export interface CreateCandidateInput {
   upload_session_id: string;
+  recruiter_id?: string;
   raw_resume_text: string;
   processing_status: string;
   source: string;
   resume_file_url: string;
 }
 
-export async function createUploadSession(jdText: string): Promise<UploadSession> {
+export async function createUploadSession(jdText: string, recruiterId?: string): Promise<UploadSession> {
   const supabase = getSupabaseClient();
+  const payload: Record<string, unknown> = { job_description_text: jdText };
+  if (recruiterId) payload.recruiter_id = recruiterId;
   const { data, error } = await supabase
     .from('upload_sessions')
-    .insert({ job_description_text: jdText })
+    .insert(payload)
     .select()
     .single();
 
@@ -58,7 +64,7 @@ export async function getSession(sessionId: string): Promise<UploadSession | nul
   const supabase = getSupabaseClient();
   const { data, error } = await supabase
     .from('upload_sessions')
-    .select('id, job_description_text, created_at')
+    .select('id, job_description_text, recruiter_id, created_at')
     .eq('id', sessionId)
     .single();
 
@@ -76,6 +82,7 @@ export async function createCandidate(input: CreateCandidateInput): Promise<Cand
     .from('candidates')
     .insert({
       upload_session_id: input.upload_session_id,
+      recruiter_id: input.recruiter_id,
       raw_resume_text: input.raw_resume_text,
       processing_status: input.processing_status,
       source: input.source,
@@ -111,6 +118,61 @@ export async function updateCandidate(id: string, updates: Partial<CandidateReco
 
   if (error) {
     throw new AppError(`Failed to update candidate: ${error.message}`, 500, ErrorCodes.DATABASE_ERROR);
+  }
+}
+
+const DUPLICATE_KEY_PATTERN = /duplicate key value violates unique constraint "([^"]+)"/;
+
+export async function updateCandidateSafe(
+  id: string,
+  updates: Partial<CandidateRecord>,
+): Promise<void> {
+  try {
+    await updateCandidate(id, updates);
+  } catch (err: any) {
+    const constraintMatch = err.message?.match(DUPLICATE_KEY_PATTERN);
+    if (!constraintMatch) {
+      throw err;
+    }
+
+    const constraintName = constraintMatch[1];
+    const fieldMap: Record<string, string> = {
+      candidates_email_key: 'email',
+      candidates_phone_key: 'phone',
+    };
+
+    const conflictingField = fieldMap[constraintName];
+    if (!conflictingField) {
+      throw err;
+    }
+
+    logger.warn('updateCandidateSafe: duplicate key violation, retrying without conflicting field', {
+      candidateId: id,
+      constraint: constraintName,
+      field: conflictingField,
+    });
+
+    const safeUpdates: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(updates)) {
+      if (key !== conflictingField) {
+        safeUpdates[key] = value === undefined ? null : value;
+      }
+    }
+
+    const supabase = getSupabaseClient();
+    const { error } = await supabase
+      .from('candidates')
+      .update(safeUpdates)
+      .eq('id', id);
+
+    if (error) {
+      throw new AppError(`Failed to update candidate: ${error.message}`, 500, ErrorCodes.DATABASE_ERROR);
+    }
+
+    logger.warn('updateCandidateSafe: update succeeded after removing conflict field', {
+      candidateId: id,
+      field: conflictingField,
+    });
   }
 }
 
@@ -253,13 +315,19 @@ export interface SessionWithCount {
   candidate_count: number;
 }
 
-export async function getAllSessions(): Promise<SessionWithCount[]> {
+export async function getAllSessions(recruiterId?: string): Promise<SessionWithCount[]> {
   const supabase = getSupabaseClient();
 
-  const { data, error } = await supabase
+  let query = supabase
     .from('upload_sessions')
     .select('id, job_description_text, created_at, candidates(count)')
     .order('created_at', { ascending: false });
+
+  if (recruiterId) {
+    query = query.eq('recruiter_id', recruiterId);
+  }
+
+  const { data, error } = await query;
 
   if (error) {
     throw new AppError('Failed to get sessions', 500, ErrorCodes.DATABASE_ERROR);
@@ -352,15 +420,15 @@ export async function getSessionStats(sessionId: string): Promise<SessionStats> 
     hired: 0,
   };
 
-  const interviewStatuses = new Set(['interview', 'screening', 'technical interview', 'hr interview']);
+  const interviewStatuses = new Set(AGGREGATION_STATUS_GROUPS.interview.map(s => s.toLowerCase()));
 
   for (const row of rows) {
-    const status = (row.current_status || 'Pending').toLowerCase();
-    if (status === 'pending' || status === 'applied') stats.pending++;
-    else if (status === 'shortlisted') stats.shortlisted++;
+    const status = (row.current_status || CANDIDATE_STATUS.APPLIED).toLowerCase();
+    if (status === CANDIDATE_STATUS.APPLIED.toLowerCase()) stats.pending++;
+    else if (status === CANDIDATE_STATUS.SHORTLISTED.toLowerCase()) stats.shortlisted++;
     else if (interviewStatuses.has(status)) stats.interview++;
-    else if (status === 'rejected') stats.rejected++;
-    else if (status === 'hired') stats.hired++;
+    else if (status === CANDIDATE_STATUS.REJECTED.toLowerCase()) stats.rejected++;
+    else if (status === CANDIDATE_STATUS.HIRED.toLowerCase()) stats.hired++;
     else stats.pending++;
   }
 
@@ -395,44 +463,40 @@ export interface PaginatedCandidatesResult {
   totalPages: number;
 }
 
-function buildStatusFilterParam(status?: string): (q: any) => any {
+const STATUS_CANONICAL_MAP: Record<string, string> = {};
+for (const v of Object.values(CANDIDATE_STATUS)) {
+  STATUS_CANONICAL_MAP[v.toLowerCase()] = v;
+}
+
+export function buildStatusFilterParam(status?: string): (q: any) => any {
   return (query: any) => {
     if (!status) return query;
-    // Support comma-separated multi-status: "hired,offer"
-    if (status.includes(',')) {
-      const statuses = status.split(',').map(s => s.trim());
-      const mapped = statuses.map(s => {
-        const lower = s.toLowerCase();
-        if (lower === 'hired') return 'Hired';
-        if (lower === 'offer' || lower === 'offered') return 'Offer';
-        if (lower === 'applied') return 'Applied';
-        if (lower === 'interview') return 'Interview';
-        if (lower === 'rejected') return 'Rejected';
-        return s.charAt(0).toUpperCase() + s.slice(1).toLowerCase();
+    const statusKey = status.toLowerCase();
+    if (statusKey.includes(',')) {
+      const keys = statusKey.split(',').map(s => s.trim());
+      const mapped = keys.flatMap(k => {
+        const filter = STATUS_FILTER_MAP[k];
+        if (filter !== undefined) {
+          return Array.isArray(filter) ? filter : [filter];
+        }
+        const canonical = STATUS_CANONICAL_MAP[k];
+        if (canonical) return [canonical];
+        return [];
       });
+      if (mapped.length === 0) return query;
       return query.in('current_status', mapped);
     }
-    switch (status) {
-      case 'applied':
-        return query.eq('current_status', 'Applied');
-      case 'open':
-        return query.in('current_status', ['Applied', 'Shortlisted']);
-      case 'interview':
-        return query.eq('current_status', 'Interview');
-      case 'screening':
-        return query.eq('current_status', 'Screening');
-      case 'interviews-today':
-        return query;
-      case 'offer':
-      case 'offered':
-        return query.eq('current_status', 'Offer');
-      case 'hired':
-        return query.eq('current_status', 'Hired');
-      case 'rejected':
-        return query.eq('current_status', 'Rejected');
-      default:
-        return query;
+    const filter = STATUS_FILTER_MAP[statusKey];
+    if (filter !== undefined) {
+      if (Array.isArray(filter)) {
+        if (filter.length === 0) return query;
+        return query.in('current_status', filter);
+      }
+      return query.eq('current_status', filter);
     }
+    const canonical = STATUS_CANONICAL_MAP[statusKey];
+    if (canonical) return query.eq('current_status', canonical);
+    return query;
   };
 }
 
@@ -856,21 +920,13 @@ export async function getNewSessionStats(sessionId: string): Promise<NewSessionS
   for (const row of rows) {
     const s = (row.current_status || '').toLowerCase();
 
-    // Active, non-final statuses count toward "open"
-    // Open includes: applied, shortlisted, screening, interview (and variants),
-    //                offer/offered — anything that is NOT rejected or hired
-    if (s === 'applied') { applied++; open++; }
-    else if (s === 'shortlisted') open++;
-    else if (s === 'screening') { screening++; open++; }
-    else if (s === 'interview'
-      || s === 'interview scheduled'
-      || s === 'interview completed'
-      || s === 'technical round'
-      || s === 'hr round') { interview++; open++; }
-    else if (s === 'offer' || s === 'offered') { offered++; open++; }
-    else if (s === 'hired') hired++;
-    else if (s === 'rejected') rejected++;
-    // Unknown statuses: don't count toward anything, but don't break
+    if (AGGREGATION_STATUS_GROUPS.applied.map(st => st.toLowerCase()).includes(s)) { applied++; open++; }
+    else if (AGGREGATION_STATUS_GROUPS.open.map(st => st.toLowerCase()).includes(s)) open++;
+    else if (AGGREGATION_STATUS_GROUPS.screening.map(st => st.toLowerCase()).includes(s)) { screening++; open++; }
+    else if (AGGREGATION_STATUS_GROUPS.interview.map(st => st.toLowerCase()).includes(s)) { interview++; open++; }
+    else if (AGGREGATION_STATUS_GROUPS.offered.map(st => st.toLowerCase()).includes(s)) { offered++; open++; }
+    else if (AGGREGATION_STATUS_GROUPS.hired.map(st => st.toLowerCase()).includes(s)) hired++;
+    else if (AGGREGATION_STATUS_GROUPS.rejected.map(st => st.toLowerCase()).includes(s)) rejected++;
   }
 
   // Query 2: Count today's scheduled interviews for candidates in this session
@@ -904,16 +960,100 @@ export async function getNewSessionStats(sessionId: string): Promise<NewSessionS
   };
 }
 
-export async function getPendingCandidates(): Promise<CandidateRecord[]> {
+export interface RecruiterRecord {
+  id: string;
+  clerk_id: string;
+  email: string;
+  first_name: string | null;
+  last_name: string | null;
+  avatar_url: string | null;
+  role: string;
+  organization_name: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export async function getRecruiterByClerkId(clerkId: string): Promise<RecruiterRecord | null> {
   const supabase = getSupabaseClient();
   const { data, error } = await supabase
+    .from('recruiters')
+    .select('*')
+    .eq('clerk_id', clerkId)
+    .maybeSingle();
+
+  if (error) {
+    throw new AppError('Failed to get recruiter', 500, ErrorCodes.DATABASE_ERROR);
+  }
+
+  return data as RecruiterRecord | null;
+}
+
+export async function createRecruiter(input: {
+  clerk_id: string;
+  email?: string;
+  first_name?: string;
+  last_name?: string;
+  avatar_url?: string;
+  organization_name?: string;
+}): Promise<RecruiterRecord> {
+  const supabase = getSupabaseClient();
+  const { data, error } = await supabase
+    .from('recruiters')
+    .insert({
+      clerk_id: input.clerk_id,
+      email: input.email ?? '',
+      first_name: input.first_name ?? null,
+      last_name: input.last_name ?? null,
+      avatar_url: input.avatar_url ?? null,
+      organization_name: input.organization_name ?? null,
+    })
+    .select()
+    .single();
+
+  if (error) {
+    throw new AppError('Failed to create recruiter', 500, ErrorCodes.DATABASE_ERROR);
+  }
+
+  return data as RecruiterRecord;
+}
+
+export async function updateRecruiter(
+  clerkId: string,
+  updates: Partial<Pick<RecruiterRecord, 'email' | 'first_name' | 'last_name' | 'avatar_url' | 'organization_name'>>
+): Promise<void> {
+  const supabase = getSupabaseClient();
+  const clean: Record<string, unknown> = { updated_at: new Date().toISOString() };
+  if (updates.email !== undefined) clean.email = updates.email;
+  if (updates.first_name !== undefined) clean.first_name = updates.first_name;
+  if (updates.last_name !== undefined) clean.last_name = updates.last_name;
+  if (updates.avatar_url !== undefined) clean.avatar_url = updates.avatar_url;
+  if (updates.organization_name !== undefined) clean.organization_name = updates.organization_name;
+
+  const { error } = await supabase
+    .from('recruiters')
+    .update(clean)
+    .eq('clerk_id', clerkId);
+
+  if (error) {
+    throw new AppError(`Failed to update recruiter: ${error.message}`, 500, ErrorCodes.DATABASE_ERROR);
+  }
+}
+
+export async function getStuckCandidates(): Promise<CandidateRecord[]> {
+  const supabase = getSupabaseClient();
+  const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+
+  const { data, error } = await supabase
     .from('candidates')
-    .select('id, upload_session_id, raw_resume_text, processing_status, source, resume_file_url')
-    .in('processing_status', ['PENDING'])
+    .select('id, upload_session_id, raw_resume_text, processing_status, source, resume_file_url, error_message')
+    .or(`processing_status.eq.PENDING,and(processing_status.eq.PROCESSING,created_at.lt.${fiveMinutesAgo})`)
     .limit(100);
 
   if (error) {
+    logger.warn('getStuckCandidates: query failed', { error: error.message });
     return [];
   }
   return (data || []) as CandidateRecord[];
 }
+
+

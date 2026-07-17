@@ -8,7 +8,7 @@ import {
   Clock,
   Loader2,
 } from "lucide-react"
-import { getCandidateTimeline } from "@/lib/api"
+import { useApi } from "@/hooks/use-api"
 import { getStatusColor } from "@/lib/constants"
 import type { TimelineEntry } from "@/lib/api"
 
@@ -54,12 +54,12 @@ function getRejectionReason(details: Record<string, unknown> | null): string | n
 export function CandidateTimeline({ candidateId }: CandidateTimelineProps) {
   const [timeline, setTimeline] = useState<TimelineEntry[]>([])
   const [loading, setLoading] = useState(true)
+  const api = useApi()
 
   useEffect(() => {
     async function fetch() {
-      setLoading(true)
       try {
-        const res = await getCandidateTimeline(candidateId)
+        const res = await api.getCandidateTimeline(candidateId)
         if (res.success && res.data) {
           setTimeline(res.data)
         }

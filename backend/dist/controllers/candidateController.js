@@ -19,6 +19,7 @@ const database_1 = require("@/services/supabase/database");
 const logger_1 = require("@/utils/logger");
 const errorHandler_1 = require("@/middleware/errorHandler");
 const errorCodes_1 = require("@/middleware/errorCodes");
+const candidateStatus_1 = require("@/constants/candidateStatus");
 const cache_1 = require("@/utils/cache");
 const memory_cache_1 = require("@/utils/memory-cache");
 const explainability_1 = require("@/services/llm/explainability");
@@ -159,10 +160,10 @@ exports.updateCandidateStatusHandler = (0, asyncHandler_1.asyncHandler)(async (r
         .eq('id', id)
         .single();
     if (candidate?.email) {
-        if (status === 'Rejected') {
+        if (status === candidateStatus_1.CANDIDATE_STATUS.REJECTED) {
             console.log(`📧 [Rejection] email would be sent to ${candidate.email} (${candidate.full_name || 'Unknown'})`);
         }
-        else if (status === 'Offered' || status === 'Offer') {
+        else if (status === candidateStatus_1.CANDIDATE_STATUS.OFFERED) {
             console.log(`📧 [Offer] email would be sent to ${candidate.email} (${candidate.full_name || 'Unknown'})`);
         }
     }
@@ -181,7 +182,7 @@ exports.scheduleInterviewHandler = (0, asyncHandler_1.asyncHandler)(async (req, 
         notes,
     });
     // Update candidate status to Interview Scheduled
-    await (0, database_1.updateCandidateStatusExtended)(id, 'Interview Scheduled', '', {
+    await (0, database_1.updateCandidateStatusExtended)(id, candidateStatus_1.CANDIDATE_STATUS.INTERVIEW_SCHEDULED, '', {
         interview_id: interview.id,
         interview_type: interviewType,
         scheduled_date: scheduledDate,
@@ -191,7 +192,7 @@ exports.scheduleInterviewHandler = (0, asyncHandler_1.asyncHandler)(async (req, 
     const emailBody = `Dear Candidate,\n\nYour interview has been scheduled for ${scheduledDate} at ${scheduledTime}.\n\nInterview Type: ${interviewType}\n\nBest regards,\nRecruitIQ Team`;
     await (0, database_1.logEmail)(id, 'interview_scheduled', 'Interview Scheduled', emailBody);
     memory_cache_1.memoryCache.delete('dashboard:overview:v2');
-    (0, websocket_1.broadcast)('candidate:status_changed', { candidateId: id, status: 'Interview Scheduled' });
+    (0, websocket_1.broadcast)('candidate:status_changed', { candidateId: id, status: candidateStatus_1.CANDIDATE_STATUS.INTERVIEW_SCHEDULED });
     (0, websocket_1.broadcast)('interview:scheduled', { candidateId: id, interviewId: interview.id });
     res.status(200).json({ success: true, data: interview });
 });
@@ -206,9 +207,9 @@ exports.updateInterviewHandler = (0, asyncHandler_1.asyncHandler)(async (req, re
     await (0, database_1.updateInterview)(interviewId, updateData);
     if (updateData.status === 'completed') {
         const candidateId = req.params.id;
-        await (0, database_1.updateCandidateStatusExtended)(candidateId, 'Interview Completed', '', { interview_id: interviewId });
+        await (0, database_1.updateCandidateStatusExtended)(candidateId, candidateStatus_1.CANDIDATE_STATUS.INTERVIEW_COMPLETED, '', { interview_id: interviewId });
         memory_cache_1.memoryCache.delete('dashboard:overview:v2');
-        (0, websocket_1.broadcast)('candidate:status_changed', { candidateId, status: 'Interview Completed' });
+        (0, websocket_1.broadcast)('candidate:status_changed', { candidateId, status: candidateStatus_1.CANDIDATE_STATUS.INTERVIEW_COMPLETED });
     }
     (0, websocket_1.broadcast)('interview:updated', { interviewId });
     res.status(200).json({ success: true, data: { message: 'Interview updated' } });
@@ -217,7 +218,7 @@ exports.makeOfferHandler = (0, asyncHandler_1.asyncHandler)(async (req, res) => 
     const id = req.params.id;
     const { salary, joiningDate, notes } = req.body;
     const offer = await (0, database_1.createOffer)(id, { salary, joiningDate, notes });
-    await (0, database_1.updateCandidateStatusExtended)(id, 'Offered', '', {
+    await (0, database_1.updateCandidateStatusExtended)(id, candidateStatus_1.CANDIDATE_STATUS.OFFERED, '', {
         offer_id: offer.id,
         salary: salary || null,
         joining_date: joiningDate || null,
@@ -225,15 +226,15 @@ exports.makeOfferHandler = (0, asyncHandler_1.asyncHandler)(async (req, res) => 
     const emailBody = `Dear Candidate,\n\nCongratulations! We are pleased to offer you the position.\n${salary ? `Salary: $${salary}\n` : ''}${joiningDate ? `Joining Date: ${joiningDate}\n` : ''}\n\nBest regards,\nRecruitIQ Team`;
     await (0, database_1.logEmail)(id, 'offer_sent', 'Offer Letter', emailBody);
     memory_cache_1.memoryCache.delete('dashboard:overview:v2');
-    (0, websocket_1.broadcast)('candidate:status_changed', { candidateId: id, status: 'Offered' });
+    (0, websocket_1.broadcast)('candidate:status_changed', { candidateId: id, status: candidateStatus_1.CANDIDATE_STATUS.OFFERED });
     res.status(200).json({ success: true, data: offer });
 });
 exports.acceptOfferHandler = (0, asyncHandler_1.asyncHandler)(async (req, res) => {
     const id = req.params.id;
     await (0, database_1.acceptOffer)(id);
-    await (0, database_1.updateCandidateStatusExtended)(id, 'Hired', '', { accepted_offer: true });
+    await (0, database_1.updateCandidateStatusExtended)(id, candidateStatus_1.CANDIDATE_STATUS.HIRED, '', { accepted_offer: true });
     memory_cache_1.memoryCache.delete('dashboard:overview:v2');
-    (0, websocket_1.broadcast)('candidate:status_changed', { candidateId: id, status: 'Hired' });
+    (0, websocket_1.broadcast)('candidate:status_changed', { candidateId: id, status: candidateStatus_1.CANDIDATE_STATUS.HIRED });
     res.status(200).json({ success: true, data: { message: 'Candidate marked as hired' } });
 });
 exports.rejectCandidateHandler = (0, asyncHandler_1.asyncHandler)(async (req, res) => {
@@ -241,7 +242,7 @@ exports.rejectCandidateHandler = (0, asyncHandler_1.asyncHandler)(async (req, re
     const { reason, notes, changedBy } = req.body;
     await (0, database_1.rejectCandidateWithReason)(id, reason, notes, changedBy);
     memory_cache_1.memoryCache.delete('dashboard:overview:v2');
-    (0, websocket_1.broadcast)('candidate:status_changed', { candidateId: id, status: 'Rejected' });
+    (0, websocket_1.broadcast)('candidate:status_changed', { candidateId: id, status: candidateStatus_1.CANDIDATE_STATUS.REJECTED });
     res.status(200).json({ success: true, data: { message: 'Candidate rejected' } });
 });
 exports.generateEmailTemplateHandler = (0, asyncHandler_1.asyncHandler)(async (req, res) => {

@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { z } from 'zod';
 import { ErrorCodes } from './errorCodes';
 import { logger } from '@/utils/logger';
+import { CANDIDATE_STATUS_VALUES } from '@/constants/candidateStatus';
 
 type Source = 'body' | 'params' | 'query';
 
@@ -20,10 +21,7 @@ export function validate(schema: z.ZodSchema, source: Source = 'body') {
 
 const nonEmptyString = z.string().min(1);
 
-export const candidateStatusEnum = z.enum([
-  'Applied', 'Shortlisted', 'Screening', 'Interview Scheduled', 'Interview Completed',
-  'Technical Round', 'HR Round', 'Offered', 'Hired', 'Rejected',
-]);
+export const candidateStatusEnum = z.enum(CANDIDATE_STATUS_VALUES as [string, ...string[]]);
 
 export const interviewTypeEnum = z.enum(['google_meet','zoom','ms_teams','phone','in_person']);
 

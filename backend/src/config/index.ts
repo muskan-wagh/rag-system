@@ -4,7 +4,7 @@ if (process.env.NODE_ENV !== "production") {
   dotenv.config();
 }
 
-const REQUIRED_VARS = ["REDIS_URL", "SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY", "QWEN_API_KEY", "QDRANT_URL", "QDRANT_API_KEY"];
+const REQUIRED_VARS = ["REDIS_URL", "SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY", "QWEN_API_KEY", "QDRANT_URL", "QDRANT_API_KEY", "CLERK_SECRET_KEY"];
 for (const v of REQUIRED_VARS) {
   console.log(`[startup] ${v}: ${process.env[v] ? "present" : "MISSING"}`);
 }
@@ -64,6 +64,7 @@ export const config = Object.freeze({
   port: parseInt(optional("PORT", "5000"), 10),
   nodeEnv: optional("NODE_ENV", "development"),
   clientUrl: optional("CLIENT_URL", "http://localhost:3000"),
+  clerkSecretKey: required("CLERK_SECRET_KEY"),
   allowedOrigins: (() => {
     const envOrigins = optional("CORS_ORIGINS", "");
     if (envOrigins) {
@@ -102,7 +103,7 @@ export const config = Object.freeze({
     url: required("REDIS_URL"),
   },
 
-  apiKey: optional("API_KEY", ""),
+
 
   qdrant: {
     url: required("QDRANT_URL"),

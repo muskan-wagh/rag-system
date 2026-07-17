@@ -1,39 +1,48 @@
 import { getResumeQueue } from '@/services/queue';
-import { getPendingCandidates, updateCandidate } from '@/services/supabase/database';
+import { getStuckCandidates, updateCandidate } from '@/services/supabase/database';
 import { logger } from '@/utils/logger';
 
+const MAX_RECOVERY_RETRIES = 3;
 const IMPOSSIBLE_REASON = 'No resume_file_url — this candidate cannot be reprocessed and has been permanently marked as failed.';
 
+function getRetryCount(errorMessage: string | undefined | null): number {
+  if (!errorMessage) return 0;
+  const match = errorMessage.match(/recovery_retry=(\d+)/);
+  return match ? parseInt(match[1], 10) : 0;
+}
+
 export async function runStartupRecovery(): Promise<void> {
-  logger.info('Scanning recovery candidates...');
+  logger.info('Scanning stuck candidates for recovery...');
 
-  const pending = await getPendingCandidates();
+  const stuck = await getStuckCandidates();
 
-  if (pending.length === 0) {
+  if (stuck.length === 0) {
     logger.info('No stuck candidates found — recovery skipped');
     return;
   }
 
-  logger.info(`Found ${pending.length} candidate(s) to evaluate`, {
-    statuses: pending.map(c => c.processing_status),
+  logger.info(`Found ${stuck.length} candidate(s) to evaluate`, {
+    statuses: stuck.map(c => `${c.processing_status}${c.error_message ? ` (${c.error_message.slice(0, 60)})` : ''}`),
   });
 
-  const recoverable: typeof pending = [];
-  const impossible: typeof pending = [];
+  const recoverable: typeof stuck = [];
+  const impossible: typeof stuck = [];
+  const exhausted: typeof stuck = [];
 
-  for (const c of pending) {
+  for (const c of stuck) {
     if (!c.resume_file_url) {
       impossible.push(c);
+    } else if (getRetryCount(c.error_message) >= MAX_RECOVERY_RETRIES) {
+      exhausted.push(c);
     } else {
       recoverable.push(c);
     }
   }
 
-  // Permanently mark impossible candidates so they never appear in startup recovery again
+  // Mark impossible candidates (no file URL) as permanently failed
   for (const c of impossible) {
-    logger.warn('Permanently marking candidate as unrecoverable', {
+    logger.warn('Permanently marking candidate as unrecoverable — no file URL', {
       candidateId: c.id,
-      reason: IMPOSSIBLE_REASON,
     });
     try {
       await updateCandidate(c.id, {
@@ -48,17 +57,39 @@ export async function runStartupRecovery(): Promise<void> {
     }
   }
 
-  logger.info(`Recoverable: ${recoverable.length} — Skipped permanently: ${impossible.length}`);
+  // Mark candidates that have exhausted recovery retries
+  for (const c of exhausted) {
+    logger.warn('Candidate exceeded max recovery retries — marking as permanently failed', {
+      candidateId: c.id,
+      retries: MAX_RECOVERY_RETRIES,
+    });
+    try {
+      await updateCandidate(c.id, {
+        processing_status: 'FAILED',
+        error_message: `Permanently failed after ${MAX_RECOVERY_RETRIES} recovery retries. Last: ${c.error_message}`,
+      });
+    } catch (err: any) {
+      logger.error('Failed to mark exhausted candidate', {
+        candidateId: c.id,
+        error: err.message,
+      });
+    }
+  }
+
+  logger.info(
+    `Recoverable: ${recoverable.length} — Skipped permanently: ${impossible.length} — Exhausted retries: ${exhausted.length}`,
+  );
 
   if (recoverable.length === 0) {
     logger.info('Recovery completed — no candidates to enqueue');
     return;
   }
 
-  // Enqueue recoverable candidates using the application's queue singleton
   const queue = await getResumeQueue();
 
   for (const c of recoverable) {
+    const retryCount = getRetryCount(c.error_message) + 1;
+
     const urlParts = new URL(c.resume_file_url!).pathname.split('/');
     const storagePath = urlParts.slice(-2).join('/');
 
@@ -71,6 +102,11 @@ export async function runStartupRecovery(): Promise<void> {
       originalName: c.resume_file_url!.split('/').pop() || 'resume',
       source: c.source || '',
       candidateId: c.id,
+    });
+
+    // Update the error message to track recovery retry count
+    await updateCandidate(c.id, {
+      error_message: `recovery_retry=${retryCount} — Re-enqueued for reprocessing on startup.`,
     });
   }
 

@@ -3,7 +3,7 @@
 import { useState } from "react"
 import { Loader2, Calendar as CalendarIcon } from "lucide-react"
 import { toast } from "sonner"
-import { scheduleInterview } from "@/lib/api"
+import { useApi } from "@/hooks/use-api"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent } from "@/components/ui/dialog"
 
@@ -34,6 +34,7 @@ export function ScheduleInterviewModal({
   const [interviewer, setInterviewer] = useState("")
   const [notes, setNotes] = useState("")
   const [saving, setSaving] = useState(false)
+  const api = useApi()
 
   const handleSubmit = async () => {
     if (!date || !time) {
@@ -42,7 +43,7 @@ export function ScheduleInterviewModal({
     }
     setSaving(true)
     try {
-      const res = await scheduleInterview(candidateId, {
+      const res = await api.scheduleInterview(candidateId, {
         scheduledDate: date,
         scheduledTime: time,
         interviewType: type,

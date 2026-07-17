@@ -1,7 +1,8 @@
 "use client"
 
 import Link from "next/link"
-import { usePathname } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
+import { useAuth, UserButton } from "@clerk/nextjs"
 import { cn } from "@/lib/utils"
 import {
   LayoutDashboard,
@@ -11,6 +12,7 @@ import {
   Calendar,
   History,
   Settings,
+  LogOut,
 } from "lucide-react"
 
 const navItems = [
@@ -25,6 +27,7 @@ const navItems = [
 
 export function AppSidebar() {
   const pathname = usePathname()
+  const { signOut } = useAuth()
 
   function isActive(href: string): boolean {
     if (href === "/dashboard") return pathname === "/dashboard"
@@ -69,16 +72,27 @@ export function AppSidebar() {
         })}
       </nav>
 
-      <div className="border-t border-sidebar-border p-3">
+      <div className="border-t border-sidebar-border p-3 space-y-2">
         <div className="flex items-center gap-3 rounded-md px-3 py-2">
-          <div className="flex h-7 w-7 items-center justify-center rounded-full bg-primary/10 text-xs font-medium text-primary">
-            RU
-          </div>
+          <UserButton
+            appearance={{
+              elements: {
+                avatarBox: "h-7 w-7",
+              },
+            }}
+          />
           <div className="flex-1 min-w-0">
-            <p className="text-xs font-medium text-foreground truncate">RecruitIQ</p>
-            <p className="text-[10px] text-muted-foreground truncate">Free Plan</p>
+            <p className="text-xs font-medium text-foreground truncate">Account</p>
+            <p className="text-[10px] text-muted-foreground truncate">Settings & Profile</p>
           </div>
         </div>
+        <button
+          onClick={() => signOut({ redirectUrl: "/" })}
+          className="flex w-full items-center gap-2.5 rounded-md px-3 py-2 text-sm font-medium text-sidebar-foreground hover:text-foreground hover:bg-muted transition-colors"
+        >
+          <LogOut className="h-4 w-4" />
+          Sign Out
+        </button>
       </div>
     </aside>
   )

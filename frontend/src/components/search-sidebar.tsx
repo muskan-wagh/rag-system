@@ -4,7 +4,7 @@ import { motion } from "framer-motion"
 import { Button } from "@/components/ui/button"
 import { SlidersHorizontal, X, Search } from "lucide-react"
 import { useSearchStore } from "@/lib/search-store"
-import { searchCandidates } from "@/lib/api"
+import { useApi } from "@/hooks/use-api"
 import type { SearchFilters } from "@/lib/api"
 
 interface SearchSidebarProps {
@@ -16,6 +16,7 @@ export function SearchSidebar({ className }: SearchSidebarProps) {
   const filterFormValues = useSearchStore((s) => s.filterFormValues)
   const setFilterFormValues = useSearchStore((s) => s.setFilterFormValues)
   const setFilters = useSearchStore((s) => s.setFilters)
+  const api = useApi()
 
   async function applyFilters() {
     const filters: SearchFilters = {}
@@ -30,7 +31,7 @@ export function SearchSidebar({ className }: SearchSidebarProps) {
       setLoading(true)
       setError("")
       try {
-        const res = await searchCandidates(jdText, 20, filters)
+        const res = await api.searchCandidates(jdText, 20, filters)
         if (res.success && res.data) {
           setResults(res.data.results, res.data.query)
           setActiveTab("results")

@@ -30,6 +30,7 @@ import { Candidate } from '@/types';
 import { logger } from '@/utils/logger';
 import { AppError } from '@/middleware/errorHandler';
 import { ErrorCodes } from '@/middleware/errorCodes';
+import { CANDIDATE_STATUS } from '@/constants/candidateStatus';
 import { getCached, setCache } from '@/utils/cache';
 import { memoryCache } from '@/utils/memory-cache';
 import { generateExplanations } from '@/services/llm/explainability';
@@ -201,9 +202,9 @@ export const updateCandidateStatusHandler = asyncHandler(async (req: Request, re
     .single();
 
   if (candidate?.email) {
-    if (status === 'Rejected') {
+    if (status === CANDIDATE_STATUS.REJECTED) {
       console.log(`📧 [Rejection] email would be sent to ${candidate.email} (${candidate.full_name || 'Unknown'})`);
-    } else if (status === 'Offered' || status === 'Offer') {
+    } else if (status === CANDIDATE_STATUS.OFFERED) {
       console.log(`📧 [Offer] email would be sent to ${candidate.email} (${candidate.full_name || 'Unknown'})`);
     }
   }
@@ -226,7 +227,7 @@ export const scheduleInterviewHandler = asyncHandler(async (req: Request, res: R
   });
 
   // Update candidate status to Interview Scheduled
-  await updateCandidateStatusExtended(id, 'Interview Scheduled', '', {
+  await updateCandidateStatusExtended(id, CANDIDATE_STATUS.INTERVIEW_SCHEDULED, '', {
     interview_id: interview.id,
     interview_type: interviewType,
     scheduled_date: scheduledDate,
@@ -238,7 +239,7 @@ export const scheduleInterviewHandler = asyncHandler(async (req: Request, res: R
   await logEmail(id, 'interview_scheduled', 'Interview Scheduled', emailBody);
 
   memoryCache.delete('dashboard:overview:v2');
-  broadcast('candidate:status_changed', { candidateId: id, status: 'Interview Scheduled' });
+  broadcast('candidate:status_changed', { candidateId: id, status: CANDIDATE_STATUS.INTERVIEW_SCHEDULED });
   broadcast('interview:scheduled', { candidateId: id, interviewId: interview.id });
 
   res.status(200).json({ success: true, data: interview });
@@ -258,9 +259,9 @@ export const updateInterviewHandler = asyncHandler(async (req: Request, res: Res
 
   if (updateData.status === 'completed') {
     const candidateId = req.params.id as string;
-    await updateCandidateStatusExtended(candidateId, 'Interview Completed', '', { interview_id: interviewId });
+    await updateCandidateStatusExtended(candidateId, CANDIDATE_STATUS.INTERVIEW_COMPLETED, '', { interview_id: interviewId });
     memoryCache.delete('dashboard:overview:v2');
-    broadcast('candidate:status_changed', { candidateId, status: 'Interview Completed' });
+    broadcast('candidate:status_changed', { candidateId, status: CANDIDATE_STATUS.INTERVIEW_COMPLETED });
   }
 
   broadcast('interview:updated', { interviewId });
@@ -272,7 +273,7 @@ export const makeOfferHandler = asyncHandler(async (req: Request, res: Response)
   const { salary, joiningDate, notes } = req.body;
 
   const offer = await createOffer(id, { salary, joiningDate, notes });
-  await updateCandidateStatusExtended(id, 'Offered', '', {
+  await updateCandidateStatusExtended(id, CANDIDATE_STATUS.OFFERED, '', {
     offer_id: offer.id,
     salary: salary || null,
     joining_date: joiningDate || null,
@@ -282,7 +283,7 @@ export const makeOfferHandler = asyncHandler(async (req: Request, res: Response)
   await logEmail(id, 'offer_sent', 'Offer Letter', emailBody);
 
   memoryCache.delete('dashboard:overview:v2');
-  broadcast('candidate:status_changed', { candidateId: id, status: 'Offered' });
+  broadcast('candidate:status_changed', { candidateId: id, status: CANDIDATE_STATUS.OFFERED });
   res.status(200).json({ success: true, data: offer });
 });
 
@@ -290,10 +291,10 @@ export const acceptOfferHandler = asyncHandler(async (req: Request, res: Respons
   const id = req.params.id as string;
 
   await acceptOffer(id);
-  await updateCandidateStatusExtended(id, 'Hired', '', { accepted_offer: true });
+  await updateCandidateStatusExtended(id, CANDIDATE_STATUS.HIRED, '', { accepted_offer: true });
 
   memoryCache.delete('dashboard:overview:v2');
-  broadcast('candidate:status_changed', { candidateId: id, status: 'Hired' });
+  broadcast('candidate:status_changed', { candidateId: id, status: CANDIDATE_STATUS.HIRED });
   res.status(200).json({ success: true, data: { message: 'Candidate marked as hired' } });
 });
 
@@ -304,7 +305,7 @@ export const rejectCandidateHandler = asyncHandler(async (req: Request, res: Res
   await rejectCandidateWithReason(id, reason, notes, changedBy);
 
   memoryCache.delete('dashboard:overview:v2');
-  broadcast('candidate:status_changed', { candidateId: id, status: 'Rejected' });
+  broadcast('candidate:status_changed', { candidateId: id, status: CANDIDATE_STATUS.REJECTED });
   res.status(200).json({ success: true, data: { message: 'Candidate rejected' } });
 });
 

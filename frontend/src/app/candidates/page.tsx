@@ -8,9 +8,9 @@ import {
 } from "lucide-react"
 import { toast } from "sonner"
 import { CandidateDetailModal } from "@/components/candidate-detail-modal"
-import { getCandidatesPage, markCandidateAsHired } from "@/lib/api"
+import { useApi } from "@/hooks/use-api"
 import { useWebSocket } from "@/lib/use-websocket"
-import { ROUTES, getStatusColor, getInitials, formatDate, getFlightRiskColor } from "@/lib/constants"
+import { ROUTES, getStatusColor, getInitials, formatDate, getFlightRiskColor, CANDIDATE_STATUS } from "@/lib/constants"
 import type { SessionSummary, CandidateRecord, CandidatesPageData } from "@/lib/api"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -61,11 +61,13 @@ function CandidatesContent() {
     { label: "Rejected", value: "rejected" },
   ] as const
 
+  const api = useApi()
+
   const loadCandidatesPage = useCallback(async (sessionId: string | null, query: string, currentPage: number, statusFilter?: string | null) => {
     setCandidatesLoading(true)
     setSessionsLoading(true)
     try {
-      const res = await getCandidatesPage({
+      const res = await api.getCandidatesPage({
         page: currentPage,
         limit: PAGE_SIZE,
         search: query || undefined,
@@ -137,7 +139,7 @@ function CandidatesContent() {
     if (!hireCandidate) return
     setHireLoading(true)
     try {
-      const res = await markCandidateAsHired(hireCandidate.id)
+      const res = await api.markCandidateAsHired(hireCandidate.id)
       if (res.success) {
         toast.success("Candidate marked as Hired!")
         setShowHireConfirm(false)
@@ -366,7 +368,7 @@ function CandidatesContent() {
                         </TableCell>
                         <TableCell>
                           <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium border ${getStatusColor(candidate.current_status)}`}>
-                            {candidate.current_status || "Pending"}
+                            {candidate.current_status || CANDIDATE_STATUS.APPLIED}
                           </span>
                         </TableCell>
                         <TableCell className="hidden md:table-cell">
@@ -391,7 +393,7 @@ function CandidatesContent() {
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="flex items-center justify-end gap-1">
-                            {candidate.current_status === "Offer" && (
+                            {candidate.current_status === CANDIDATE_STATUS.OFFERED && (
                               <Button
                                 variant="ghost"
                                 size="sm"

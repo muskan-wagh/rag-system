@@ -7,13 +7,13 @@ import {
   Sparkles, Link2, RefreshCw, Loader2, ShieldAlert, Plus,
   FilePlus, Copy, Check, Users, FileText,
   FolderOpen, Calendar, BadgeCheck, XCircle, LayoutDashboard,
+  Search,
 } from "lucide-react"
 import { toast } from "sonner"
 import { CandidateDetailModal } from "@/components/candidate-detail-modal"
-import { apiFetch } from "@/lib/api-fetch"
-import { scanBias, getDashboard } from "@/lib/api"
+import { useApi } from "@/hooks/use-api"
 import { useWebSocket } from "@/lib/use-websocket"
-import { ROUTES, getStatusColor, getInitials, getFlightRiskColor } from "@/lib/constants"
+import { ROUTES, getStatusColor, getInitials, getFlightRiskColor, CANDIDATE_STATUS } from "@/lib/constants"
 import type { SessionStats } from "@/lib/api"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -107,7 +107,7 @@ const CandidateTableRow = memo(function CandidateTableRow({
       </TableCell>
       <TableCell>
         <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium border ${getStatusColor(candidate.current_status || candidate.status)}`}>
-          {candidate.current_status || candidate.status || "Applied"}
+          {candidate.current_status || candidate.status || CANDIDATE_STATUS.APPLIED}
         </span>
       </TableCell>
       <TableCell>
@@ -154,19 +154,23 @@ export default function DashboardPage() {
   const [page] = useState(1)
 
   const wsDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const api = useApi()
 
   const loadDashboard = useCallback(async (p?: number) => {
     const pageNum = p ?? page
     setLoadingCandidates(true)
     try {
-      const res = await getDashboard(pageNum, 50)
+      const res = await api.getDashboard(pageNum, 50)
       if (res.success && res.data) {
-        const { session: sess, candidates: cands, stats: s } = res.data
-        if (sess) {
-          setSession({ sessionId: sess.id, link: sess.link })
-          setJdText(sess.job_description_text)
+        const { stats: s, recentUploads, sessions: sessList } = res.data
+        const latestSession = sessList?.[0]
+        if (latestSession) {
+          setSession({ sessionId: latestSession.id, link: `/upload/${latestSession.id}` })
+          setJdText(latestSession.job_description_text)
+        } else {
+          setSession(null)
         }
-        setCandidates(cands)
+        setCandidates(recentUploads ?? [])
         setStats(s)
       }
     } catch {
@@ -202,24 +206,14 @@ export default function DashboardPage() {
     setError("")
 
     try {
-      const res = await apiFetch(`/api/generate-link`, {
-        method: "POST",
-        body: JSON.stringify({ jdText }),
-      })
-
-      if (!res.ok) {
-        if (res.status === 401) throw new Error("auth")
-        throw new Error(`HTTP ${res.status}`)
-      }
-
-      const data = await res.json()
-      if (data.success) {
-        const sessionData = data.data
-        setSession(sessionData)
+      const res = await api.generateLink(jdText)
+      if (res.success && res.data) {
+        const { sessionId, link } = res.data
+        setSession({ sessionId, link })
         loadDashboard()
         toast.success("Application link generated!")
       } else {
-        setError(data.error || "Failed to generate link")
+        setError(res.error || "Failed to generate link")
       }
     } catch (err) {
       if (err instanceof Error && err.message === "auth") {
@@ -239,7 +233,7 @@ export default function DashboardPage() {
     setBiasError("")
 
     try {
-      const result = await scanBias(jdText)
+      const result = await api.scanBias(jdText)
       if (result.success && result.data) {
         setBiasResult(result.data)
         if (result.data.has_bias) {
@@ -462,62 +456,96 @@ export default function DashboardPage() {
         </Card>
       )}
 
-      {session && (
-        <div>
-          <h2 className="text-sm font-semibold mb-3">Pipeline Overview</h2>
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            <Link href={ROUTES.candidates} className="block group">
-              <Card className="p-4 cursor-pointer hover:shadow-sm transition-shadow border-t-2 border-t-primary">
-                <div className="flex items-center justify-between mb-2">
-                  <p className="text-xs font-medium text-muted-foreground">Open Candidates</p>
-                  <div className="p-1.5 rounded-md bg-primary/10">
-                    <FolderOpen className="h-4 w-4 text-primary" />
-                  </div>
+      <div>
+        <h2 className="text-sm font-semibold mb-3">Pipeline Overview</h2>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <Link href={ROUTES.candidates} className="block group">
+            <Card className="p-4 cursor-pointer hover:shadow-sm transition-shadow border-t-2 border-t-primary">
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-xs font-medium text-muted-foreground">Total Candidates</p>
+                <div className="p-1.5 rounded-md bg-primary/10">
+                  <Users className="h-4 w-4 text-primary" />
                 </div>
-                <p className="text-2xl font-bold text-foreground">{stats?.applied ?? 0}</p>
-              </Card>
-            </Link>
-            <Link href={ROUTES.interview} className="block group">
-              <Card className="p-4 cursor-pointer hover:shadow-sm transition-shadow border-t-2 border-t-accent">
-                <div className="flex items-center justify-between mb-2">
-                  <p className="text-xs font-medium text-muted-foreground">Interview</p>
-                  <div className="p-1.5 rounded-md bg-accent/10">
-                    <Calendar className="h-4 w-4 text-accent" />
-                  </div>
+              </div>
+              <p className="text-2xl font-bold text-foreground">{stats?.totalCandidates ?? 0}</p>
+            </Card>
+          </Link>
+          <Link href={ROUTES.candidates} className="block group">
+            <Card className="p-4 cursor-pointer hover:shadow-sm transition-shadow border-t-2 border-t-accent">
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-xs font-medium text-muted-foreground">Uploaded Today</p>
+                <div className="p-1.5 rounded-md bg-accent/10">
+                  <FilePlus className="h-4 w-4 text-accent" />
                 </div>
-                <p className="text-2xl font-bold text-foreground">{stats?.interview ?? 0}</p>
-              </Card>
-            </Link>
-            <Link href={`${ROUTES.candidates}?status=hired,offer`} className="block group">
-              <Card className="p-4 cursor-pointer hover:shadow-sm transition-shadow border-t-2 border-t-success">
-                <div className="flex items-center justify-between mb-2">
-                  <p className="text-xs font-medium text-muted-foreground">Hired</p>
-                  <div className="p-1.5 rounded-md bg-success/10">
-                    <BadgeCheck className="h-4 w-4 text-success" />
-                  </div>
+              </div>
+              <p className="text-2xl font-bold text-foreground">{stats?.uploadedToday ?? 0}</p>
+            </Card>
+          </Link>
+          <Link href={ROUTES.candidates} className="block group">
+            <Card className="p-4 cursor-pointer hover:shadow-sm transition-shadow border-t-2 border-t-success">
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-xs font-medium text-muted-foreground">Open</p>
+                <div className="p-1.5 rounded-md bg-success/10">
+                  <FolderOpen className="h-4 w-4 text-success" />
                 </div>
-                <p className="text-2xl font-bold text-foreground">
-                  {(stats?.hired ?? 0) + (stats?.offered ?? 0)}
-                </p>
-                <p className="text-[10px] text-muted-foreground mt-0.5">
-                  {stats?.hired ?? 0} Hired | {stats?.offered ?? 0} Pending
-                </p>
-              </Card>
-            </Link>
-            <Link href={`${ROUTES.candidates}?status=rejected`} className="block group">
-              <Card className="p-4 cursor-pointer hover:shadow-sm transition-shadow border-t-2 border-t-destructive">
-                <div className="flex items-center justify-between mb-2">
-                  <p className="text-xs font-medium text-muted-foreground">Rejected</p>
-                  <div className="p-1.5 rounded-md bg-destructive/10">
-                    <XCircle className="h-4 w-4 text-destructive" />
-                  </div>
+              </div>
+              <p className="text-2xl font-bold text-foreground">{stats?.open ?? 0}</p>
+              <p className="text-[10px] text-muted-foreground mt-0.5">{stats?.applied ?? 0} Applied | {stats?.screening ?? 0} Screening</p>
+            </Card>
+          </Link>
+          <Link href={ROUTES.interview} className="block group">
+            <Card className="p-4 cursor-pointer hover:shadow-sm transition-shadow border-t-2 border-t-primary/60">
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-xs font-medium text-muted-foreground">Interview</p>
+                <div className="p-1.5 rounded-md bg-primary/10">
+                  <Calendar className="h-4 w-4 text-primary" />
                 </div>
-                <p className="text-2xl font-bold text-foreground">{stats?.rejected ?? 0}</p>
-              </Card>
-            </Link>
-          </div>
+              </div>
+              <p className="text-2xl font-bold text-foreground">{stats?.interview ?? 0}</p>
+              <p className="text-[10px] text-muted-foreground mt-0.5">{stats?.interviewsToday ?? 0} Today</p>
+            </Card>
+          </Link>
+          <Link href={`${ROUTES.candidates}?status=hired,offer`} className="block group">
+            <Card className="p-4 cursor-pointer hover:shadow-sm transition-shadow border-t-2 border-t-success/80">
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-xs font-medium text-muted-foreground">Hired</p>
+                <div className="p-1.5 rounded-md bg-success/10">
+                  <BadgeCheck className="h-4 w-4 text-success" />
+                </div>
+              </div>
+              <p className="text-2xl font-bold text-foreground">
+                {(stats?.hired ?? 0) + (stats?.offered ?? 0)}
+              </p>
+              <p className="text-[10px] text-muted-foreground mt-0.5">
+                {stats?.hired ?? 0} Hired | {stats?.offered ?? 0} Pending
+              </p>
+            </Card>
+          </Link>
+          <Link href={`${ROUTES.candidates}?status=rejected`} className="block group">
+            <Card className="p-4 cursor-pointer hover:shadow-sm transition-shadow border-t-2 border-t-destructive">
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-xs font-medium text-muted-foreground">Rejected</p>
+                <div className="p-1.5 rounded-md bg-destructive/10">
+                  <XCircle className="h-4 w-4 text-destructive" />
+                </div>
+              </div>
+              <p className="text-2xl font-bold text-foreground">{stats?.rejected ?? 0}</p>
+            </Card>
+          </Link>
+          <Link href={ROUTES.candidateSearch} className="block group">
+            <Card className="p-4 cursor-pointer hover:shadow-sm transition-shadow border-t-2 border-t-muted-foreground/40">
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-xs font-medium text-muted-foreground">Searches</p>
+                <div className="p-1.5 rounded-md bg-muted">
+                  <Search className="h-4 w-4 text-muted-foreground" />
+                </div>
+              </div>
+              <p className="text-2xl font-bold text-foreground">{stats?.searches ?? 0}</p>
+              <p className="text-[10px] text-muted-foreground mt-0.5">{stats?.activeSessions ?? 0} Active Sessions</p>
+            </Card>
+          </Link>
         </div>
-      )}
+      </div>
 
       <Card className="p-0 overflow-hidden">
         <div className="flex items-center justify-between p-4 border-b bg-muted/30">
@@ -553,7 +581,7 @@ export default function DashboardPage() {
           <EmptyState
             icon={Users}
             title="No candidates yet"
-            description="Share your application link to start receiving resumes."
+            description="Upload a resume or share an application link to get started."
           />
         ) : (
           <div className="overflow-x-auto">

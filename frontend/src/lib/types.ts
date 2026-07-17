@@ -63,17 +63,6 @@ export interface SessionSummary {
   candidate_count: number
 }
 
-export interface SessionStats {
-  open: number
-  applied: number
-  screening: number
-  interview: number
-  interviewsToday: number
-  offered: number
-  hired: number
-  rejected: number
-}
-
 export interface CandidateRecord {
   id: string
   upload_session_id?: string
@@ -135,18 +124,28 @@ export interface TimelineEntry {
 }
 
 export interface DashboardData {
-  session: {
+  stats: SessionStats
+  recentUploads: CandidateRecord[]
+  sessions: Array<{
     id: string
     job_description_text: string
     created_at: string
-    link: string
-  } | null
-  candidates: CandidateRecord[]
-  stats: SessionStats
-  pagination?: {
-    page: number
-    limit: number
-  }
+  }>
+}
+
+export interface SessionStats {
+  open: number
+  applied: number
+  screening: number
+  interview: number
+  interviewsToday: number
+  offered: number
+  hired: number
+  rejected: number
+  totalCandidates: number
+  uploadedToday: number
+  activeSessions: number
+  searches: number
 }
 
 export interface CandidatesPageData {

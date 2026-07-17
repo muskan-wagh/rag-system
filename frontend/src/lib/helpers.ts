@@ -11,24 +11,7 @@ export function getInitials(name?: string): string {
     .toUpperCase()
 }
 
-const STATUS_COLORS: Record<string, string> = {
-  applied: "bg-blue-50 text-blue-700 border-blue-200",
-  shortlisted: "bg-purple-50 text-purple-700 border-purple-200",
-  screening: "bg-orange-50 text-orange-700 border-orange-200",
-  "interview scheduled": "bg-yellow-50 text-yellow-700 border-yellow-200",
-  "interview completed": "bg-yellow-50 text-yellow-700 border-yellow-200",
-  "technical round": "bg-yellow-50 text-yellow-700 border-yellow-200",
-  "hr round": "bg-yellow-50 text-yellow-700 border-yellow-200",
-  offered: "bg-green-50 text-green-700 border-green-200",
-  hired: "bg-emerald-50 text-emerald-700 border-emerald-200",
-  rejected: "bg-red-50 text-red-700 border-red-200",
-  interview: "bg-yellow-50 text-yellow-700 border-yellow-200",
-}
-
-export function getStatusColor(status?: string): string {
-  const s = (status || "").toLowerCase()
-  return STATUS_COLORS[s] || "bg-gray-50 text-gray-700 border-gray-200"
-}
+export { getStatusColor, CANDIDATE_STATUS } from "./candidate-status"
 
 export function getFlightRiskColor(risk?: string): "destructive" | "default" | "outline" {
   const r = (risk || "").toLowerCase()

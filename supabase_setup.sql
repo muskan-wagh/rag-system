@@ -54,6 +54,12 @@ ALTER TABLE candidates ADD COLUMN IF NOT EXISTS raw_resume_text TEXT DEFAULT '';
 -- 2c. Enforce NOT NULL on resume_file_url for new rows (existing nulls remain)
 ALTER TABLE candidates ALTER COLUMN resume_file_url SET NOT NULL;
 
+-- 2d. Remove UNIQUE constraint on email — multiple candidates (even same person applying to different JDs) can share an email
+ALTER TABLE candidates DROP CONSTRAINT IF EXISTS candidates_email_key;
+
+-- 2e. Remove UNIQUE constraint on phone for the same reason
+ALTER TABLE candidates DROP CONSTRAINT IF EXISTS candidates_phone_key;
+
 -- 3. Candidate skills table (was MISSING — now created)
 CREATE TABLE IF NOT EXISTS candidate_skills (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
@@ -152,6 +158,25 @@ ALTER TABLE candidate_status_log ADD CONSTRAINT candidate_status_log_status_chec
   CHECK (status IN ('Applied','Shortlisted','Screening','Interview','Interview Scheduled','Interview Completed','Technical Round','HR Round','Offered','Hired','Rejected'));
 
 -- ============================================================
+-- 11. Recruiters table (Clerk-based authentication)
+-- ============================================================
+CREATE TABLE IF NOT EXISTS recruiters (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  clerk_id TEXT NOT NULL UNIQUE,
+  email TEXT NOT NULL DEFAULT '',
+  first_name TEXT DEFAULT '',
+  last_name TEXT DEFAULT '',
+  avatar_url TEXT DEFAULT '',
+  role TEXT NOT NULL DEFAULT 'recruiter',
+  organization_name TEXT,
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_recruiters_clerk_id ON recruiters(clerk_id);
+CREATE INDEX IF NOT EXISTS idx_recruiters_email ON recruiters(email);
+
+-- ============================================================
 -- INDEXES
 -- ============================================================
 CREATE INDEX IF NOT EXISTS idx_candidates_upload_session_id ON candidates(upload_session_id);
@@ -243,7 +268,87 @@ CREATE POLICY "anon_select_offers" ON offers FOR SELECT TO anon USING (true);
 DROP POLICY IF EXISTS "anon_update_offers" ON offers;
 CREATE POLICY "anon_update_offers" ON offers FOR UPDATE TO anon USING (true) WITH CHECK (true);
 
--- Stats RPC function for efficient dashboard aggregation
+-- ============================================================
+-- RECRUITER OWNERSHIP
+-- Add recruiter_id to all owned tables
+-- ============================================================
+ALTER TABLE upload_sessions ADD COLUMN IF NOT EXISTS recruiter_id UUID REFERENCES recruiters(id);
+ALTER TABLE candidates ADD COLUMN IF NOT EXISTS recruiter_id UUID REFERENCES recruiters(id);
+ALTER TABLE candidate_notes ADD COLUMN IF NOT EXISTS recruiter_id UUID REFERENCES recruiters(id);
+ALTER TABLE candidate_status_log ADD COLUMN IF NOT EXISTS recruiter_id UUID REFERENCES recruiters(id);
+
+CREATE INDEX IF NOT EXISTS idx_upload_sessions_recruiter ON upload_sessions(recruiter_id);
+CREATE INDEX IF NOT EXISTS idx_candidates_recruiter ON candidates(recruiter_id);
+CREATE INDEX IF NOT EXISTS idx_candidate_notes_recruiter ON candidate_notes(recruiter_id);
+CREATE INDEX IF NOT EXISTS idx_candidate_status_log_recruiter ON candidate_status_log(recruiter_id);
+
+-- Stats RPC function for per-recruiter dashboard aggregation
+CREATE OR REPLACE FUNCTION get_recruiter_stats(p_recruiter_id UUID)
+RETURNS JSON AS $$
+DECLARE
+  result JSON;
+BEGIN
+  WITH session_ids AS (
+    SELECT id FROM upload_sessions WHERE recruiter_id = p_recruiter_id
+  ),
+  status_agg AS (
+    SELECT
+      COUNT(*) FILTER (WHERE LOWER(c.current_status) IN ('applied','shortlisted')) AS open,
+      COUNT(*) FILTER (WHERE LOWER(c.current_status) = 'applied') AS applied,
+      COUNT(*) FILTER (WHERE LOWER(c.current_status) = 'screening') AS screening,
+      COUNT(*) FILTER (WHERE LOWER(c.current_status) = 'interview') AS interview,
+      COUNT(*) FILTER (WHERE LOWER(c.current_status) = 'offered') AS offered,
+      COUNT(*) FILTER (WHERE LOWER(c.current_status) = 'hired') AS hired,
+      COUNT(*) FILTER (WHERE LOWER(c.current_status) = 'rejected') AS rejected
+    FROM candidates c
+    WHERE c.recruiter_id = p_recruiter_id
+  ),
+  interview_count AS (
+    SELECT COUNT(*) AS interviews_today
+    FROM interviews i
+    JOIN candidates c ON c.id = i.candidate_id
+    WHERE c.recruiter_id = p_recruiter_id
+      AND i.scheduled_date = CURRENT_DATE
+      AND i.status = 'scheduled'
+  ),
+  candidate_counts AS (
+    SELECT
+      COUNT(*) AS total_candidates,
+      COUNT(*) FILTER (WHERE c.created_at >= CURRENT_DATE) AS uploaded_today
+    FROM candidates c
+    WHERE c.recruiter_id = p_recruiter_id
+  ),
+  search_counts AS (
+    SELECT COUNT(*) AS searches
+    FROM search_sessions s
+    WHERE s.recruiter_id = p_recruiter_id
+  ),
+  upload_days AS (
+    SELECT COUNT(DISTINCT DATE(c.created_at)) AS active_days
+    FROM candidates c
+    WHERE c.recruiter_id = p_recruiter_id
+  )
+  SELECT json_build_object(
+    'open', sa.open,
+    'applied', sa.applied,
+    'screening', sa.screening,
+    'interview', sa.interview,
+    'interviewsToday', ic.interviews_today,
+    'offered', sa.offered,
+    'hired', sa.hired,
+    'rejected', sa.rejected,
+    'totalCandidates', cc.total_candidates,
+    'uploadedToday', cc.uploaded_today,
+    'activeSessions', (SELECT COUNT(*) FROM session_ids),
+    'searches', sc.searches
+  ) INTO result
+  FROM status_agg sa, interview_count ic, candidate_counts cc, search_counts sc;
+
+  RETURN result;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Stats RPC function for efficient dashboard aggregation (per-session, kept for backward compat)
 CREATE OR REPLACE FUNCTION get_session_stats_new(p_session_id UUID)
 RETURNS JSON AS $$
 DECLARE

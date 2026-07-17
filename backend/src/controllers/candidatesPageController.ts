@@ -3,7 +3,7 @@ import { asyncHandler } from '@/utils/asyncHandler';
 import { getSupabaseClient } from '@/services/supabase/client';
 import { AppError } from '@/middleware/errorHandler';
 import { ErrorCodes } from '@/middleware/errorCodes';
-import { CandidateWithSkills } from '@/services/supabase/database';
+import { CandidateWithSkills, buildStatusFilterParam as buildStatusFilter } from '@/services/supabase/database';
 
 interface SessionSummary {
   id: string;
@@ -12,48 +12,14 @@ interface SessionSummary {
   candidate_count: number;
 }
 
-function buildStatusFilter(status?: string): (q: any) => any {
-  return (query: any) => {
-    if (!status) return query;
-    // Support comma-separated multi-status: "hired,offer"
-    if (status.includes(',')) {
-      const statuses = status.split(',').map(s => s.trim());
-      const mapped = statuses.map(s => {
-        const lower = s.toLowerCase();
-        if (lower === 'hired') return 'Hired';
-        if (lower === 'offer' || lower === 'offered') return 'Offer';
-        if (lower === 'applied') return 'Applied';
-        if (lower === 'interview') return 'Interview';
-        if (lower === 'rejected') return 'Rejected';
-        return s.charAt(0).toUpperCase() + s.slice(1).toLowerCase();
-      });
-      return query.in('current_status', mapped);
-    }
-    switch (status) {
-      case 'applied':
-        return query.eq('current_status', 'Applied');
-      case 'open':
-        return query.in('current_status', ['Applied', 'Shortlisted']);
-      case 'interview':
-        return query.eq('current_status', 'Interview');
-      case 'screening':
-        return query.eq('current_status', 'Screening');
-      case 'interviews-today':
-        return query;
-      case 'offer':
-      case 'offered':
-        return query.eq('current_status', 'Offer');
-      case 'hired':
-        return query.eq('current_status', 'Hired');
-      case 'rejected':
-        return query.eq('current_status', 'Rejected');
-      default:
-        return query;
-    }
-  };
-}
-
 export const getCandidatesPageHandler = asyncHandler(async (req: Request, res: Response) => {
+  const recruiter = req.recruiter;
+  if (!recruiter) {
+    res.status(401).json({ success: false, error: 'Authentication required' });
+    return;
+  }
+  const recruiterId = recruiter.id;
+
   const supabase = getSupabaseClient();
   const {
     page = '1',
@@ -82,7 +48,8 @@ export const getCandidatesPageHandler = asyncHandler(async (req: Request, res: R
       const { data: sessCandidates } = await supabase
         .from('candidates')
         .select('id')
-        .eq('upload_session_id', sessionId);
+        .eq('upload_session_id', sessionId)
+        .eq('recruiter_id', recruiterId);
       const ids = (sessCandidates || []).map((c: any) => c.id);
       if (ids.length > 0) {
         intQuery = intQuery.in('candidate_id', ids);
@@ -96,6 +63,7 @@ export const getCandidatesPageHandler = asyncHandler(async (req: Request, res: R
       const sessionsResult = await supabase
         .from('upload_sessions')
         .select('id, job_description_text, created_at, candidates(count)')
+        .eq('recruiter_id', recruiterId)
         .order('created_at', { ascending: false });
 
       const sessions: SessionSummary[] = (sessionsResult.data || []).map((s: Record<string, unknown>) => {
@@ -120,12 +88,14 @@ export const getCandidatesPageHandler = asyncHandler(async (req: Request, res: R
   const sessionsPromise = supabase
     .from('upload_sessions')
     .select('id, job_description_text, created_at, candidates(count)')
+    .eq('recruiter_id', recruiterId)
     .order('created_at', { ascending: false });
 
   // Build count query
   let countQuery: any = supabase
     .from('candidates')
-    .select('id', { count: 'exact', head: true });
+    .select('id', { count: 'exact', head: true })
+    .eq('recruiter_id', recruiterId);
 
   countQuery = buildStatusFilter(status)(countQuery);
   if (interviewCandidateIds) {
@@ -142,7 +112,8 @@ export const getCandidatesPageHandler = asyncHandler(async (req: Request, res: R
   // Build data query
   let dataQuery: any = supabase
     .from('candidates')
-    .select('id, upload_session_id, full_name, email, phone, location, current_company, current_title, total_experience_years, resume_file_url, flight_risk, growth_trajectory, current_status, created_at');
+    .select('id, upload_session_id, full_name, email, phone, location, current_company, current_title, total_experience_years, resume_file_url, flight_risk, growth_trajectory, current_status, created_at')
+    .eq('recruiter_id', recruiterId);
 
   dataQuery = buildStatusFilter(status)(dataQuery);
   if (interviewCandidateIds) {

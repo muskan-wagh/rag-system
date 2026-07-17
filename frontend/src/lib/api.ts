@@ -1,4 +1,4 @@
-import { API_BASE } from "./constants"
+import { API_BASE, CANDIDATE_STATUS } from "./constants"
 import { apiFetch } from "./api-fetch"
 import type {
   ApiResponse,
@@ -41,265 +41,238 @@ export type { StatusFilter } from "./types"
 async function request<T>(
   endpoint: string,
   options?: RequestInit,
+  authorization?: string,
 ): Promise<ApiResponse<T>> {
   const url = `${API_BASE}${endpoint}`
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+  }
+  if (authorization) {
+    headers["Authorization"] = authorization
+  }
   const res = await apiFetch(url, {
-    headers: { "Content-Type": "application/json" },
     ...options,
+    headers: { ...headers, ...(options?.headers as Record<string, string> || {}) },
   })
   return res.json() as Promise<ApiResponse<T>>
 }
 
-export async function searchCandidates(
-  jdText: string,
-  limit = 20,
-  filters?: SearchFilters,
-) {
-  return request<{ results: RankingResult[]; query: ParsedJD }>(
-    "/candidates/search",
-    {
-      method: "POST",
-      body: JSON.stringify({ jdText, limit, filters }),
-    },
-  )
-}
+export function createApiClient(getToken: () => Promise<string | null>) {
+  async function withAuth<T>(fn: (auth: string) => Promise<T>): Promise<T> {
+    const token = await getToken()
+    const authorization = token ? `Bearer ${token}` : ""
+    return fn(authorization)
+  }
 
-export async function compareCandidates(
-  jdText: string,
-  candidateIds: string[],
-) {
-  return request<{ comparison: string; query: ParsedJD }>(
-    "/candidates/compare",
-    {
-      method: "POST",
-      body: JSON.stringify({ jdText, candidateIds }),
-    },
-  )
-}
+  return {
+    searchCandidates: (jdText: string, limit = 20, filters?: SearchFilters) =>
+      withAuth((a) =>
+        request<{ results: RankingResult[]; query: ParsedJD }>(
+          "/candidates/search",
+          { method: "POST", body: JSON.stringify({ jdText, limit, filters }) },
+          a,
+        ),
+      ),
 
-export async function getCandidate(id: string) {
-  return request<Candidate>(`/candidates/${id}`, { method: "GET" })
-}
+    compareCandidates: (jdText: string, candidateIds: string[]) =>
+      withAuth((a) =>
+        request<{ comparison: string; query: ParsedJD }>(
+          "/candidates/compare",
+          { method: "POST", body: JSON.stringify({ jdText, candidateIds }) },
+          a,
+        ),
+      ),
 
-export async function batchCandidates(ids: string[]) {
-  return request<Candidate[]>("/candidates/batch", {
-    method: "POST",
-    body: JSON.stringify({ ids }),
-  })
-}
+    getCandidate: (id: string) =>
+      withAuth((a) => request<Candidate>(`/candidates/${id}`, { method: "GET" }, a)),
 
-export async function updateCandidateStatus(candidateId: string, status: string) {
-  return request<{ message: string }>(
-    `/candidates/${candidateId}/status`,
-    {
-      method: "PATCH",
-      body: JSON.stringify({ status }),
-    },
-  )
-}
+    batchCandidates: (ids: string[]) =>
+      withAuth((a) =>
+        request<Candidate[]>("/candidates/batch", {
+          method: "POST",
+          body: JSON.stringify({ ids }),
+        }, a),
+      ),
 
-export async function addCandidateNote(candidateId: string, noteText: string) {
-  return request<{ message: string }>(
-    `/candidates/${candidateId}/notes`,
-    {
-      method: "POST",
-      body: JSON.stringify({ noteText }),
-    },
-  )
-}
+    updateCandidateStatus: (candidateId: string, status: string) =>
+      withAuth((a) =>
+        request<{ message: string }>(`/candidates/${candidateId}/status`, {
+          method: "PATCH",
+          body: JSON.stringify({ status }),
+        }, a),
+      ),
 
-export async function getCandidateNotes(candidateId: string) {
-  return request<Array<{ id: string; note_text: string; created_at: string }>>(
-    `/candidates/${candidateId}/notes`,
-    { method: "GET" },
-  )
-}
+    addCandidateNote: (candidateId: string, noteText: string) =>
+      withAuth((a) =>
+        request<{ message: string }>(`/candidates/${candidateId}/notes`, {
+          method: "POST",
+          body: JSON.stringify({ noteText }),
+        }, a),
+      ),
 
-export async function getScreeningQuestions(candidateId: string) {
-  return request<{ questions: Array<{ question: string; focus_area: string; why_this_matters: string }> }>(
-    `/candidates/${candidateId}/screening-questions`,
-    { method: "POST" },
-  )
-}
+    getCandidateNotes: (candidateId: string) =>
+      withAuth((a) =>
+        request<Array<{ id: string; note_text: string; created_at: string }>>(
+          `/candidates/${candidateId}/notes`,
+          { method: "GET" },
+          a,
+        ),
+      ),
 
-export async function getClosingStrategy(candidateId: string) {
-  return request<{ selling_points: Array<{ point: string; detail: string }>; major_objection: { objection: string; overcome_strategy: string } }>(
-    `/candidates/${candidateId}/closing-strategy`,
-    { method: "POST" },
-  )
-}
+    getScreeningQuestions: (candidateId: string) =>
+      withAuth((a) =>
+        request<{ questions: Array<{ question: string; focus_area: string; why_this_matters: string }> }>(
+          `/candidates/${candidateId}/screening-questions`,
+          { method: "POST" },
+          a,
+        ),
+      ),
 
-export async function scanBias(jdText: string) {
-  return request<BiasResult>("/scan-bias", {
-    method: "POST",
-    body: JSON.stringify({ jdText }),
-  })
-}
+    getClosingStrategy: (candidateId: string) =>
+      withAuth((a) =>
+        request<{ selling_points: Array<{ point: string; detail: string }>; major_objection: { objection: string; overcome_strategy: string } }>(
+          `/candidates/${candidateId}/closing-strategy`,
+          { method: "POST" },
+          a,
+        ),
+      ),
 
-export async function getSessions() {
-  return request<SessionSummary[]>("/sessions", { method: "GET" })
-}
+    scanBias: (jdText: string) =>
+      withAuth((a) =>
+        request<BiasResult>("/scan-bias", {
+          method: "POST",
+          body: JSON.stringify({ jdText }),
+        }, a),
+      ),
 
-export async function getSessionStats(sessionId: string) {
-  return request<SessionStats>(`/sessions/${sessionId}/stats`, { method: "GET" })
-}
+    getSessions: () =>
+      withAuth((a) => request<SessionSummary[]>("/sessions", { method: "GET" }, a)),
 
-export async function getAllCandidates(params: {
-  page?: number
-  limit?: number
-  search?: string
-  sortBy?: string
-  sortOrder?: "asc" | "desc"
-  sessionId?: string
-  status?: string
-} = {}) {
-  const searchParams = new URLSearchParams()
-  if (params.page) searchParams.set("page", String(params.page))
-  if (params.limit) searchParams.set("limit", String(params.limit))
-  if (params.search) searchParams.set("search", params.search)
-  if (params.sortBy) searchParams.set("sortBy", params.sortBy)
-  if (params.sortOrder) searchParams.set("sortOrder", params.sortOrder)
-  if (params.sessionId) searchParams.set("sessionId", params.sessionId)
-  if (params.status) searchParams.set("status", params.status)
-  const qs = searchParams.toString()
-  return request<PaginatedCandidates>(`/candidates${qs ? `?${qs}` : ""}`, { method: "GET" })
-}
+    getSessionStats: (sessionId: string) =>
+      withAuth((a) => request<SessionStats>(`/sessions/${sessionId}/stats`, { method: "GET" }, a)),
 
-export async function getCandidateRecord(id: string) {
-  return request<CandidateRecord>(`/candidates/${id}`, { method: "GET" })
-}
+    getAllCandidates: (params: {
+      page?: number; limit?: number; search?: string; sortBy?: string;
+      sortOrder?: "asc" | "desc"; sessionId?: string; status?: string;
+    } = {}) =>
+      withAuth((a) => {
+        const searchParams = new URLSearchParams()
+        if (params.page) searchParams.set("page", String(params.page))
+        if (params.limit) searchParams.set("limit", String(params.limit))
+        if (params.search) searchParams.set("search", params.search)
+        if (params.sortBy) searchParams.set("sortBy", params.sortBy)
+        if (params.sortOrder) searchParams.set("sortOrder", params.sortOrder)
+        if (params.sessionId) searchParams.set("sessionId", params.sessionId)
+        if (params.status) searchParams.set("status", params.status)
+        const qs = searchParams.toString()
+        return request<PaginatedCandidates>(`/candidates${qs ? `?${qs}` : ""}`, { method: "GET" }, a)
+      }),
 
-export async function scheduleInterview(
-  candidateId: string,
-  data: {
-    scheduledDate: string
-    scheduledTime: string
-    interviewType: string
-    interviewerName?: string
-    notes?: string
-  },
-) {
-  return request<InterviewData>(
-    `/candidates/${candidateId}/interviews`,
-    {
-      method: "POST",
-      body: JSON.stringify(data),
-    },
-  )
-}
+    getCandidateRecord: (id: string) =>
+      withAuth((a) => request<CandidateRecord>(`/candidates/${id}`, { method: "GET" }, a)),
 
-export async function getCandidateInterviews(candidateId: string) {
-  return request<InterviewData[]>(
-    `/candidates/${candidateId}/interviews`,
-    { method: "GET" },
-  )
-}
+    scheduleInterview: (candidateId: string, data: {
+      scheduledDate: string; scheduledTime: string; interviewType: string;
+      interviewerName?: string; notes?: string;
+    }) =>
+      withAuth((a) =>
+        request<InterviewData>(`/candidates/${candidateId}/interviews`, {
+          method: "POST",
+          body: JSON.stringify(data),
+        }, a),
+      ),
 
-export async function rescheduleInterview(
-  candidateId: string,
-  interviewId: string,
-  data: {
-    scheduledDate?: string
-    scheduledTime?: string
-    interviewType?: string
-    interviewerName?: string
-    notes?: string
-    status?: string
-  },
-) {
-  return request<{ message: string }>(
-    `/candidates/${candidateId}/interviews/${interviewId}`,
-    {
-      method: "PATCH",
-      body: JSON.stringify(data),
-    },
-  )
-}
+    getCandidateInterviews: (candidateId: string) =>
+      withAuth((a) =>
+        request<InterviewData[]>(`/candidates/${candidateId}/interviews`, { method: "GET" }, a),
+      ),
 
-export async function makeOffer(
-  candidateId: string,
-  data: { salary?: number; joiningDate?: string; notes?: string },
-) {
-  return request<OfferData>(
-    `/candidates/${candidateId}/offer`,
-    {
-      method: "POST",
-      body: JSON.stringify(data),
-    },
-  )
-}
+    rescheduleInterview: (candidateId: string, interviewId: string, data: {
+      scheduledDate?: string; scheduledTime?: string; interviewType?: string;
+      interviewerName?: string; notes?: string; status?: string;
+    }) =>
+      withAuth((a) =>
+        request<{ message: string }>(`/candidates/${candidateId}/interviews/${interviewId}`, {
+          method: "PATCH",
+          body: JSON.stringify(data),
+        }, a),
+      ),
 
-export async function acceptOffer(candidateId: string) {
-  return request<{ message: string }>(
-    `/candidates/${candidateId}/hire`,
-    { method: "POST" },
-  )
-}
+    makeOffer: (candidateId: string, data: { salary?: number; joiningDate?: string; notes?: string }) =>
+      withAuth((a) =>
+        request<OfferData>(`/candidates/${candidateId}/offer`, {
+          method: "POST",
+          body: JSON.stringify(data),
+        }, a),
+      ),
 
-export async function rejectCandidate(
-  candidateId: string,
-  reason: string,
-  notes?: string,
-  changedBy?: string,
-) {
-  return request<{ message: string }>(
-    `/candidates/${candidateId}/reject`,
-    {
-      method: "POST",
-      body: JSON.stringify({ reason, notes, changedBy }),
-    },
-  )
-}
+    acceptOffer: (candidateId: string) =>
+      withAuth((a) =>
+        request<{ message: string }>(`/candidates/${candidateId}/hire`, { method: "POST" }, a),
+      ),
 
-export async function generateEmailTemplate(candidateId: string) {
-  return request<{ subject: string; body: string }>(
-    `/candidates/${candidateId}/email-template`,
-    { method: "POST" },
-  )
-}
+    rejectCandidate: (candidateId: string, reason: string, notes?: string, changedBy?: string) =>
+      withAuth((a) =>
+        request<{ message: string }>(`/candidates/${candidateId}/reject`, {
+          method: "POST",
+          body: JSON.stringify({ reason, notes, changedBy }),
+        }, a),
+      ),
 
-export async function sendInterviewEmail(candidateId: string, interviewId?: string, subject?: string, body?: string) {
-  return request<{ message: string; subject?: string; body?: string }>(
-    `/candidates/${candidateId}/send-email`,
-    {
-      method: "POST",
-      body: JSON.stringify({ interviewId, subject, body }),
-    },
-  )
-}
+    generateEmailTemplate: (candidateId: string) =>
+      withAuth((a) =>
+        request<{ subject: string; body: string }>(`/candidates/${candidateId}/email-template`, { method: "POST" }, a),
+      ),
 
-export async function getCandidateTimeline(candidateId: string) {
-  return request<TimelineEntry[]>(
-    `/candidates/${candidateId}/timeline`,
-    { method: "GET" },
-  )
-}
+    sendInterviewEmail: (candidateId: string, interviewId?: string, subject?: string, body?: string) =>
+      withAuth((a) =>
+        request<{ message: string; subject?: string; body?: string }>(`/candidates/${candidateId}/send-email`, {
+          method: "POST",
+          body: JSON.stringify({ interviewId, subject, body }),
+        }, a),
+      ),
 
-export async function getDashboard(page = 1, limit = 50) {
-  return request<DashboardData>(`/dashboard?page=${page}&limit=${limit}`, { method: "GET" })
-}
+    getCandidateTimeline: (candidateId: string) =>
+      withAuth((a) =>
+        request<TimelineEntry[]>(`/candidates/${candidateId}/timeline`, { method: "GET" }, a),
+      ),
 
-export async function getCandidatesPage(params: {
-  page?: number
-  limit?: number
-  search?: string
-  sortBy?: string
-  sortOrder?: "asc" | "desc"
-  sessionId?: string
-  status?: string
-} = {}) {
-  const searchParams = new URLSearchParams()
-  if (params.page) searchParams.set("page", String(params.page))
-  if (params.limit) searchParams.set("limit", String(params.limit))
-  if (params.search) searchParams.set("search", params.search)
-  if (params.sortBy) searchParams.set("sortBy", params.sortBy)
-  if (params.sortOrder) searchParams.set("sortOrder", params.sortOrder)
-  if (params.sessionId) searchParams.set("sessionId", params.sessionId)
-  if (params.status) searchParams.set("status", params.status)
-  const qs = searchParams.toString()
-  return request<CandidatesPageData>(`/candidates-page${qs ? `?${qs}` : ""}`, { method: "GET" })
-}
+    generateLink: (jdText: string) =>
+      withAuth((a) =>
+        request<{ sessionId: string; link: string; createdAt: string }>("/generate-link", {
+          method: "POST",
+          body: JSON.stringify({ jdText }),
+        }, a),
+      ),
 
-export async function markCandidateAsHired(candidateId: string) {
-  return updateCandidateStatus(candidateId, "Hired")
+    getDashboard: (page = 1, limit = 50) =>
+      withAuth((a) =>
+        request<DashboardData>(`/dashboard?page=${page}&limit=${limit}`, { method: "GET" }, a),
+      ),
+
+    getCandidatesPage: (params: {
+      page?: number; limit?: number; search?: string; sortBy?: string;
+      sortOrder?: "asc" | "desc"; sessionId?: string; status?: string;
+    } = {}) =>
+      withAuth((a) => {
+        const searchParams = new URLSearchParams()
+        if (params.page) searchParams.set("page", String(params.page))
+        if (params.limit) searchParams.set("limit", String(params.limit))
+        if (params.search) searchParams.set("search", params.search)
+        if (params.sortBy) searchParams.set("sortBy", params.sortBy)
+        if (params.sortOrder) searchParams.set("sortOrder", params.sortOrder)
+        if (params.sessionId) searchParams.set("sessionId", params.sessionId)
+        if (params.status) searchParams.set("status", params.status)
+        const qs = searchParams.toString()
+        return request<CandidatesPageData>(`/candidates-page${qs ? `?${qs}` : ""}`, { method: "GET" }, a)
+      }),
+
+    markCandidateAsHired: (candidateId: string) =>
+      withAuth((a) =>
+        request<{ message: string }>(`/candidates/${candidateId}/status`, {
+          method: "PATCH",
+          body: JSON.stringify({ status: CANDIDATE_STATUS.HIRED }),
+        }, a),
+      ),
+  }
 }

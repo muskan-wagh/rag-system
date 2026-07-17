@@ -94,4 +94,14 @@ export interface CompareCandidatesResponse {
   query: ParsedJD;
 }
 
+import { RecruiterRecord } from '@/services/supabase/database';
+
+declare global {
+  namespace Express {
+    interface Request {
+      recruiter?: RecruiterRecord;
+    }
+  }
+}
+
 

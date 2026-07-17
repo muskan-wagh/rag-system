@@ -3,6 +3,8 @@
 import Link from "next/link"
 import { useState } from "react"
 import { Menu, X } from "lucide-react"
+import { useUser, UserButton } from "@clerk/nextjs"
+
 const navItems = [
   { href: "/#features", label: "Features" },
   { href: "/#how-it-works", label: "How It Works" },
@@ -11,6 +13,7 @@ const navItems = [
 
 export function MarketingNav() {
   const [menuOpen, setMenuOpen] = useState(false)
+  const { isSignedIn } = useUser()
 
   return (
     <header className="fixed top-0 left-0 right-0 z-50">
@@ -42,18 +45,32 @@ export function MarketingNav() {
           </nav>
 
           <div className="hidden md:flex items-center gap-3">
-            <Link
-              href="/dashboard"
-              className="inline-flex items-center justify-center rounded-lg border border-border bg-background px-4 py-2 text-sm font-medium text-foreground hover:bg-muted transition-colors"
-            >
-              Sign In
-            </Link>
-            <Link
-              href="/dashboard"
-              className="inline-flex items-center justify-center rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors shadow-sm"
-            >
-              Get Started
-            </Link>
+            {isSignedIn ? (
+              <>
+                <Link
+                  href="/dashboard"
+                  className="inline-flex items-center justify-center rounded-lg border border-border bg-background px-4 py-2 text-sm font-medium text-foreground hover:bg-muted transition-colors"
+                >
+                  Dashboard
+                </Link>
+                  <UserButton />
+              </>
+            ) : (
+              <>
+                <Link
+                  href="/sign-in"
+                  className="inline-flex items-center justify-center rounded-lg border border-border bg-background px-4 py-2 text-sm font-medium text-foreground hover:bg-muted transition-colors"
+                >
+                  Sign In
+                </Link>
+                <Link
+                  href="/sign-up"
+                  className="inline-flex items-center justify-center rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors shadow-sm"
+                >
+                  Get Started
+                </Link>
+              </>
+            )}
           </div>
 
           <button
@@ -79,20 +96,37 @@ export function MarketingNav() {
               </Link>
             ))}
             <hr className="my-3 border-border" />
-            <Link
-              href="/dashboard"
-              onClick={() => setMenuOpen(false)}
-              className="block px-3 py-2.5 text-sm font-medium text-center rounded-lg border border-border hover:bg-muted transition-colors"
-            >
-              Sign In
-            </Link>
-            <Link
-              href="/dashboard"
-              onClick={() => setMenuOpen(false)}
-              className="block px-3 py-2.5 text-sm font-medium text-center rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
-            >
-              Get Started
-            </Link>
+            {isSignedIn ? (
+              <>
+                <Link
+                  href="/dashboard"
+                  onClick={() => setMenuOpen(false)}
+                  className="block px-3 py-2.5 text-sm font-medium text-center rounded-lg border border-border hover:bg-muted transition-colors"
+                >
+                  Dashboard
+                </Link>
+                <div className="flex justify-center">
+                <UserButton />
+                </div>
+              </>
+            ) : (
+              <>
+                <Link
+                  href="/sign-in"
+                  onClick={() => setMenuOpen(false)}
+                  className="block px-3 py-2.5 text-sm font-medium text-center rounded-lg border border-border hover:bg-muted transition-colors"
+                >
+                  Sign In
+                </Link>
+                <Link
+                  href="/sign-up"
+                  onClick={() => setMenuOpen(false)}
+                  className="block px-3 py-2.5 text-sm font-medium text-center rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
+                >
+                  Get Started
+                </Link>
+              </>
+            )}
           </div>
         </div>
       )}
