@@ -1,63 +1,42 @@
 import { API_BASE } from "./constants"
 import { apiFetch } from "./api-fetch"
+import type {
+  ApiResponse,
+  ParsedJD,
+  Candidate,
+  RankingResult,
+  SearchFilters,
+  BiasResult,
+  SessionSummary,
+  SessionStats,
+  CandidateRecord,
+  PaginatedCandidates,
+  InterviewData,
+  OfferData,
+  TimelineEntry,
+  DashboardData,
+  CandidatesPageData,
+} from "./types"
 
-interface ApiResponse<T> {
-  success: boolean
-  data?: T
-  error?: string
-  details?: unknown
-}
+export type {
+  ParsedJD,
+  Candidate,
+  RankingResult,
+  RankingScore,
+  SearchFilters,
+  BiasResult,
+  SessionSummary,
+  SessionStats,
+  CandidateRecord,
+  PaginatedCandidates,
+  InterviewData,
+  OfferData,
+  TimelineEntry,
+  DashboardData,
+  CandidatesPageData,
+} from "./types"
 
-export interface ParsedJD {
-  title: string
-  skills: string[]
-  experience: { min: number; max: number }
-  education: { level: string; field: string }
-  responsibilities: string[]
-  requirements: string[]
-  rawText: string
-}
-
-export interface Candidate {
-  id: string
-  name: string
-  email?: string
-  phone?: string
-  skills: string[]
-  experience: number
-  education: {
-    level: string
-    field: string
-    details?: string
-  }
-  summary: string
-}
-
-interface RankingScore {
-  skill: number
-  experience: number
-  education: number
-  overall: number
-}
-
-export interface RankingResult {
-  candidate: Candidate
-  scores: RankingScore
-  explanation: string
-}
-
-export interface SearchFilters {
-  minExperience?: number
-  maxExperience?: number
-  skills?: string[]
-  educationLevel?: string
-}
-
-export interface BiasResult {
-  has_bias: boolean
-  issues: Array<{ category: string; text: string; suggestion: string }>
-  suggestions: string[]
-}
+export type { StatusFilter } from "./types"
 
 async function request<T>(
   endpoint: string,
@@ -157,60 +136,12 @@ export async function scanBias(jdText: string) {
   })
 }
 
-// --- New API functions for dashboard & candidate management ---
-
-export interface SessionSummary {
-  id: string
-  job_description_text: string
-  created_at: string
-  candidate_count: number
-}
-
 export async function getSessions() {
   return request<SessionSummary[]>("/sessions", { method: "GET" })
 }
 
-export interface SessionStats {
-  open: number
-  applied: number
-  screening: number
-  interview: number
-  interviewsToday: number
-  offered: number
-  hired: number
-  rejected: number
-}
-
 export async function getSessionStats(sessionId: string) {
   return request<SessionStats>(`/sessions/${sessionId}/stats`, { method: "GET" })
-}
-
-export interface CandidateRecord {
-  id: string
-  upload_session_id?: string
-  full_name?: string
-  email?: string
-  phone?: string
-  location?: string
-  current_company?: string
-  current_title?: string
-  total_experience_years?: number
-  raw_resume_text?: string
-  resume_file_url?: string
-  flight_risk?: string
-  growth_trajectory?: string
-  current_status?: string
-  created_at?: string
-  skills?: string[]
-  match_score?: number
-}
-
-export interface PaginatedCandidates {
-  candidates: CandidateRecord[]
-  total: number
-  page: number
-  limit: number
-  totalPages: number
 }
 
 export async function getAllCandidates(params: {
@@ -236,40 +167,6 @@ export async function getAllCandidates(params: {
 
 export async function getCandidateRecord(id: string) {
   return request<CandidateRecord>(`/candidates/${id}`, { method: "GET" })
-}
-
-// --- New Candidate Workflow API functions ---
-
-export interface InterviewData {
-  id: string
-  candidate_id: string
-  scheduled_date: string
-  scheduled_time: string
-  interview_type: string
-  interviewer_name: string
-  notes: string
-  meeting_link: string
-  status: string
-  created_at: string
-}
-
-export interface OfferData {
-  id: string
-  candidate_id: string
-  salary: number | null
-  joining_date: string | null
-  notes: string
-  status: string
-  created_at: string
-}
-
-export interface TimelineEntry {
-  id: string
-  candidate_id: string
-  status: string
-  changed_at: string
-  changed_by: string
-  details: Record<string, unknown> | null
 }
 
 export async function scheduleInterview(
@@ -371,10 +268,6 @@ export async function sendInterviewEmail(candidateId: string, interviewId?: stri
   )
 }
 
-export async function markCandidateAsHired(candidateId: string) {
-  return updateCandidateStatus(candidateId, "Hired")
-}
-
 export async function getCandidateTimeline(candidateId: string) {
   return request<TimelineEntry[]>(
     `/candidates/${candidateId}/timeline`,
@@ -382,36 +275,8 @@ export async function getCandidateTimeline(candidateId: string) {
   )
 }
 
-export type StatusFilter = 'open' | 'screening' | 'offered' | 'hired' | 'rejected' | 'all'
-
-// --- Combined single-response endpoints (eliminate waterfall) ---
-
-export interface DashboardData {
-  session: {
-    id: string
-    job_description_text: string
-    created_at: string
-    link: string
-  } | null
-  candidates: CandidateRecord[]
-  stats: SessionStats
-  pagination?: {
-    page: number
-    limit: number
-  }
-}
-
 export async function getDashboard(page = 1, limit = 50) {
   return request<DashboardData>(`/dashboard?page=${page}&limit=${limit}`, { method: "GET" })
-}
-
-export interface CandidatesPageData {
-  sessions: SessionSummary[]
-  candidates: CandidateRecord[]
-  total: number
-  page: number
-  limit: number
-  totalPages: number
 }
 
 export async function getCandidatesPage(params: {
@@ -433,4 +298,8 @@ export async function getCandidatesPage(params: {
   if (params.status) searchParams.set("status", params.status)
   const qs = searchParams.toString()
   return request<CandidatesPageData>(`/candidates-page${qs ? `?${qs}` : ""}`, { method: "GET" })
+}
+
+export async function markCandidateAsHired(candidateId: string) {
+  return updateCandidateStatus(candidateId, "Hired")
 }

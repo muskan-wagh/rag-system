@@ -14,8 +14,6 @@ import {
   getCandidateNotes,
   getScreeningQuestions,
   getClosingStrategy,
-  acceptOffer,
-  sendInterviewEmail,
 } from "@/lib/api"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -126,7 +124,6 @@ export function CandidateDetailModal({ open, onClose, candidate, onStatusChange 
   const [newNote, setNewNote] = useState("")
   const [savingNote, setSavingNote] = useState(false)
 
-  const [statusLoading, setStatusLoading] = useState(false)
   const [shortlisting, setShortlisting] = useState(false)
   const [movingToInterview, setMovingToInterview] = useState(false)
   const [rejecting, setRejecting] = useState(false)
@@ -229,80 +226,6 @@ export function CandidateDetailModal({ open, onClose, candidate, onStatusChange 
       toast.error("Failed to save note")
     } finally {
       setSavingNote(false)
-    }
-  }
-
-  const handleStatusChange = async (status: string) => {
-    if (!candidate) return
-    setStatusLoading(true)
-    try {
-      await updateCandidateStatus(candidate.id, status)
-      onStatusChange?.()
-      toast.success(`Candidate moved to ${status}!`)
-    } catch {
-      toast.error("Failed to update status")
-    } finally {
-      setStatusLoading(false)
-    }
-  }
-
-  const handleAction = async (action: string) => {
-    if (!candidate) return
-
-    switch (action) {
-      case "shortlisted":
-      case "screening":
-      case "interview-completed":
-      case "technical-round":
-      case "hr-round":
-        await handleStatusChange(
-          action === "interview-completed" ? "Interview Completed"
-          : action === "shortlisted" ? "Shortlisted"
-          : action === "screening" ? "Screening"
-          : action === "technical-round" ? "Technical Round"
-          : action === "hr-round" ? "HR Round"
-          : action,
-        )
-        break
-      case "schedule-interview":
-        setShowScheduleModal(true)
-        break
-      case "reschedule":
-        setShowScheduleModal(true)
-        break
-      case "send-reminder":
-        setStatusLoading(true)
-        try {
-          const res = await sendInterviewEmail(candidate.id)
-          if (res.success) {
-            toast.success("Reminder email sent!")
-          } else {
-            toast.error(res.error || "Failed to send email")
-          }
-        } catch {
-          toast.error("Failed to send email")
-        } finally {
-          setStatusLoading(false)
-        }
-        break
-      case "make-offer":
-        setShowOfferModal(true)
-        break
-      case "hired":
-        setStatusLoading(true)
-        try {
-          await acceptOffer(candidate.id)
-          onStatusChange?.()
-          toast.success("Candidate marked as hired!")
-        } catch {
-          toast.error("Failed to mark as hired")
-        } finally {
-          setStatusLoading(false)
-        }
-        break
-      case "reject":
-        setShowRejectModal(true)
-        break
     }
   }
 

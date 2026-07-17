@@ -1,21 +1,20 @@
 "use client"
 
 import { motion } from "framer-motion"
-import { FileText, Brain, Search, BarChart3, GitCompare, Target, Sparkles, ArrowDown } from "lucide-react"
+import { FileText, Brain, Search, BarChart3, GitCompare, Sparkles, ArrowDown } from "lucide-react"
 
 const steps = [
   { icon: FileText, title: "Job Description", description: "Paste a job description or describe your ideal candidate in natural language." },
-  { icon: Brain, title: "AI Parser", description: "Qwen3 Next 80B A3B extracts skills, experience requirements, and responsibilities." },
-  { icon: Search, title: "FastEmbed", description: "Converts parsed requirements into high-dimensional semantic vectors." },
-  { icon: BarChart3, title: "Qdrant Semantic Search", description: "Vector database finds semantically similar candidates at scale." },
-  { icon: GitCompare, title: "Hybrid Ranking Engine", description: "Combines semantic similarity with weighted skill, experience, and education scores." },
-  { icon: Target, title: "Qwen3 Next 80B A3B", description: "Large language model generates explainable rankings and hiring insights." },
-  { icon: Sparkles, title: "Candidate Rankings", description: "Browse ranked candidates with detailed score breakdowns and AI explanations." },
+  { icon: Brain, title: "AI Parser", description: "Advanced LLM extracts skills, experience requirements, and responsibilities." },
+  { icon: Search, title: "Vector Embeddings", description: "Converts parsed requirements into high-dimensional semantic vectors." },
+  { icon: BarChart3, title: "Semantic Search", description: "Vector database finds semantically similar candidates at scale." },
+  { icon: GitCompare, title: "Hybrid Ranking", description: "Combines semantic similarity with weighted skill, experience, and education scores." },
+  { icon: Sparkles, title: "Ranked Results", description: "Browse ranked candidates with detailed score breakdowns and AI explanations." },
 ]
 
-export function HowItWorks() {
+export function WorkflowSection() {
   return (
-    <section className="w-full py-20 md:py-28 bg-primary/[0.01]">
+    <section id="how-it-works" className="w-full py-16 md:py-24 bg-primary/[0.02]">
       <div className="mx-auto max-w-4xl px-4 md:px-6">
         <motion.div
           initial={{ opacity: 0, y: 12 }}
@@ -45,7 +44,7 @@ export function HowItWorks() {
                 className="relative md:flex md:items-start md:gap-8 md:pb-8"
               >
                 <div className="hidden md:flex flex-col items-center">
-                  <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10 ring-1 ring-primary/10 relative z-10">
+                  <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-primary/10 ring-1 ring-primary/10 relative z-10">
                     <step.icon className="h-6 w-6 text-primary" />
                   </div>
                   {i < steps.length - 1 && (
@@ -55,17 +54,8 @@ export function HowItWorks() {
                   )}
                 </div>
 
-                <div className="md:hidden flex items-start gap-4">
-                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-primary/10 ring-1 ring-primary/10">
-                    <step.icon className="h-5 w-5 text-primary" />
-                  </div>
-                  {i < steps.length - 1 && (
-                    <div className="absolute left-6 top-12 bottom-0 w-px bg-border" />
-                  )}
-                </div>
-
-                <div className="flex-1 md:pt-3 ml-16 md:ml-0">
-                  <div className="inline-flex items-center gap-2 rounded-full bg-primary/5 px-2.5 py-0.5 text-[10px] font-medium text-primary mb-2">
+                <div className="flex-1 md:pt-2 ml-16 md:ml-0">
+                  <div className="inline-flex items-center gap-1.5 rounded-full bg-primary/5 px-2 py-0.5 text-[10px] font-medium text-primary mb-2">
                     Step {i + 1}
                   </div>
                   <h3 className="text-base font-medium text-foreground mb-1">{step.title}</h3>

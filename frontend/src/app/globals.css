@@ -22,11 +22,11 @@
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
-  --color-chart-1: var(--chart-1);
-  --color-chart-2: var(--chart-2);
-  --color-chart-3: var(--chart-3);
-  --color-chart-4: var(--chart-4);
-  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
@@ -36,31 +36,31 @@
 }
 
 :root {
-  --radius: 0.75rem;
+  --radius: 0.5rem;
   --background: #F8FAFC;
-  --foreground: #111827;
+  --foreground: #0F172A;
   --card: #FFFFFF;
-  --card-foreground: #111827;
+  --card-foreground: #0F172A;
   --popover: #FFFFFF;
-  --popover-foreground: #111827;
-  --primary: #2563EB;
+  --popover-foreground: #0F172A;
+  --primary: #0D9488;
   --primary-foreground: #FFFFFF;
   --secondary: #F1F5F9;
-  --secondary-foreground: #111827;
+  --secondary-foreground: #0F172A;
   --muted: #F1F5F9;
-  --muted-foreground: #6B7280;
-  --accent: #06B6D4;
+  --muted-foreground: #64748B;
+  --accent: #14B8A6;
   --accent-foreground: #FFFFFF;
   --destructive: #EF4444;
   --destructive-foreground: #FFFFFF;
-  --border: #E5E7EB;
-  --input: #E5E7EB;
-  --ring: #2563EB;
-  --chart-1: #2563EB;
-  --chart-2: #06B6D4;
-  --chart-3: #06B6D4;
-  --chart-4: #F59E0B;
-  --chart-5: #10B981;
+  --border: #E2E8F0;
+  --input: #E2E8F0;
+  --ring: #0D9488;
+  --sidebar: #FFFFFF;
+  --sidebar-foreground: #475569;
+  --sidebar-border: #E2E8F0;
+  --success: #10B981;
+  --warning: #F59E0B;
 }
 
 @layer base {
@@ -72,7 +72,7 @@
     font-family: var(--font-geist-sans), system-ui, sans-serif;
   }
   ::selection {
-    background: rgba(37, 99, 235, 0.15);
+    background: rgba(13, 148, 136, 0.12);
   }
   ::-webkit-scrollbar {
     width: 6px;
@@ -82,44 +82,16 @@
     background: transparent;
   }
   ::-webkit-scrollbar-thumb {
-    background: #D1D5DB;
+    background: #CBD5E1;
     border-radius: 3px;
   }
   ::-webkit-scrollbar-thumb:hover {
-    background: #9CA3AF;
+    background: #94A3B8;
   }
 }
 
-@utility glass {
-  background: rgba(255, 255, 255, 0.6);
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
-  border: 1px solid rgba(0, 0, 0, 0.05);
-}
-
-@utility glass-heavy {
-  background: rgba(255, 255, 255, 0.85);
-  backdrop-filter: blur(32px);
-  -webkit-backdrop-filter: blur(32px);
-  border: 1px solid rgba(0, 0, 0, 0.06);
-}
-
-@utility card-hover {
-  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
-}
-.card-hover:hover {
-  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.06);
-  border-color: rgba(37, 99, 235, 0.2);
-}
-
-@utility focus-ring {
-  outline: none;
-  ring: 2px solid var(--ring);
-  ring-offset: 2px;
-}
-
 @keyframes fade-in-up {
-  from { opacity: 0; transform: translateY(12px); }
+  from { opacity: 0; transform: translateY(8px); }
   to { opacity: 1; transform: translateY(0); }
 }
 
@@ -138,56 +110,20 @@
   100% { background-position: 200% 0; }
 }
 
-@keyframes bounce-dot {
-  0%, 80%, 100% { transform: scale(0); }
-  40% { transform: scale(1); }
-}
-
-@keyframes slide-up {
-  from { opacity: 0; transform: translateY(20px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-@keyframes pulse-subtle {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.7; }
-}
-
-@keyframes dash {
-  to { stroke-dashoffset: 0; }
-}
-
 @utility animate-fade-in-up {
-  animation: fade-in-up 0.5s ease-out forwards;
+  animation: fade-in-up 0.4s ease-out forwards;
 }
 
 @utility animate-fade-in {
-  animation: fade-in 0.3s ease-out forwards;
+  animation: fade-in 0.25s ease-out forwards;
 }
 
 @utility animate-scale-in {
-  animation: scale-in 0.3s ease-out forwards;
+  animation: scale-in 0.2s ease-out forwards;
 }
 
 @utility animate-shimmer {
-  background: linear-gradient(
-    90deg,
-    rgba(229, 231, 235, 0.4) 0%,
-    rgba(209, 213, 219, 0.7) 50%,
-    rgba(229, 231, 235, 0.4) 100%
-  );
+  background: linear-gradient(90deg, rgba(226, 232, 240, 0.4) 0%, rgba(203, 213, 225, 0.7) 50%, rgba(226, 232, 240, 0.4) 100%);
   background-size: 200% 100%;
   animation: shimmer 1.5s infinite;
-}
-
-@utility animate-bounce-dot {
-  animation: bounce-dot 1.4s infinite ease-in-out both;
-}
-
-@utility animate-slide-up {
-  animation: slide-up 0.5s ease-out forwards;
-}
-
-@utility animate-pulse-subtle {
-  animation: pulse-subtle 2s ease-in-out infinite;
 }

@@ -256,11 +256,9 @@ export interface SessionWithCount {
 export async function getAllSessions(): Promise<SessionWithCount[]> {
   const supabase = getSupabaseClient();
 
-  // Exclude job_description_text — it's 2-10KB per session and unnecessary for the list view.
-  // The sidebar only shows a 55-char truncated preview; the full text comes from getSession().
   const { data, error } = await supabase
     .from('upload_sessions')
-    .select('id, created_at, candidates(count)')
+    .select('id, job_description_text, created_at, candidates(count)')
     .order('created_at', { ascending: false });
 
   if (error) {
@@ -269,9 +267,10 @@ export async function getAllSessions(): Promise<SessionWithCount[]> {
 
   return (data || []).map((s: Record<string, unknown>) => {
     const candidates = s.candidates as Array<{ count: number }> | undefined;
+    const rawText = (s.job_description_text as string) || '';
     return {
       id: s.id as string,
-      job_description_text: '',
+      job_description_text: rawText.slice(0, 100),
       created_at: s.created_at as string,
       candidate_count: candidates?.[0]?.count ?? 0,
     };

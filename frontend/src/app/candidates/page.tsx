@@ -2,22 +2,24 @@
 
 import { Suspense, useState, useEffect, useCallback, useRef } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
-import Link from "next/link"
 import {
-  Search, Users, FileText, ChevronLeft, ChevronRight,
+  Users, FileText, ChevronLeft, ChevronRight,
   LayoutDashboard, BadgeCheck, Loader2,
 } from "lucide-react"
 import { toast } from "sonner"
 import { CandidateDetailModal } from "@/components/candidate-detail-modal"
 import { getCandidatesPage, markCandidateAsHired } from "@/lib/api"
 import { useWebSocket } from "@/lib/use-websocket"
-import { ROUTES } from "@/lib/constants"
+import { ROUTES, getStatusColor, getInitials, formatDate, getFlightRiskColor } from "@/lib/constants"
+import type { SessionSummary, CandidateRecord, CandidatesPageData } from "@/lib/api"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card } from "@/components/ui/card"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Skeleton } from "@/components/ui/skeleton"
 import { EmptyState } from "@/components/ui/empty-state"
+import { PageHeader } from "@/components/ui/page-header"
+import { SearchInput } from "@/components/ui/search-input"
 import {
   Table,
   TableHeader,
@@ -27,33 +29,6 @@ import {
   TableCell,
 } from "@/components/ui/table"
 import { Dialog, DialogContent } from "@/components/ui/dialog"
-import { getStatusColor } from "@/lib/constants"
-import type { SessionSummary, CandidateRecord, CandidatesPageData, StatusFilter } from "@/lib/api"
-
-function getInitials(name?: string): string {
-  return (name || "?")
-    .split(" ")
-    .map((n) => n[0])
-    .join("")
-    .slice(0, 2)
-    .toUpperCase()
-}
-
-function getFlightRiskColor(risk?: string): "destructive" | "default" | "outline" {
-  const r = (risk || "").toLowerCase()
-  if (r === "high") return "destructive"
-  if (r === "medium") return "default"
-  return "outline"
-}
-
-function formatDate(dateStr?: string): string {
-  if (!dateStr) return "—"
-  try {
-    return new Date(dateStr).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })
-  } catch {
-    return dateStr
-  }
-}
 
 const PAGE_SIZE = 20
 
@@ -75,13 +50,10 @@ function CandidatesContent() {
   const [showHireConfirm, setShowHireConfirm] = useState(false)
   const [hireCandidate, setHireCandidate] = useState<CandidateRecord | null>(null)
   const [hireLoading, setHireLoading] = useState(false)
-  const searchInputRef = useRef<HTMLInputElement>(null)
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  // Read status filter from URL
-  const statusFilterParam = searchParams.get("status") as StatusFilter | null
+  const statusFilterParam = searchParams.get("status") as string | null
 
-  // Filter tab configuration
   const statusTabs = [
     { label: "All", value: null },
     { label: "Hired", value: "hired" },
@@ -89,7 +61,6 @@ function CandidatesContent() {
     { label: "Rejected", value: "rejected" },
   ] as const
 
-  // Single function that loads everything the Candidates page needs in ONE API call
   const loadCandidatesPage = useCallback(async (sessionId: string | null, query: string, currentPage: number, statusFilter?: string | null) => {
     setCandidatesLoading(true)
     setSessionsLoading(true)
@@ -107,8 +78,7 @@ function CandidatesContent() {
         setSessions(res.data.sessions)
         setCandidatesData(res.data)
       }
-    } catch (e) {
-      console.error("Failed to load candidates page:", e)
+    } catch {
       toast.error("Failed to load candidates")
     } finally {
       setCandidatesLoading(false)
@@ -116,7 +86,6 @@ function CandidatesContent() {
     }
   }, [])
 
-  // Read session from URL on mount, then load everything
   useEffect(() => {
     async function init() {
       const sessionFromUrl = searchParams.get("session")
@@ -127,7 +96,6 @@ function CandidatesContent() {
     init()
   }, [searchParams])
 
-  // Load candidates page data — single API call replaces the old 2-request waterfall
   useEffect(() => {
     async function init() {
       await loadCandidatesPage(selectedSessionId, searchQuery, page, statusFilterParam)
@@ -135,7 +103,6 @@ function CandidatesContent() {
     init()
   }, [selectedSessionId, searchQuery, page, statusFilterParam, loadCandidatesPage])
 
-  // WebSocket updates — debounced to prevent burst refetches on rapid status changes
   const handleWebSocketUpdate = useCallback(() => {
     if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current)
     debounceTimerRef.current = setTimeout(() => {
@@ -203,18 +170,17 @@ function CandidatesContent() {
 
   return (
     <div className="flex-1 flex">
-      {/* Left Sidebar - Sessions */}
-      <aside className="w-64 shrink-0 border-r bg-muted/10 hidden md:flex flex-col">
+      <aside className="w-56 shrink-0 border-r bg-muted/10 hidden md:flex flex-col">
         <div className="p-4 border-b">
-          <h2 className="text-sm font-semibold flex items-center gap-2">
-            <LayoutDashboard className="h-4 w-4 text-primary" />
-            Hiring Sessions
+          <h2 className="text-xs font-semibold flex items-center gap-2 text-muted-foreground uppercase tracking-wider">
+            <LayoutDashboard className="h-3.5 w-3.5 text-primary" />
+            Sessions
           </h2>
         </div>
         <div className="flex-1 overflow-y-auto p-2 space-y-0.5">
           <button
             onClick={() => handleSelectSession(null)}
-            className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors flex items-center justify-between ${
+            className={`w-full text-left px-3 py-2 rounded-md text-sm transition-colors flex items-center justify-between ${
               selectedSessionId === null
                 ? "bg-primary/10 text-primary font-medium"
                 : "text-muted-foreground hover:text-foreground hover:bg-muted"
@@ -248,7 +214,7 @@ function CandidatesContent() {
                 <button
                   key={session.id}
                   onClick={() => handleSelectSession(session.id)}
-                  className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors ${
+                  className={`w-full text-left px-3 py-2 rounded-md text-sm transition-colors ${
                     selectedSessionId === session.id
                       ? "bg-primary/10 text-primary font-medium"
                       : "text-muted-foreground hover:text-foreground hover:bg-muted"
@@ -263,33 +229,16 @@ function CandidatesContent() {
             })
           )}
         </div>
-        <div className="p-3 border-t">
-          <Link href={ROUTES.dashboard}>
-            <Button variant="outline" size="sm" className="w-full text-xs">
-              <LayoutDashboard className="h-3 w-3 mr-1" />
-              Go to Dashboard
-            </Button>
-          </Link>
-        </div>
       </aside>
 
-      {/* Main Content */}
-      <div className="flex-1 min-w-0 p-6 lg:p-8 space-y-6">
-        {/* Header */}
-        <div>
-          <h1 className="text-lg font-semibold flex items-center gap-2">
-            <Users className="h-5 w-5 text-primary" />
-            Candidate Database
-          </h1>
-          <p className="text-sm text-muted-foreground mt-0.5">
-            {selectedSessionId
-              ? "Candidates filtered by selected hiring session"
-              : "All candidates across all hiring sessions"}
-          </p>
-        </div>
+      <div className="flex-1 min-w-0 p-6 lg:p-8 space-y-5">
+        <PageHeader
+          icon={Users}
+          title="Candidate Database"
+          description={selectedSessionId ? "Candidates filtered by selected hiring session" : "All candidates across all hiring sessions"}
+        />
 
-        {/* Status Filter Tabs */}
-        <div className="flex items-center gap-1 border-b border-border pb-3 -mb-2">
+        <div className="flex items-center gap-1 border-b border-border pb-3">
           {statusTabs.map((tab) => {
             const isActive = tab.value === null
               ? !statusFilterParam
@@ -298,7 +247,7 @@ function CandidatesContent() {
               <button
                 key={tab.label}
                 onClick={() => handleStatusTabClick(tab.value)}
-                className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${
+                className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
                   isActive
                     ? "bg-primary/10 text-primary"
                     : "text-muted-foreground hover:text-foreground hover:bg-muted"
@@ -310,19 +259,12 @@ function CandidatesContent() {
           })}
         </div>
 
-        {/* Search & Filters */}
         <div className="flex items-center gap-3">
-          <div className="relative flex-1 max-w-md">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <input
-              ref={searchInputRef}
-              type="text"
-              value={searchQuery}
-              onChange={(e) => handleSearch(e.target.value)}
-              placeholder="Search by name, email, or company..."
-              className="w-full h-9 pl-9 pr-4 text-sm rounded-lg border border-border bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
-            />
-          </div>
+          <SearchInput
+            value={searchQuery}
+            onChange={handleSearch}
+            placeholder="Search by name, email, or company..."
+          />
           {candidatesData && (
             <span className="text-xs text-muted-foreground shrink-0">
               {candidatesData.total} candidate{candidatesData.total !== 1 ? "s" : ""}
@@ -330,8 +272,7 @@ function CandidatesContent() {
           )}
         </div>
 
-        {/* Candidate Table */}
-        <Card className="p-0 overflow-hidden border shadow-sm">
+        <Card className="p-0 overflow-hidden">
           {candidatesLoading ? (
             <div className="p-4 space-y-3">
               {Array.from({ length: 5 }).map((_, i) => (
@@ -439,7 +380,7 @@ function CandidatesContent() {
                               href={candidate.resume_file_url}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="inline-flex items-center gap-1 h-8 px-2.5 rounded-lg text-sm font-medium whitespace-nowrap transition-colors hover:bg-muted hover:text-foreground text-muted-foreground"
+                              className="inline-flex items-center gap-1 h-8 px-2.5 rounded-md text-sm font-medium whitespace-nowrap transition-colors hover:bg-muted hover:text-foreground text-muted-foreground"
                             >
                               <FileText className="h-3.5 w-3.5" />
                               <span className="hidden sm:inline">View</span>
@@ -459,7 +400,7 @@ function CandidatesContent() {
                                 title="Mark as Hired"
                               >
                                 <BadgeCheck className="h-3.5 w-3.5 mr-1" />
-                                Mark as Hired
+                                Hire
                               </Button>
                             )}
                             <Button
@@ -477,7 +418,6 @@ function CandidatesContent() {
                 </Table>
               </div>
 
-              {/* Pagination */}
               {totalPages > 1 && (
                 <div className="flex items-center justify-between px-4 py-3 border-t bg-muted/20">
                   <span className="text-xs text-muted-foreground">
@@ -533,7 +473,6 @@ function CandidatesContent() {
         </Card>
       </div>
 
-      {/* Mark as Hired Confirmation */}
       <Dialog open={showHireConfirm} onOpenChange={(o) => { if (!o) { setShowHireConfirm(false); setHireCandidate(null) } }}>
         <DialogContent className="sm:max-w-md">
           <div className="px-6 pt-6 pb-2">
@@ -543,7 +482,6 @@ function CandidatesContent() {
             </div>
             <p className="text-sm text-muted-foreground mt-0.5">
               Confirm that <strong>{hireCandidate?.full_name || "this candidate"}</strong> has been hired.
-              This will update their status from Offer to Hired.
             </p>
           </div>
           <div className="px-6 pb-6 flex justify-end gap-2">

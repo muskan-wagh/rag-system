@@ -181,9 +181,10 @@ export const getCandidatesPageHandler = asyncHandler(async (req: Request, res: R
   // Map sessions
   const sessions: SessionSummary[] = (sessionsResult.data || []).map((s: Record<string, unknown>) => {
     const candidates = s.candidates as Array<{ count: number }> | undefined;
+    const rawText = (s.job_description_text as string) || '';
     return {
       id: s.id as string,
-      job_description_text: '',
+      job_description_text: rawText.slice(0, 100),
       created_at: s.created_at as string,
       candidate_count: candidates?.[0]?.count ?? 0,
     };
