@@ -9,6 +9,7 @@ import {
   CandidateRecord,
   NewSessionStats,
 } from '@/services/supabase/database';
+import { memoryCache } from '@/utils/memory-cache';
 import { logger } from '@/utils/logger';
 import { AppError } from '@/middleware/errorHandler';
 import { ErrorCodes } from '@/middleware/errorCodes';
@@ -38,6 +39,8 @@ export const generateLinkHandler = asyncHandler(async (req: Request, res: Respon
   logger.info('Generate link request', { textLength: jdText.length });
 
   const session = await createUploadSession(jdText);
+
+  memoryCache.delete('dashboard:overview:v2');
 
   res.status(201).json({
     success: true,
