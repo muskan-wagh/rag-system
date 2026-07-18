@@ -29,17 +29,17 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <ClerkProvider
-      appearance={{
-        theme: shadcn,
-      }}
-    >
-      <html lang="en" className={`${geistSans.variable} ${geistMono.variable}`}>
-        <body className="min-h-screen flex flex-col antialiased bg-background">
+    <html lang="en" className={`${geistSans.variable} ${geistMono.variable}`}>
+      <body className="min-h-screen flex flex-col antialiased bg-background">
+        <ClerkProvider
+          appearance={{
+            theme: shadcn,
+          }}
+        >
           {children}
-          <Toaster position="bottom-right" richColors closeButton />
-        </body>
-      </html>
-    </ClerkProvider>
+        </ClerkProvider>
+        <Toaster position="bottom-right" richColors closeButton />
+      </body>
+    </html>
   )
 }

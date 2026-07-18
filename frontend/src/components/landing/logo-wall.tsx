@@ -1,6 +1,5 @@
 "use client"
 
-import { motion } from "framer-motion"
 import { Building2, Briefcase, Cloud, Globe, Layers, Shield } from "lucide-react"
 
 const companies = [
@@ -10,31 +9,30 @@ const companies = [
   { name: "GlobalTech", icon: Globe },
   { name: "StackLabs", icon: Layers },
   { name: "SecureIO", icon: Shield },
+  { name: "DataFlow", icon: Building2 },
+  { name: "Neural", icon: Layers },
 ]
 
 export function LogoWall() {
   return (
-    <section className="w-full py-12 md:py-16 border-y border-border bg-muted/30">
-      <div className="mx-auto max-w-6xl px-4 md:px-6">
-        <p className="text-xs text-center text-muted-foreground uppercase tracking-wider font-medium mb-8">
-          Trusted by leading recruitment teams
+    <section className="w-full py-16 md:py-20 relative overflow-hidden border-y border-border/40 bg-white/30">
+      <div className="mx-auto max-w-7xl px-4 md:px-8">
+        <p className="text-xs text-center text-muted-foreground uppercase tracking-widest font-medium mb-10">
+          Trusted by hiring teams across industries
         </p>
-        <div className="grid grid-cols-3 md:grid-cols-6 gap-8 md:gap-12 items-center">
-          {companies.map((company, i) => (
-            <motion.div
-              key={company.name}
-              initial={{ opacity: 0, y: 8 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ delay: i * 0.06 }}
-              className="flex flex-col items-center gap-2 text-muted-foreground/40"
-            >
-              <company.icon className="h-6 w-6" />
-              <span className="text-xs font-medium text-muted-foreground/60">
-                {company.name}
-              </span>
-            </motion.div>
-          ))}
+
+        <div className="relative overflow-hidden">
+          <div className="flex animate-marquee gap-16 md:gap-20 items-center">
+            {[...companies, ...companies].map((company, i) => (
+              <div
+                key={`${company.name}-${i}`}
+                className="flex items-center gap-3 text-muted-foreground/30 hover:text-muted-foreground/50 transition-colors duration-300 shrink-0"
+              >
+                <company.icon className="h-5 w-5" />
+                <span className="text-sm font-medium whitespace-nowrap">{company.name}</span>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     </section>

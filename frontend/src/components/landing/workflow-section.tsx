@@ -1,65 +1,84 @@
 "use client"
 
 import { motion } from "framer-motion"
-import { FileText, Brain, Search, BarChart3, GitCompare, Sparkles, ArrowDown } from "lucide-react"
+import { Upload, Brain, Search, GitCompare, Calendar, CheckCircle } from "lucide-react"
+import { SectionHeader } from "@/components/ui/section-header"
 
 const steps = [
-  { icon: FileText, title: "Job Description", description: "Paste a job description or describe your ideal candidate in natural language." },
-  { icon: Brain, title: "AI Parser", description: "Advanced LLM extracts skills, experience requirements, and responsibilities." },
-  { icon: Search, title: "Vector Embeddings", description: "Converts parsed requirements into high-dimensional semantic vectors." },
-  { icon: BarChart3, title: "Semantic Search", description: "Vector database finds semantically similar candidates at scale." },
-  { icon: GitCompare, title: "Hybrid Ranking", description: "Combines semantic similarity with weighted skill, experience, and education scores." },
-  { icon: Sparkles, title: "Ranked Results", description: "Browse ranked candidates with detailed score breakdowns and AI explanations." },
+  { icon: Upload, title: "Upload Resume", description: "Candidates submit resumes through a unique application link or direct upload.", color: "from-primary to-emerald-400" },
+  { icon: Brain, title: "AI Parsing", description: "Advanced LLM extracts structured data — skills, experience, and education.", color: "from-blue-500 to-indigo-400" },
+  { icon: Search, title: "Semantic Ranking", description: "Vector search finds semantically similar candidates at scale.", color: "from-amber-500 to-orange-400" },
+  { icon: GitCompare, title: "Candidate Comparison", description: "AI-powered head-to-head analysis with score breakdowns.", color: "from-violet-500 to-purple-400" },
+  { icon: Calendar, title: "Interview Scheduling", description: "Seamless scheduling with calendar integration and reminders.", color: "from-green-500 to-emerald-400" },
+  { icon: CheckCircle, title: "Hiring", description: "Confident decisions backed by explainable AI insights.", color: "from-primary to-teal-400" },
 ]
 
 export function WorkflowSection() {
   return (
-    <section id="how-it-works" className="w-full py-16 md:py-24 bg-primary/[0.02]">
-      <div className="mx-auto max-w-4xl px-4 md:px-6">
-        <motion.div
-          initial={{ opacity: 0, y: 12 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, margin: "-40px" }}
-          className="text-center mb-16"
-        >
-          <h2 className="text-2xl md:text-3xl font-semibold text-foreground">
-            How it <span className="text-primary">works</span>
-          </h2>
-          <p className="mt-3 text-sm text-muted-foreground max-w-lg mx-auto">
-            From job description to ranked candidates in seconds
-          </p>
-        </motion.div>
+    <section id="how-it-works" className="w-full py-20 md:py-28 relative overflow-hidden">
+      <div className="absolute inset-0 grid-bg pointer-events-none opacity-30" />
+      <div className="absolute inset-0 noise-bg pointer-events-none opacity-20" />
+      <div className="absolute top-1/3 left-0 w-[400px] h-[400px] bg-primary/[0.03] rounded-full blur-3xl" />
 
-        <div className="relative">
-          <div className="absolute left-8 top-0 bottom-0 w-px bg-border hidden md:block" />
+      <div className="mx-auto max-w-7xl px-4 md:px-8 relative">
+        <SectionHeader
+          label="Workflow"
+          title="From resume to hire"
+          highlight="in minutes"
+          description="A streamlined pipeline powered by AI at every step"
+        />
 
-          <div className="space-y-8 md:space-y-0">
+        <div className="relative max-w-4xl mx-auto">
+          <div className="absolute left-1/2 -translate-x-px top-0 bottom-0 w-px bg-gradient-to-b from-primary/20 via-primary/10 to-transparent hidden md:block" />
+
+          <div className="space-y-8 md:space-y-0 relative">
             {steps.map((step, i) => (
               <motion.div
                 key={step.title}
-                initial={{ opacity: 0, x: -20 }}
-                whileInView={{ opacity: 1, x: 0 }}
-                viewport={{ once: true, margin: "-40px" }}
-                transition={{ delay: i * 0.08 }}
-                className="relative md:flex md:items-start md:gap-8 md:pb-8"
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true, margin: "-60px" }}
+                transition={{ delay: i * 0.1 }}
+                className="relative md:flex md:items-center md:gap-8 md:py-6"
               >
-                <div className="hidden md:flex flex-col items-center">
-                  <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-primary/10 ring-1 ring-primary/10 relative z-10">
-                    <step.icon className="h-6 w-6 text-primary" />
-                  </div>
-                  {i < steps.length - 1 && (
-                    <div className="flex-1 flex items-center justify-center py-2">
-                      <ArrowDown className="h-4 w-4 text-primary/20" />
+                <div className="hidden md:flex md:w-1/2 justify-end">
+                  {i % 2 === 0 && (
+                    <div className="text-right pr-8">
+                      <h3 className="text-base font-semibold text-foreground mb-1">{step.title}</h3>
+                      <p className="text-sm text-muted-foreground max-w-xs ml-auto">{step.description}</p>
                     </div>
                   )}
                 </div>
 
-                <div className="flex-1 md:pt-2 ml-16 md:ml-0">
-                  <div className="inline-flex items-center gap-1.5 rounded-full bg-primary/5 px-2 py-0.5 text-[10px] font-medium text-primary mb-2">
-                    Step {i + 1}
+                <div className="hidden md:flex flex-col items-center relative z-10">
+                  <motion.div
+                    whileHover={{ scale: 1.1 }}
+                    className={`w-12 h-12 rounded-xl bg-gradient-to-br ${step.color} flex items-center justify-center shadow-lg shadow-${step.color.split(" ")[0].replace("from-", "")}/20`}
+                  >
+                    <step.icon className="h-5 w-5 text-white" />
+                  </motion.div>
+                  {i < steps.length - 1 && (
+                    <div className="w-px h-8 bg-gradient-to-b from-primary/20 to-transparent" />
+                  )}
+                </div>
+
+                <div className="hidden md:flex md:w-1/2">
+                  {i % 2 === 1 && (
+                    <div className="text-left pl-8">
+                      <h3 className="text-base font-semibold text-foreground mb-1">{step.title}</h3>
+                      <p className="text-sm text-muted-foreground max-w-xs">{step.description}</p>
+                    </div>
+                  )}
+                </div>
+
+                <div className="md:hidden flex items-start gap-4">
+                  <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${step.color} flex items-center justify-center shadow-md shrink-0`}>
+                    <step.icon className="h-5 w-5 text-white" />
                   </div>
-                  <h3 className="text-base font-medium text-foreground mb-1">{step.title}</h3>
-                  <p className="text-sm text-muted-foreground leading-relaxed max-w-lg">{step.description}</p>
+                  <div>
+                    <h3 className="text-sm font-semibold text-foreground mb-0.5">{step.title}</h3>
+                    <p className="text-sm text-muted-foreground">{step.description}</p>
+                  </div>
                 </div>
               </motion.div>
             ))}

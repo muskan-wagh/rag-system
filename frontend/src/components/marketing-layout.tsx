@@ -7,7 +7,7 @@ export function MarketingLayout({ children }: { children: React.ReactNode }) {
   return (
     <>
       <MarketingNav />
-      <main className="flex-1 pt-16">{children}</main>
+      <main className="flex-1 pt-20 md:pt-24">{children}</main>
       <MarketingFooter />
     </>
   )
