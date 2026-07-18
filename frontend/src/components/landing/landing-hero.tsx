@@ -2,7 +2,7 @@
 
 import { motion } from "framer-motion"
 import Link from "next/link"
-import { ArrowRight, Sparkles, Shield, Users, Check } from "lucide-react"
+import { ArrowRight, Sparkles, Shield, Users, Check, Search, Bell, TrendingUp, Calendar } from "lucide-react"
 import { PrimaryButton } from "@/components/ui/primary-button"
 import { SecondaryButton } from "@/components/ui/secondary-button"
 
@@ -19,117 +19,135 @@ const itemVariants = {
   visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: "easeOut" as const } },
 }
 
-function DashboardMockup() {
+function ScoreRing({ value, size = 40 }: { value: number; size?: number }) {
+  const r = (size - 8) / 2
+  const cx = size / 2
+  const cy = size / 2
+  const circumference = 2 * Math.PI * r
+  const offset = circumference - (value / 100) * circumference
+  const color = value >= 90 ? "#22C55E" : value >= 75 ? "#6366F1" : value >= 60 ? "#F59E0B" : "#EF4444"
+
   return (
-    <div className="relative w-full max-w-[580px] mx-auto">
+    <svg width={size} height={size} className="-rotate-90 shrink-0">
+      <circle cx={cx} cy={cy} r={r} fill="none" stroke="rgba(148,163,184,0.12)" strokeWidth="3" />
+      <circle cx={cx} cy={cy} r={r} fill="none" stroke={color} strokeWidth="3" strokeLinecap="round" strokeDasharray={circumference} strokeDashoffset={offset} className="transition-all duration-700" />
+    </svg>
+  )
+}
+
+function DashboardMockup() {
+  const candidates = [
+    { initials: "SK", name: "Sarah Kim", role: "Sr. Frontend Engineer", skills: "React · TS · 6yrs", score: 96 },
+    { initials: "JM", name: "James Mitchell", role: "Full-Stack Engineer", skills: "Vue · Node · 8yrs", score: 92 },
+    { initials: "EZ", name: "Emily Zhao", role: "ML Engineer", skills: "Python · TF · 4yrs", score: 88 },
+    { initials: "DP", name: "David Park", role: "Backend Engineer", skills: "Go · AWS · 7yrs", score: 84 },
+  ]
+
+  return (
+    <div className="relative w-full max-w-[600px] mx-auto">
       <motion.div
-        initial={{ opacity: 0, scale: 0.9, y: 30 }}
+        initial={{ opacity: 0, scale: 0.92, y: 30 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         transition={{ duration: 0.7, delay: 0.3, ease: "easeOut" }}
         className="relative z-10"
       >
-        <div className="glass-strong rounded-2xl overflow-hidden shadow-2xl shadow-primary/5 border border-white/60">
-          <div className="flex items-center gap-1.5 bg-white/60 border-b border-white/40 px-4 py-2.5">
+        <div className="rounded-2xl overflow-hidden shadow-2xl shadow-indigo-500/10 border border-white/20 bg-white/90 backdrop-blur-sm">
+          <div className="flex items-center gap-1.5 px-4 py-3 border-b border-gray-200/60 bg-gray-50/80">
             <div className="flex gap-1.5">
-              <div className="w-2.5 h-2.5 rounded-full bg-red-400/60" />
-              <div className="w-2.5 h-2.5 rounded-full bg-yellow-400/60" />
-              <div className="w-2.5 h-2.5 rounded-full bg-primary/40" />
+              <div className="w-2.5 h-2.5 rounded-full bg-red-400/70" />
+              <div className="w-2.5 h-2.5 rounded-full bg-yellow-400/70" />
+              <div className="w-2.5 h-2.5 rounded-full bg-primary/50" />
             </div>
             <div className="flex-1 flex justify-center">
-              <div className="bg-white/40 rounded-md px-3 py-0.5 text-[10px] text-muted-foreground/60 font-medium">
-                RecruitIQ Dashboard
+              <div className="rounded-md px-3 py-0.5 text-[10px] text-muted-foreground/50 font-medium bg-white/40 border border-gray-200/40">
+                dashboard.recruitiq.ai
               </div>
             </div>
-            <div className="w-14" />
+            <div className="flex items-center gap-2">
+              <Search className="h-3 w-3 text-muted-foreground/40" />
+              <Bell className="h-3 w-3 text-muted-foreground/40" />
+              <div className="w-5 h-5 rounded-full bg-primary/50 flex items-center justify-center text-[8px] font-bold text-white">U</div>
+            </div>
           </div>
-          <div className="p-4 space-y-3">
+
+          <div className="p-4 md:p-5 space-y-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Candidate Rankings</p>
-                <p className="text-[9px] text-muted-foreground/50">Senior Frontend Engineer · Google</p>
+                <p className="text-[10px] font-semibold text-muted-foreground/60 uppercase tracking-wider">Candidate Overview</p>
+                <p className="text-[9px] text-muted-foreground/40">Senior Frontend Engineer · Google</p>
               </div>
-              <div className="flex items-center gap-2">
-                <div className="bg-primary/10 text-primary text-[10px] font-bold px-2 py-0.5 rounded-md">AI Match 96%</div>
+              <div className="flex items-center gap-1.5 bg-primary/10 text-primary text-[10px] font-bold px-2.5 py-1 rounded-lg border border-primary/20">
+                <Sparkles className="h-3 w-3" />
+                AI Match 96%
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-2">
-              <div className="bg-white/50 rounded-xl p-3 border border-white/40">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-[9px] font-medium text-muted-foreground">Candidate</span>
-                  <span className="text-[9px] font-bold text-primary">92</span>
+
+            <div className="grid grid-cols-4 gap-2">
+              {[
+                { label: "Total", value: "1,247", icon: Users, color: "text-sky-400", bg: "bg-sky-500/10" },
+                { label: "Avg Match", value: "89%", icon: TrendingUp, color: "text-primary", bg: "bg-primary/10" },
+                { label: "Interviews", value: "18", icon: Calendar, color: "text-amber-400", bg: "bg-amber-500/10" },
+                { label: "Hired", value: "12", icon: Check, color: "text-emerald-400", bg: "bg-emerald-500/10" },
+              ].map((stat) => (
+                <div key={stat.label} className="rounded-xl p-2.5 bg-white/60 border border-gray-200/50 shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
+                  <div className={`w-5 h-5 rounded-lg ${stat.bg} flex items-center justify-center mb-1.5`}>
+                    <stat.icon className={`h-2.5 w-2.5 ${stat.color}`} />
+                  </div>
+                  <p className="text-[11px] font-bold text-foreground">{stat.value}</p>
+                  <p className="text-[7px] text-muted-foreground/50 uppercase tracking-wider">{stat.label}</p>
                 </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-6 h-6 rounded-full bg-primary flex items-center justify-center text-white text-[10px] font-bold">SK</div>
-                  <div>
-                    <p className="text-[11px] font-medium">Sarah Kim</p>
-                    <p className="text-[8px] text-muted-foreground">React · TypeScript · 6yr</p>
+              ))}
+            </div>
+
+            <div className="space-y-1.5">
+              {candidates.map((c) => (
+                <div key={c.name} className="group rounded-xl px-3 py-2.5 bg-white/70 border border-gray-200/50 shadow-[0_1px_2px_rgba(0,0,0,0.02)] hover:bg-white hover:border-gray-300/60 hover:shadow-md transition-all duration-200">
+                  <div className="flex items-center gap-3">
+                    <ScoreRing value={c.score} />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="text-[11px] font-semibold text-foreground">{c.name}</span>
+                        <span className="text-[8px] text-muted-foreground/50">{c.role}</span>
+                      </div>
+                      <div className="flex items-center gap-1.5 mt-0.5">
+                        <span className="text-[8px] text-muted-foreground/60">{c.skills}</span>
+                        <span className="text-[8px] font-bold text-primary">{c.score}%</span>
+                      </div>
+                    </div>
+                    <div className="hidden sm:flex items-center gap-1 px-2 py-1 rounded-md bg-primary/10 text-[8px] font-semibold text-primary border border-primary/20">
+                      <Sparkles className="h-2.5 w-2.5" />
+                      Match
+                    </div>
                   </div>
                 </div>
-                <div className="mt-2 h-1.5 bg-white/60 rounded-full overflow-hidden">
-                  <div className="h-full w-[92%] bg-primary rounded-full" />
-                </div>
-              </div>
-              <div className="bg-white/50 rounded-xl p-3 border border-white/40">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-[9px] font-medium text-muted-foreground">Candidate</span>
-                  <span className="text-[9px] font-bold text-primary">88</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-6 h-6 rounded-full bg-gradient-to-br from-blue-500 to-indigo-400 flex items-center justify-center text-white text-[10px] font-bold">JM</div>
-                  <div>
-                    <p className="text-[11px] font-medium">James M.</p>
-                    <p className="text-[8px] text-muted-foreground">Vue · Node · 8yr</p>
-                  </div>
-                </div>
-                <div className="mt-2 h-1.5 bg-white/60 rounded-full overflow-hidden">
-                  <div className="h-full w-[88%] bg-primary rounded-full" />
-                </div>
-              </div>
+              ))}
             </div>
-            <div className="grid grid-cols-3 gap-2">
-              <div className="bg-white/50 rounded-lg p-2 border border-white/30 text-center">
-                <div className="flex items-center justify-center gap-1">
-                  <span className="text-[9px] text-muted-foreground">Resume</span>
-                  <div className="w-1.5 h-1.5 rounded-full bg-primary/30" />
-                </div>
-                <p className="text-[10px] font-bold text-foreground">Parsed</p>
+
+            <div className="rounded-xl p-3.5 bg-white/70 border border-gray-200/50 shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
+              <div className="flex items-center justify-between mb-2.5">
+                <span className="text-[9px] font-semibold text-muted-foreground/60 uppercase tracking-wider">Skill Alignment</span>
+                <span className="text-[8px] text-muted-foreground/40">vs Job Description</span>
               </div>
-              <div className="bg-white/50 rounded-lg p-2 border border-white/30 text-center">
-                <div className="flex items-center justify-center gap-1">
-                  <span className="text-[9px] text-muted-foreground">Status</span>
-                  <div className="w-1.5 h-1.5 rounded-full bg-amber-400" />
-                </div>
-                <p className="text-[10px] font-bold text-foreground">Interview</p>
-              </div>
-              <div className="bg-white/50 rounded-lg p-2 border border-white/30 text-center">
-                <div className="flex items-center justify-center gap-1">
-                  <span className="text-[9px] text-muted-foreground">Skills</span>
-                  <div className="w-1.5 h-1.5 rounded-full bg-primary" />
-                </div>
-                <p className="text-[10px] font-bold text-foreground">14/16</p>
-              </div>
-            </div>
-            <div className="bg-white/50 rounded-xl p-3 border border-white/40">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-[9px] font-medium text-muted-foreground">Semantic Match Overview</span>
-                <span className="text-[9px] text-muted-foreground">vs JD</span>
-              </div>
-              <div className="space-y-1.5">
+              <div className="space-y-2">
                 {[
                   { label: "React", value: 95 },
                   { label: "TypeScript", value: 88 },
                   { label: "System Design", value: 82 },
                   { label: "Leadership", value: 76 },
-                ].map((item) => (
-                  <div key={item.label} className="flex items-center gap-2">
-                    <span className="text-[8px] font-medium text-muted-foreground w-16">{item.label}</span>
-                    <div className="flex-1 h-1 bg-white/60 rounded-full overflow-hidden">
-                      <div
-                        className="h-full bg-primary rounded-full"
-                        style={{ width: `${item.value}%` }}
+                ].map((skill) => (
+                  <div key={skill.label}>
+                    <div className="flex items-center justify-between mb-0.5">
+                      <span className="text-[8px] font-medium text-muted-foreground/70">{skill.label}</span>
+                      <span className="text-[8px] font-bold text-foreground/80">{skill.value}%</span>
+                    </div>
+                    <div className="h-1.5 rounded-full bg-gray-200/60 overflow-hidden">
+                      <motion.div
+                        initial={{ width: 0 }}
+                        animate={{ width: `${skill.value}%` }}
+                        transition={{ duration: 0.8, delay: 0.3 + skill.value * 0.005, ease: "easeOut" }}
+                        className="h-full rounded-full bg-gradient-to-r from-primary to-accent"
                       />
                     </div>
-                    <span className="text-[8px] font-bold text-foreground">{item.value}%</span>
                   </div>
                 ))}
               </div>
@@ -141,12 +159,12 @@ function DashboardMockup() {
       <motion.div
         animate={{ y: [0, -8, 0] }}
         transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
-        className="absolute -top-6 -right-6 z-20"
+        className="absolute -top-5 -right-5 z-20"
       >
-        <div className="glass-strong rounded-xl px-3.5 py-2 shadow-lg border border-white/50">
+        <div className="rounded-xl px-3.5 py-2 shadow-lg border border-white/30 bg-white/90 backdrop-blur-sm">
           <div className="flex items-center gap-2">
             <Sparkles className="h-3.5 w-3.5 text-primary" />
-            <span className="text-[10px] font-semibold">AI Score: 96</span>
+            <span className="text-[10px] font-bold text-foreground">AI Score: 96</span>
           </div>
         </div>
       </motion.div>
@@ -154,18 +172,19 @@ function DashboardMockup() {
       <motion.div
         animate={{ y: [0, 6, 0] }}
         transition={{ duration: 5, repeat: Infinity, ease: "easeInOut", delay: 1 }}
-        className="absolute -bottom-4 -left-8 z-20"
+        className="absolute -bottom-3 -left-6 z-20"
       >
-        <div className="glass-strong rounded-xl px-3.5 py-2 shadow-lg border border-white/50">
+        <div className="rounded-xl px-3.5 py-2 shadow-lg border border-white/30 bg-white/90 backdrop-blur-sm">
           <div className="flex items-center gap-2">
             <Shield className="h-3.5 w-3.5 text-primary" />
-            <span className="text-[10px] font-semibold">Bias Free</span>
+            <span className="text-[10px] font-bold text-foreground">Bias Free</span>
           </div>
         </div>
       </motion.div>
 
-      <div className="absolute -z-10 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] h-[400px] bg-primary/5 rounded-full blur-3xl animate-pulse-glow" />
-      <div className="absolute -z-10 top-1/3 right-0 w-[200px] h-[200px] bg-primary/30/5 rounded-full blur-3xl" />
+      <div className="absolute -z-10 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] rounded-full blur-3xl bg-gradient-to-br from-primary/10 via-indigo-500/5 to-transparent" />
+      <div className="absolute -z-10 top-0 right-0 w-[300px] h-[300px] rounded-full blur-3xl bg-blue-500/5" />
+      <div className="absolute -z-10 -bottom-10 -left-10 w-[250px] h-[250px] rounded-full blur-3xl bg-indigo-500/5" />
     </div>
   )
 }
@@ -193,9 +212,6 @@ export function LandingHero() {
     <section className="relative w-full overflow-hidden pt-24 pb-20 md:pt-32 md:pb-28">
       <div className="absolute inset-0 noise-bg pointer-events-none" />
       <div className="absolute inset-0 grid-bg pointer-events-none opacity-40" />
-      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[800px] h-[600px] bg-gradient-to-b from-primary/[0.07] via-accent/[0.03] to-transparent rounded-full blur-3xl pointer-events-none" />
-      <div className="absolute top-1/3 right-0 w-[300px] h-[300px] bg-primary/5 rounded-full blur-3xl animate-blob pointer-events-none" />
-      <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-primary/30/5 rounded-full blur-3xl animate-blob pointer-events-none" style={{ animationDelay: "-3s" }} />
 
       <div className="mx-auto max-w-7xl px-4 md:px-8 relative">
         <div className="grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
@@ -206,7 +222,7 @@ export function LandingHero() {
             className="max-w-xl"
           >
             <motion.div variants={itemVariants}>
-              <div className="inline-flex items-center gap-1.5 rounded-full border border-white/60 bg-white/70 backdrop-blur-sm px-3.5 py-1 text-xs font-medium text-muted-foreground shadow-sm mb-6">
+              <div className="inline-flex items-center gap-1.5 rounded-full border border-white/40 bg-white/70 backdrop-blur-sm px-3.5 py-1 text-xs font-medium text-muted-foreground shadow-sm mb-6">
                 <Sparkles className="h-3 w-3 text-primary" />
                 AI-Powered Recruitment Engine
               </div>

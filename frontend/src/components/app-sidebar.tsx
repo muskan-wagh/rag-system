@@ -15,10 +15,8 @@ import {
   Settings,
   LogOut,
   Sparkles,
-  Moon,
-  Sun,
 } from "lucide-react"
-import { ThemeToggle } from "@/components/theme-toggle"
+
 
 const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -99,16 +97,13 @@ export function AppSidebar() {
             <p className="text-[10px] text-muted-foreground truncate">Settings & Profile</p>
           </div>
         </div>
-        <div className="flex items-center gap-1 rounded-lg px-2 py-1">
-          <ThemeToggle />
-          <button
+        <button
             onClick={() => signOut({ redirectUrl: "/" })}
             className="flex flex-1 items-center gap-3 rounded-lg px-2 py-1.5 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-white/40 transition-colors"
           >
             <LogOut className="h-4 w-4" strokeWidth={1.5} />
             Sign Out
           </button>
-        </div>
       </div>
     </aside>
   )
