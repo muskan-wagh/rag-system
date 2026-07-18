@@ -110,6 +110,7 @@ CREATE TABLE IF NOT EXISTS search_sessions (
   result_count INT DEFAULT 0,
   search_duration_ms INT,
   user_id TEXT,
+  recruiter_id UUID REFERENCES recruiters(id),
   created_at TIMESTAMP DEFAULT NOW()
 );
 
@@ -276,6 +277,7 @@ ALTER TABLE upload_sessions ADD COLUMN IF NOT EXISTS recruiter_id UUID REFERENCE
 ALTER TABLE candidates ADD COLUMN IF NOT EXISTS recruiter_id UUID REFERENCES recruiters(id);
 ALTER TABLE candidate_notes ADD COLUMN IF NOT EXISTS recruiter_id UUID REFERENCES recruiters(id);
 ALTER TABLE candidate_status_log ADD COLUMN IF NOT EXISTS recruiter_id UUID REFERENCES recruiters(id);
+ALTER TABLE search_sessions ADD COLUMN IF NOT EXISTS recruiter_id UUID REFERENCES recruiters(id);
 
 CREATE INDEX IF NOT EXISTS idx_upload_sessions_recruiter ON upload_sessions(recruiter_id);
 CREATE INDEX IF NOT EXISTS idx_candidates_recruiter ON candidates(recruiter_id);
