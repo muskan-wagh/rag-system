@@ -2,12 +2,14 @@
 
 import { useState, useCallback, useEffect, useRef, memo } from "react"
 import Link from "next/link"
+import { motion } from "framer-motion"
 
 import {
   Sparkles, Link2, RefreshCw, Loader2, ShieldAlert, Plus,
   FilePlus, Copy, Check, Users, FileText,
   FolderOpen, Calendar, BadgeCheck, XCircle, LayoutDashboard,
-  Search,
+  Search, Bell, ArrowUpRight, TrendingUp, Clock, Briefcase,
+  Zap, Eye, MoreHorizontal,
 } from "lucide-react"
 import { toast } from "sonner"
 import { CandidateDetailModal } from "@/components/candidate-detail-modal"
@@ -24,7 +26,6 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Progress } from "@/components/ui/progress"
 import { Skeleton } from "@/components/ui/skeleton"
 import { EmptyState } from "@/components/ui/empty-state"
-import { PageHeader } from "@/components/ui/page-header"
 import {
   Table,
   TableHeader,
@@ -33,6 +34,7 @@ import {
   TableHead,
   TableCell,
 } from "@/components/ui/table"
+import { useUser } from "@clerk/nextjs"
 
 interface SessionData {
   sessionId: string
@@ -64,6 +66,19 @@ interface BiasIssue {
   suggestion: string
 }
 
+const containerVariants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: { staggerChildren: 0.06 },
+  },
+}
+
+const itemVariants = {
+  hidden: { opacity: 0, y: 16 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.4, ease: [0.25, 0.1, 0.25, 1] as const } },
+}
+
 const CandidateTableRow = memo(function CandidateTableRow({
   candidate,
   onSelect,
@@ -72,16 +87,16 @@ const CandidateTableRow = memo(function CandidateTableRow({
   onSelect: (c: CandidateRow) => void
 }) {
   return (
-    <TableRow>
+    <TableRow className="hover:bg-white/40 transition-colors">
       <TableCell>
         <div className="flex items-center gap-3">
-          <Avatar className="h-8 w-8">
-            <AvatarFallback className="text-xs">
+          <Avatar className="h-9 w-9 ring-2 ring-white shadow-sm">
+            <AvatarFallback className="text-xs bg-gradient-to-br from-primary/10 to-emerald-400/10 text-primary font-semibold">
               {getInitials(candidate.full_name)}
             </AvatarFallback>
           </Avatar>
           <div>
-            <p className="font-medium text-sm">{candidate.full_name || "Unknown"}</p>
+            <p className="text-sm font-medium text-foreground">{candidate.full_name || "Unknown"}</p>
             <p className="text-xs text-muted-foreground">
               {candidate.current_title || ""}
               {candidate.current_title && candidate.current_company ? " @ " : ""}
@@ -91,22 +106,31 @@ const CandidateTableRow = memo(function CandidateTableRow({
         </div>
       </TableCell>
       <TableCell>
-        {candidate.match_score !== undefined ? (
-          <div className="flex items-center gap-2">
-            <Progress value={Math.round(candidate.match_score)} className="h-1.5 w-16" />
-            <span className="text-xs font-mono">{Math.round(candidate.match_score)}%</span>
+        <div className="flex items-center gap-2.5">
+          <div className="w-20 h-1.5 bg-muted rounded-full overflow-hidden">
+            <div
+              className="h-full bg-gradient-to-r from-primary to-emerald-400 rounded-full"
+              style={{ width: `${Math.round(candidate.match_score ?? 0)}%` }}
+            />
           </div>
-        ) : (
-          <span className="text-xs text-muted-foreground">—</span>
-        )}
+          <span className="text-xs font-semibold text-foreground tabular-nums">
+            {candidate.match_score !== undefined ? `${Math.round(candidate.match_score)}%` : "—"}
+          </span>
+        </div>
       </TableCell>
       <TableCell>
-        <Badge variant={getFlightRiskColor(candidate.flight_risk)} className="capitalize">
+        <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium border ${
+          candidate.flight_risk === "High"
+            ? "bg-red-50 border-red-200 text-red-600"
+            : candidate.flight_risk === "Medium"
+            ? "bg-amber-50 border-amber-200 text-amber-600"
+            : "bg-emerald-50 border-emerald-200 text-emerald-600"
+        }`}>
           {candidate.flight_risk || "Unknown"}
-        </Badge>
+        </span>
       </TableCell>
       <TableCell>
-        <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium border ${getStatusColor(candidate.current_status || candidate.status)}`}>
+        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${getStatusColor(candidate.current_status || candidate.status)}`}>
           {candidate.current_status || candidate.status || CANDIDATE_STATUS.APPLIED}
         </span>
       </TableCell>
@@ -116,23 +140,80 @@ const CandidateTableRow = memo(function CandidateTableRow({
             href={candidate.resume_file_url}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-1 h-8 px-2.5 rounded-lg text-sm font-medium whitespace-nowrap transition-colors hover:bg-muted hover:text-foreground text-muted-foreground"
+            className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-white/60 transition-all border border-transparent hover:border-border/40"
           >
             <FileText className="h-3.5 w-3.5" />
-            View
+            Resume
           </a>
         ) : (
-          <span className="text-xs text-muted-foreground">—</span>
+          <span className="text-xs text-muted-foreground/50">—</span>
         )}
       </TableCell>
       <TableCell className="text-right">
-        <Button variant="ghost" size="sm" onClick={() => onSelect(candidate)}>
+        <button
+          onClick={() => onSelect(candidate)}
+          className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg text-xs font-medium text-primary hover:text-primary/80 hover:bg-primary/5 transition-all"
+        >
+          <Eye className="h-3.5 w-3.5" />
           View
-        </Button>
+        </button>
       </TableCell>
     </TableRow>
   )
 })
+
+function getStatValue(stats: SessionStats | null, card: typeof statCards[number]): number {
+  if (card.getValue) return card.getValue(stats)
+  const valueMap: Record<string, number | undefined> = {
+    open: stats?.open,
+    hired: stats?.hired,
+    totalCandidates: stats?.totalCandidates,
+    uploadedToday: stats?.uploadedToday,
+  }
+  return valueMap[card.valueKey] ?? 0
+}
+
+const statCards = [
+  {
+    href: ROUTES.candidates,
+    label: "Total Candidates",
+    valueKey: "totalCandidates" as const,
+    icon: Users,
+    gradient: "from-primary to-emerald-400",
+    bgLight: "bg-primary/5",
+    trend: "+12% this week",
+  },
+  {
+    href: ROUTES.candidates,
+    label: "Uploaded Today",
+    valueKey: "uploadedToday" as const,
+    icon: Clock,
+    gradient: "from-blue-500 to-indigo-400",
+    bgLight: "bg-blue-500/5",
+    trend: null,
+  },
+  {
+    href: ROUTES.candidates,
+    label: "In Progress",
+    valueKey: "open" as const,
+    icon: Briefcase,
+    gradient: "from-amber-500 to-orange-400",
+    bgLight: "bg-amber-500/5",
+    trend: null,
+    sub: (stats: SessionStats | null) => `${stats?.applied ?? 0} Applied · ${stats?.screening ?? 0} Screening · ${stats?.interview ?? 0} Interview`,
+  },
+  {
+    href: `${ROUTES.candidates}?status=hired,offer`,
+    label: "Hired",
+    valueKey: "hired" as const,
+    icon: BadgeCheck,
+    gradient: "from-emerald-500 to-teal-400",
+    bgLight: "bg-emerald-500/5",
+    trend: null,
+    getValue: (stats: SessionStats | null) => (stats?.hired ?? 0) + (stats?.offered ?? 0),
+    sub: (stats: SessionStats | null) => `${stats?.hired ?? 0} Hired · ${stats?.offered ?? 0} Pending`,
+  },
+]
 
 export default function DashboardPage() {
   const [jdText, setJdText] = useState("")
@@ -155,6 +236,14 @@ export default function DashboardPage() {
 
   const wsDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const api = useApi()
+  const { user } = useUser()
+
+  const getGreeting = () => {
+    const hour = new Date().getHours()
+    if (hour < 12) return "Good morning"
+    if (hour < 17) return "Good afternoon"
+    return "Good evening"
+  }
 
   const loadDashboard = useCallback(async (p?: number) => {
     const pageNum = p ?? page
@@ -289,65 +378,107 @@ export default function DashboardPage() {
 
   if (initialLoading) {
     return (
-      <div className="p-6 lg:p-8">
-        <div className="flex items-center justify-center h-64">
-          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      <div className="p-6 lg:p-8 min-h-screen flex items-center justify-center">
+        <div className="flex flex-col items-center gap-3">
+          <div className="relative">
+            <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-primary to-emerald-500 flex items-center justify-center shadow-lg shadow-primary/20">
+              <Sparkles className="h-5 w-5 text-white" />
+            </div>
+            <motion.div
+              animate={{ scale: [1, 1.5, 1], opacity: [0.3, 0, 0.3] }}
+              transition={{ duration: 2, repeat: Infinity }}
+              className="absolute inset-0 rounded-xl bg-primary/20"
+            />
+          </div>
+          <p className="text-sm text-muted-foreground animate-pulse">Loading your dashboard...</p>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="p-6 lg:p-8 space-y-6">
-      <PageHeader
-        icon={LayoutDashboard}
-        title="Dashboard"
-        description="Manage your hiring pipeline"
-        actions={
-          <div className="flex items-center gap-2">
-            {session && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => loadDashboard()}
-                disabled={loadingCandidates}
-              >
-                <RefreshCw className={`h-3.5 w-3.5 mr-1 ${loadingCandidates ? "animate-spin" : ""}`} />
-                Refresh
-                {candidates.length > 0 && (
-                  <span className="ml-1 rounded-full bg-primary/5 px-1.5 py-0.5 text-[10px] text-primary">
-                    {candidates.length}
-                  </span>
-                )}
-              </Button>
-            )}
-            <Button variant="ghost" size="sm" onClick={handleNewSession}>
-              <Plus className="h-3.5 w-3.5 mr-1" />
-              {session ? "New Session" : "Create Session"}
-            </Button>
+    <motion.div
+      variants={containerVariants}
+      initial="hidden"
+      animate="visible"
+      className="p-6 lg:p-8 xl:p-10 max-w-[1440px] mx-auto space-y-8"
+    >
+      {/* Header */}
+      <motion.div variants={itemVariants} className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+        <div>
+          <div className="flex items-center gap-3 mb-1">
+            <div className="h-8 w-8 rounded-xl bg-gradient-to-br from-primary to-emerald-500 flex items-center justify-center shadow-md shadow-primary/20">
+              <LayoutDashboard className="h-4 w-4 text-white" />
+            </div>
+            <div>
+              <h1 className="text-xl font-bold tracking-tight text-foreground">Dashboard</h1>
+              <p className="text-sm text-muted-foreground">
+                {getGreeting()}, {user?.firstName || "there"} — here&apos;s your hiring overview
+              </p>
+            </div>
           </div>
-        }
-      />
+        </div>
+        <div className="flex items-center gap-3">
+          <div className="relative hidden md:block">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/50" />
+            <input
+              type="search"
+              placeholder="Search candidates..."
+              className="h-9 w-56 rounded-xl border border-border/60 bg-white/50 pl-9 pr-3 text-sm text-foreground placeholder:text-muted-foreground/40 outline-none focus:border-primary/30 focus:ring-2 focus:ring-primary/10 transition-all backdrop-blur-sm"
+            />
+          </div>
+          <button className="relative h-9 w-9 rounded-xl border border-border/60 bg-white/50 flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-white/80 transition-all backdrop-blur-sm">
+            <Bell className="h-4 w-4" />
+            <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-primary ring-2 ring-white" />
+          </button>
+          <div className="flex items-center gap-2 pl-3 border-l border-border/40">
+            <div className="h-8 w-8 rounded-full bg-gradient-to-br from-primary to-emerald-500 flex items-center justify-center text-white text-xs font-bold shadow-sm">
+              {getInitials(user?.fullName || user?.primaryEmailAddress?.emailAddress || "U")}
+            </div>
+          </div>
+          <Button
+            size="sm"
+            onClick={handleNewSession}
+            className="rounded-xl bg-gradient-to-r from-primary to-emerald-500 text-white shadow-lg shadow-primary/20 hover:shadow-xl hover:shadow-primary/25 transition-all h-9 px-4"
+          >
+            <Plus className="h-4 w-4 mr-1.5" />
+            {session ? "New Session" : "Create Session"}
+          </Button>
+        </div>
+      </motion.div>
 
-      <Card className="p-5">
-        <div className="space-y-4">
-          <h2 className="text-sm font-semibold flex items-center gap-2">
-            <FilePlus className="h-4 w-4 text-primary" />
-            Create New Application Link
-          </h2>
+      {/* AI Workspace */}
+      <motion.div variants={itemVariants}>
+        <div className="glass-card rounded-2xl p-6 md:p-8 border border-white/50 shadow-sm">
+          <div className="flex items-center gap-3 mb-5">
+            <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-primary/10 to-emerald-400/10 border border-primary/5 flex items-center justify-center">
+              <Sparkles className="h-4 w-4 text-primary" />
+            </div>
+            <div>
+              <h2 className="text-sm font-semibold text-foreground">AI Workspace</h2>
+              <p className="text-xs text-muted-foreground">Create a new application link by pasting a job description</p>
+            </div>
+          </div>
 
-          <Textarea
-            value={jdText}
-            onChange={(e) => setJdText(e.target.value)}
-            placeholder="Paste the full job description here. The AI will parse this to match candidates."
-            rows={5}
-          />
+          <div className="relative">
+            <Textarea
+              value={jdText}
+              onChange={(e) => setJdText(e.target.value)}
+              placeholder="Paste the full job description here. The AI will parse this to match candidates..."
+              rows={6}
+              className="w-full resize-none rounded-xl border border-border/60 bg-white/60 backdrop-blur-sm p-4 text-sm leading-relaxed placeholder:text-muted-foreground/30 focus:border-primary/30 focus:ring-2 focus:ring-primary/10 transition-all"
+            />
+            <div className="absolute bottom-3 right-3 flex items-center gap-1 text-[10px] text-muted-foreground/40 bg-white/60 backdrop-blur-sm px-2 py-1 rounded-lg">
+              <FileText className="h-3 w-3" />
+              {jdText.length}/5000
+            </div>
+          </div>
 
           {error && (
-            <Alert variant="destructive">
+            <Alert variant="destructive" className="mt-4 rounded-xl border-red-200 bg-red-50/50">
               <AlertDescription className="flex items-center justify-between">
-                <span>{error}</span>
-                <Button variant="ghost" size="xs" onClick={() => { setError(""); generateLink() }}>
+                <span className="text-sm">{error}</span>
+                <Button variant="ghost" size="xs" onClick={() => { setError(""); generateLink() }} className="text-red-600 hover:text-red-700 hover:bg-red-100/50">
                   Retry
                 </Button>
               </AlertDescription>
@@ -355,19 +486,35 @@ export default function DashboardPage() {
           )}
 
           {biasError && (
-            <Alert variant="destructive">
+            <Alert variant="destructive" className="mt-4 rounded-xl border-red-200 bg-red-50/50">
               <AlertDescription className="flex items-center justify-between">
-                <span>{biasError}</span>
-                <Button variant="ghost" size="xs" onClick={handleBiasScan}>
+                <span className="text-sm">{biasError}</span>
+                <Button variant="ghost" size="xs" onClick={handleBiasScan} className="text-red-600 hover:text-red-700 hover:bg-red-100/50">
                   Retry
                 </Button>
               </AlertDescription>
             </Alert>
           )}
 
-          <div className="flex items-center justify-between">
-            <div className="text-xs text-muted-foreground">
-              {jdText.length} / 5000 characters
+          <div className="flex flex-wrap items-center justify-between gap-3 mt-5">
+            <div className="flex items-center gap-2">
+              {session && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => loadDashboard()}
+                  disabled={loadingCandidates}
+                  className="rounded-lg text-xs h-8 text-muted-foreground hover:text-foreground"
+                >
+                  <RefreshCw className={`h-3.5 w-3.5 mr-1.5 ${loadingCandidates ? "animate-spin" : ""}`} />
+                  Refresh
+                  {candidates.length > 0 && (
+                    <span className="ml-1.5 rounded-full bg-primary/5 px-1.5 py-0.5 text-[10px] text-primary font-medium">
+                      {candidates.length}
+                    </span>
+                  )}
+                </Button>
+              )}
             </div>
             <div className="flex items-center gap-2">
               <Button
@@ -375,240 +522,262 @@ export default function DashboardPage() {
                 size="sm"
                 onClick={handleBiasScan}
                 disabled={scanningBias || !jdText.trim()}
+                className="rounded-lg h-9 border-border/60 text-xs"
               >
                 {scanningBias ? (
-                  <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
+                  <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
                 ) : (
-                  <ShieldAlert className="h-3.5 w-3.5 mr-1" />
+                  <ShieldAlert className="h-3.5 w-3.5 mr-1.5" />
                 )}
-                {scanningBias ? "Scanning..." : "Check for Bias"}
+                {scanningBias ? "Scanning..." : "Check Bias"}
               </Button>
               <Button
                 size="sm"
                 onClick={generateLink}
                 disabled={generating || !jdText.trim()}
+                className="rounded-lg h-9 bg-gradient-to-r from-primary to-emerald-500 text-white shadow-lg shadow-primary/20 hover:shadow-xl hover:shadow-primary/25 transition-all text-xs px-5"
               >
                 {generating ? (
-                  <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
+                  <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
                 ) : (
-                  <Sparkles className="h-3.5 w-3.5 mr-1" />
+                  <Sparkles className="h-3.5 w-3.5 mr-1.5" />
                 )}
-                {generating ? "Generating..." : "Generate Application Link"}
+                {generating ? "Generating..." : "Generate Link"}
               </Button>
             </div>
           </div>
         </div>
-      </Card>
+      </motion.div>
 
-      {biasResult && biasResult.has_bias && (
-        <Alert variant="warning">
-          <ShieldAlert className="h-4 w-4" />
-          <AlertDescription>
-            <div className="space-y-2">
-              <p className="font-medium">{biasResult.issues.length} bias issue(s) found</p>
-              {biasResult.issues.map((issue, i) => (
-                <div key={i} className="text-xs space-y-0.5">
-                  <span className="font-medium">[{issue.category}]</span> &ldquo;{issue.text}&rdquo;
-                  <p className="text-warning">→ {issue.suggestion}</p>
+      {/* Active Session Link */}
+      {session && (
+        <motion.div variants={itemVariants}>
+          <div className="glass-card rounded-2xl p-5 border border-primary/10 bg-gradient-to-r from-primary/[0.03] to-emerald-400/[0.02] shadow-sm">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+              <div className="flex items-center gap-3 min-w-0 w-full sm:w-auto">
+                <div className="h-8 w-8 rounded-xl bg-gradient-to-br from-primary/10 to-emerald-400/10 border border-primary/5 flex items-center justify-center shrink-0">
+                  <Link2 className="h-4 w-4 text-primary" />
                 </div>
-              ))}
-              {biasResult.suggestions.length > 0 && (
-                <div className="pt-2 border-t border-amber-200">
-                  <p className="text-xs font-medium mb-1">Suggestions:</p>
-                  {biasResult.suggestions.map((s, i) => (
-                    <p key={i} className="text-xs">• {s}</p>
-                  ))}
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-medium text-muted-foreground mb-0.5">Active Application Link</p>
+                  <code className="text-sm font-mono text-foreground bg-white/50 px-3 py-1 rounded-lg border border-border/40 truncate block">
+                    {typeof window !== "undefined"
+                      ? `${window.location.origin}${session.link}`
+                      : session.link}
+                  </code>
                 </div>
-              )}
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-2 shrink-0 rounded-lg border-border/60 h-8"
+                onClick={handleCopyLink}
+              >
+                {copied ? (
+                  <Check className="h-3.5 w-3.5 text-emerald-500" />
+                ) : (
+                  <Copy className="h-3.5 w-3.5" />
+                )}
+                {copied ? "Copied" : "Copy Link"}
+              </Button>
             </div>
-          </AlertDescription>
-        </Alert>
+          </div>
+        </motion.div>
+      )}
+
+      {/* Bias Results */}
+      {biasResult && biasResult.has_bias && (
+        <motion.div variants={itemVariants}>
+          <Alert variant="warning" className="rounded-2xl border-amber-200 bg-amber-50/50 backdrop-blur-sm">
+            <ShieldAlert className="h-4 w-4" />
+            <AlertDescription>
+              <div className="space-y-3">
+                <p className="text-sm font-semibold text-amber-800">{biasResult.issues.length} bias issue(s) found</p>
+                {biasResult.issues.map((issue, i) => (
+                  <div key={i} className="text-xs space-y-0.5 bg-white/50 rounded-lg p-3 border border-amber-100">
+                    <span className="font-semibold text-amber-700">[{issue.category}]</span>
+                    <p className="text-amber-800/80">&ldquo;{issue.text}&rdquo;</p>
+                    <p className="text-emerald-600 mt-1">→ {issue.suggestion}</p>
+                  </div>
+                ))}
+                {biasResult.suggestions.length > 0 && (
+                  <div className="bg-white/50 rounded-lg p-3 border border-amber-100">
+                    <p className="text-xs font-semibold text-amber-700 mb-2">Suggestions:</p>
+                    {biasResult.suggestions.map((s, i) => (
+                      <p key={i} className="text-xs text-amber-800/80">• {s}</p>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </AlertDescription>
+          </Alert>
+        </motion.div>
       )}
 
       {biasResult && !biasResult.has_bias && (
-        <Alert variant="success">
-          <ShieldAlert className="h-4 w-4" />
-          <AlertDescription>No bias detected — JD looks great!</AlertDescription>
-        </Alert>
+        <motion.div variants={itemVariants}>
+          <Alert variant="success" className="rounded-2xl border-emerald-200 bg-emerald-50/50 backdrop-blur-sm">
+            <ShieldAlert className="h-4 w-4" />
+            <AlertDescription className="text-sm font-medium text-emerald-700">
+              No bias detected — JD looks great!
+            </AlertDescription>
+          </Alert>
+        </motion.div>
       )}
 
-      {session && (
-        <Card className="border-primary/20 bg-primary/5 p-4">
-          <div className="flex items-center justify-between gap-4">
-            <div className="flex items-center gap-3 min-w-0">
-              <Link2 className="h-4 w-4 text-primary shrink-0" />
-              <span className="font-medium text-sm shrink-0">Active Link:</span>
-              <code className="text-sm bg-white px-3 py-1 rounded border font-mono truncate">
-                {typeof window !== "undefined"
-                  ? `${window.location.origin}${session.link}`
-                  : session.link}
-              </code>
-            </div>
-            <Button variant="outline" size="sm" className="gap-1 shrink-0" onClick={handleCopyLink}>
-              {copied ? (
-                <Check className="h-3.5 w-3.5" />
-              ) : (
-                <Copy className="h-3.5 w-3.5" />
-              )}
-              {copied ? "Copied" : "Copy"}
-            </Button>
+      {/* Pipeline Overview */}
+      <motion.div variants={itemVariants}>
+        <div className="flex items-center justify-between mb-5">
+          <div>
+            <h2 className="text-base font-semibold text-foreground">Pipeline Overview</h2>
+            <p className="text-xs text-muted-foreground mt-0.5">Track your hiring progress at a glance</p>
           </div>
-        </Card>
-      )}
-
-      <div>
-        <h2 className="text-sm font-semibold mb-3">Pipeline Overview</h2>
+          <Link href={ROUTES.candidates} className="text-xs font-medium text-primary hover:text-primary/80 transition-colors">
+            View all →
+          </Link>
+        </div>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <Link href={ROUTES.candidates} className="block group">
-            <Card className="p-4 cursor-pointer hover:shadow-sm transition-shadow border-t-2 border-t-primary">
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-xs font-medium text-muted-foreground">Total Candidates</p>
-                <div className="p-1.5 rounded-md bg-primary/10">
-                  <Users className="h-4 w-4 text-primary" />
+          {statCards.map((card, i) => (
+            <motion.div
+              key={card.label}
+              variants={itemVariants}
+              transition={{ delay: i * 0.03 }}
+            >
+              <Link href={card.href} className="block group">
+                <div className="glass-card rounded-2xl p-5 border border-white/50 hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300">
+                  <div className="flex items-center justify-between mb-3">
+                    <p className="text-xs font-medium text-muted-foreground">{card.label}</p>
+                    <div className={`h-8 w-8 rounded-xl ${card.bgLight} flex items-center justify-center`}>
+                      <card.icon className="h-4 w-4" style={{
+                        color: card.gradient.includes('primary') ? 'var(--primary)' :
+                               card.gradient.includes('blue') ? '#3B82F6' :
+                               card.gradient.includes('amber') ? '#F59E0B' :
+                               '#10B981'
+                      }} />
+                    </div>
+                  </div>
+                  <p className="text-2xl md:text-3xl font-bold tracking-tight text-foreground">
+                    {getStatValue(stats, card)}
+                  </p>
+                  {card.trend && (
+                    <div className="flex items-center gap-1 mt-1.5">
+                      <TrendingUp className="h-3 w-3 text-emerald-500" />
+                      <span className="text-[10px] font-medium text-emerald-500">{card.trend}</span>
+                    </div>
+                  )}
+                  {card.sub && (
+                    <p className="text-[10px] text-muted-foreground mt-1.5 leading-relaxed">
+                      {card.sub(stats)}
+                    </p>
+                  )}
+                  {!card.trend && !card.sub && (
+                    <div className="mt-3" />
+                  )}
                 </div>
-              </div>
-              <p className="text-2xl font-bold text-foreground">{stats?.totalCandidates ?? 0}</p>
-            </Card>
-          </Link>
-          <Link href={ROUTES.candidates} className="block group">
-            <Card className="p-4 cursor-pointer hover:shadow-sm transition-shadow border-t-2 border-t-accent">
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-xs font-medium text-muted-foreground">Uploaded Today</p>
-                <div className="p-1.5 rounded-md bg-accent/10">
-                  <FilePlus className="h-4 w-4 text-accent" />
-                </div>
-              </div>
-              <p className="text-2xl font-bold text-foreground">{stats?.uploadedToday ?? 0}</p>
-            </Card>
-          </Link>
-          <Link href={ROUTES.candidates} className="block group">
-            <Card className="p-4 cursor-pointer hover:shadow-sm transition-shadow border-t-2 border-t-success">
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-xs font-medium text-muted-foreground">Open</p>
-                <div className="p-1.5 rounded-md bg-success/10">
-                  <FolderOpen className="h-4 w-4 text-success" />
-                </div>
-              </div>
-              <p className="text-2xl font-bold text-foreground">{stats?.open ?? 0}</p>
-              <p className="text-[10px] text-muted-foreground mt-0.5">{stats?.applied ?? 0} Applied | {stats?.screening ?? 0} Screening</p>
-            </Card>
-          </Link>
-          <Link href={ROUTES.interview} className="block group">
-            <Card className="p-4 cursor-pointer hover:shadow-sm transition-shadow border-t-2 border-t-primary/60">
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-xs font-medium text-muted-foreground">Interview</p>
-                <div className="p-1.5 rounded-md bg-primary/10">
-                  <Calendar className="h-4 w-4 text-primary" />
-                </div>
-              </div>
-              <p className="text-2xl font-bold text-foreground">{stats?.interview ?? 0}</p>
-              <p className="text-[10px] text-muted-foreground mt-0.5">{stats?.interviewsToday ?? 0} Today</p>
-            </Card>
-          </Link>
-          <Link href={`${ROUTES.candidates}?status=hired,offer`} className="block group">
-            <Card className="p-4 cursor-pointer hover:shadow-sm transition-shadow border-t-2 border-t-success/80">
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-xs font-medium text-muted-foreground">Hired</p>
-                <div className="p-1.5 rounded-md bg-success/10">
-                  <BadgeCheck className="h-4 w-4 text-success" />
-                </div>
-              </div>
-              <p className="text-2xl font-bold text-foreground">
-                {(stats?.hired ?? 0) + (stats?.offered ?? 0)}
-              </p>
-              <p className="text-[10px] text-muted-foreground mt-0.5">
-                {stats?.hired ?? 0} Hired | {stats?.offered ?? 0} Pending
-              </p>
-            </Card>
-          </Link>
-          <Link href={`${ROUTES.candidates}?status=rejected`} className="block group">
-            <Card className="p-4 cursor-pointer hover:shadow-sm transition-shadow border-t-2 border-t-destructive">
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-xs font-medium text-muted-foreground">Rejected</p>
-                <div className="p-1.5 rounded-md bg-destructive/10">
-                  <XCircle className="h-4 w-4 text-destructive" />
-                </div>
-              </div>
-              <p className="text-2xl font-bold text-foreground">{stats?.rejected ?? 0}</p>
-            </Card>
-          </Link>
-          <Link href={ROUTES.candidateSearch} className="block group">
-            <Card className="p-4 cursor-pointer hover:shadow-sm transition-shadow border-t-2 border-t-muted-foreground/40">
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-xs font-medium text-muted-foreground">Searches</p>
-                <div className="p-1.5 rounded-md bg-muted">
-                  <Search className="h-4 w-4 text-muted-foreground" />
-                </div>
-              </div>
-              <p className="text-2xl font-bold text-foreground">{stats?.searches ?? 0}</p>
-              <p className="text-[10px] text-muted-foreground mt-0.5">{stats?.activeSessions ?? 0} Active Sessions</p>
-            </Card>
-          </Link>
+              </Link>
+            </motion.div>
+          ))}
         </div>
-      </div>
+      </motion.div>
 
-      <Card className="p-0 overflow-hidden">
-        <div className="flex items-center justify-between p-4 border-b bg-muted/30">
-          <h3 className="font-semibold text-sm">
-            Candidates
-            {candidates.length > 0 && (
-              <span className="ml-1.5 text-muted-foreground font-normal">
-                ({candidates.length})
-              </span>
-            )}
-          </h3>
-          <Link href={`${ROUTES.candidates}?session=${session?.sessionId}`}>
-            <Button variant="ghost" size="sm">View All</Button>
-          </Link>
+      {/* Candidates Section */}
+      <motion.div variants={itemVariants}>
+        <div className="flex items-center justify-between mb-5">
+          <div>
+            <h2 className="text-base font-semibold text-foreground">Recent Candidates</h2>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              {candidates.length > 0
+                ? `Showing ${candidates.length} recent candidate${candidates.length === 1 ? '' : 's'}`
+                : "No candidates uploaded yet"}
+            </p>
+          </div>
+          {candidates.length > 0 && (
+            <Link href={`${ROUTES.candidates}?session=${session?.sessionId}`}>
+              <Button variant="ghost" size="sm" className="rounded-lg text-xs h-8 text-muted-foreground hover:text-foreground">
+                View All
+                <ArrowUpRight className="h-3 w-3 ml-1" />
+              </Button>
+            </Link>
+          )}
         </div>
 
-        {loadingCandidates ? (
-          <div className="p-4 space-y-3">
-            {Array.from({ length: 3 }).map((_, i) => (
-              <div key={i} className="flex items-center gap-4">
-                <Skeleton className="h-8 w-8 rounded-full" />
-                <div className="flex-1 space-y-2">
-                  <Skeleton className="h-3 w-40" />
-                  <Skeleton className="h-2 w-24" />
+        <div className="glass-card rounded-2xl border border-white/50 overflow-hidden">
+          {loadingCandidates ? (
+            <div className="p-6 space-y-4">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} className="flex items-center gap-4">
+                  <Skeleton className="h-10 w-10 rounded-full" />
+                  <div className="flex-1 space-y-2">
+                    <Skeleton className="h-3.5 w-48 rounded-md" />
+                    <Skeleton className="h-2.5 w-32 rounded-md" />
+                  </div>
+                  <Skeleton className="h-4 w-20 rounded-md" />
+                  <Skeleton className="h-6 w-24 rounded-full" />
+                  <Skeleton className="h-8 w-16 rounded-lg" />
                 </div>
-                <Skeleton className="h-4 w-16" />
-                <Skeleton className="h-5 w-20 rounded-full" />
-                <Skeleton className="h-8 w-16" />
+              ))}
+            </div>
+          ) : candidates.length === 0 ? (
+            <div className="p-12 md:p-16">
+              <div className="flex flex-col items-center text-center max-w-sm mx-auto">
+                <div className="h-16 w-16 rounded-2xl bg-gradient-to-br from-primary/5 to-emerald-400/5 border border-primary/5 flex items-center justify-center mb-5">
+                  <Users className="h-7 w-7 text-primary/40" />
+                </div>
+                <h3 className="text-base font-semibold text-foreground mb-1.5">No candidates yet</h3>
+                <p className="text-sm text-muted-foreground mb-6 leading-relaxed">
+                  Upload a resume or create an application link above to start receiving candidates.
+                </p>
+                <div className="flex flex-col sm:flex-row gap-3 w-full">
+                  <Button
+                    size="sm"
+                    onClick={() => {
+                      const el = document.querySelector('textarea')
+                      if (el) el.focus()
+                    }}
+                    className="rounded-xl bg-gradient-to-r from-primary to-emerald-500 text-white shadow-lg shadow-primary/20 hover:shadow-xl transition-all"
+                  >
+                    <FilePlus className="h-4 w-4 mr-1.5" />
+                    Paste Job Description
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleNewSession}
+                    className="rounded-xl border-border/60"
+                  >
+                    <Plus className="h-4 w-4 mr-1.5" />
+                    Create Session
+                  </Button>
+                </div>
               </div>
-            ))}
-          </div>
-        ) : candidates.length === 0 ? (
-          <EmptyState
-            icon={Users}
-            title="No candidates yet"
-            description="Upload a resume or share an application link to get started."
-          />
-        ) : (
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Candidate</TableHead>
-                  <TableHead>Match Score</TableHead>
-                  <TableHead>Flight Risk</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Resume</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {candidates.map((candidate) => (
-                  <CandidateTableRow
-                    key={candidate.id}
-                    candidate={candidate}
-                    onSelect={handleSelectCandidate}
-                  />
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-        )}
-      </Card>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-white/30 border-b border-border/40">
+                    <TableHead className="text-xs font-semibold text-muted-foreground uppercase tracking-wider py-3">Candidate</TableHead>
+                    <TableHead className="text-xs font-semibold text-muted-foreground uppercase tracking-wider py-3">Match Score</TableHead>
+                    <TableHead className="text-xs font-semibold text-muted-foreground uppercase tracking-wider py-3">Flight Risk</TableHead>
+                    <TableHead className="text-xs font-semibold text-muted-foreground uppercase tracking-wider py-3">Status</TableHead>
+                    <TableHead className="text-xs font-semibold text-muted-foreground uppercase tracking-wider py-3">Resume</TableHead>
+                    <TableHead className="text-xs font-semibold text-muted-foreground uppercase tracking-wider py-3 text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {candidates.map((candidate) => (
+                    <CandidateTableRow
+                      key={candidate.id}
+                      candidate={candidate}
+                      onSelect={handleSelectCandidate}
+                    />
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </div>
+      </motion.div>
 
       <CandidateDetailModal
         open={showDetailModal}
@@ -619,6 +788,6 @@ export default function DashboardPage() {
         candidate={selectedCandidate}
         onStatusChange={() => loadDashboard()}
       />
-    </div>
+    </motion.div>
   )
 }
