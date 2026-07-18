@@ -33,7 +33,7 @@ function DashboardMockup() {
             <div className="flex gap-1.5">
               <div className="w-2.5 h-2.5 rounded-full bg-red-400/60" />
               <div className="w-2.5 h-2.5 rounded-full bg-yellow-400/60" />
-              <div className="w-2.5 h-2.5 rounded-full bg-emerald-400/60" />
+              <div className="w-2.5 h-2.5 rounded-full bg-primary/40" />
             </div>
             <div className="flex-1 flex justify-center">
               <div className="bg-white/40 rounded-md px-3 py-0.5 text-[10px] text-muted-foreground/60 font-medium">
@@ -59,14 +59,14 @@ function DashboardMockup() {
                   <span className="text-[9px] font-bold text-primary">92</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <div className="w-6 h-6 rounded-full bg-gradient-to-br from-primary to-emerald-400 flex items-center justify-center text-white text-[10px] font-bold">SK</div>
+                  <div className="w-6 h-6 rounded-full bg-primary flex items-center justify-center text-white text-[10px] font-bold">SK</div>
                   <div>
                     <p className="text-[11px] font-medium">Sarah Kim</p>
                     <p className="text-[8px] text-muted-foreground">React · TypeScript · 6yr</p>
                   </div>
                 </div>
                 <div className="mt-2 h-1.5 bg-white/60 rounded-full overflow-hidden">
-                  <div className="h-full w-[92%] bg-gradient-to-r from-primary to-emerald-400 rounded-full" />
+                  <div className="h-full w-[92%] bg-primary rounded-full" />
                 </div>
               </div>
               <div className="bg-white/50 rounded-xl p-3 border border-white/40">
@@ -82,7 +82,7 @@ function DashboardMockup() {
                   </div>
                 </div>
                 <div className="mt-2 h-1.5 bg-white/60 rounded-full overflow-hidden">
-                  <div className="h-full w-[88%] bg-gradient-to-r from-primary to-emerald-400 rounded-full" />
+                  <div className="h-full w-[88%] bg-primary rounded-full" />
                 </div>
               </div>
             </div>
@@ -90,7 +90,7 @@ function DashboardMockup() {
               <div className="bg-white/50 rounded-lg p-2 border border-white/30 text-center">
                 <div className="flex items-center justify-center gap-1">
                   <span className="text-[9px] text-muted-foreground">Resume</span>
-                  <div className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                  <div className="w-1.5 h-1.5 rounded-full bg-primary/30" />
                 </div>
                 <p className="text-[10px] font-bold text-foreground">Parsed</p>
               </div>
@@ -125,7 +125,7 @@ function DashboardMockup() {
                     <span className="text-[8px] font-medium text-muted-foreground w-16">{item.label}</span>
                     <div className="flex-1 h-1 bg-white/60 rounded-full overflow-hidden">
                       <div
-                        className="h-full bg-gradient-to-r from-primary to-emerald-400 rounded-full"
+                        className="h-full bg-primary rounded-full"
                         style={{ width: `${item.value}%` }}
                       />
                     </div>
@@ -158,14 +158,14 @@ function DashboardMockup() {
       >
         <div className="glass-strong rounded-xl px-3.5 py-2 shadow-lg border border-white/50">
           <div className="flex items-center gap-2">
-            <Shield className="h-3.5 w-3.5 text-emerald-500" />
+            <Shield className="h-3.5 w-3.5 text-primary" />
             <span className="text-[10px] font-semibold">Bias Free</span>
           </div>
         </div>
       </motion.div>
 
       <div className="absolute -z-10 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] h-[400px] bg-primary/5 rounded-full blur-3xl animate-pulse-glow" />
-      <div className="absolute -z-10 top-1/3 right-0 w-[200px] h-[200px] bg-emerald-400/5 rounded-full blur-3xl" />
+      <div className="absolute -z-10 top-1/3 right-0 w-[200px] h-[200px] bg-primary/30/5 rounded-full blur-3xl" />
     </div>
   )
 }
@@ -193,9 +193,9 @@ export function LandingHero() {
     <section className="relative w-full overflow-hidden pt-24 pb-20 md:pt-32 md:pb-28">
       <div className="absolute inset-0 noise-bg pointer-events-none" />
       <div className="absolute inset-0 grid-bg pointer-events-none opacity-40" />
-      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[800px] h-[600px] bg-gradient-to-b from-primary/[0.07] via-emerald-400/[0.03] to-transparent rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[800px] h-[600px] bg-gradient-to-b from-primary/[0.07] via-accent/[0.03] to-transparent rounded-full blur-3xl pointer-events-none" />
       <div className="absolute top-1/3 right-0 w-[300px] h-[300px] bg-primary/5 rounded-full blur-3xl animate-blob pointer-events-none" />
-      <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-emerald-400/5 rounded-full blur-3xl animate-blob pointer-events-none" style={{ animationDelay: "-3s" }} />
+      <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-primary/30/5 rounded-full blur-3xl animate-blob pointer-events-none" style={{ animationDelay: "-3s" }} />
 
       <div className="mx-auto max-w-7xl px-4 md:px-8 relative">
         <div className="grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
@@ -217,7 +217,7 @@ export function LandingHero() {
               className="text-5xl sm:text-6xl md:text-7xl lg:text-[72px] font-bold tracking-tight leading-[1.04] text-foreground"
             >
               Discover top talent with{" "}
-              <span className="text-gradient bg-gradient-to-r from-primary via-teal-400 to-emerald-400">AI</span>
+              <span className="text-gradient bg-gradient-to-r from-primary via-accent to-primary">AI</span>
             </motion.h1>
 
             <motion.p

@@ -97,7 +97,7 @@ export function PricingSection() {
               <div className={`glass-card rounded-2xl p-6 md:p-8 h-full flex flex-col ${plan.popular ? "ring-2 ring-primary/20 shadow-xl shadow-primary/5" : ""}`}>
                 {plan.popular && (
                   <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                    <div className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-primary to-emerald-500 px-4 py-1 text-xs font-semibold text-white shadow-lg">
+                    <div className="inline-flex items-center gap-1 rounded-full bg-primary px-4 py-1 text-xs font-semibold text-white shadow-lg">
                       Most Popular
                     </div>
                   </div>

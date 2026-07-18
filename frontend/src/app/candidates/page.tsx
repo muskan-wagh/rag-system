@@ -43,7 +43,7 @@ const itemVariants = {
 
 function StatusBadge({ status }: { status?: string }) {
   const statusConfig: Record<string, { icon: typeof CheckCircle2; color: string; bg: string; border: string }> = {
-    hired: { icon: CheckCircle2, color: "text-emerald-600", bg: "bg-emerald-50", border: "border-emerald-200" },
+    hired: { icon: CheckCircle2, color: "text-success", bg: "bg-green-50", border: "border-success" },
     offered: { icon: ClockIcon, color: "text-blue-600", bg: "bg-blue-50", border: "border-blue-200" },
     rejected: { icon: XCircle, color: "text-red-600", bg: "bg-red-50", border: "border-red-200" },
     screening: { icon: Search, color: "text-amber-600", bg: "bg-amber-50", border: "border-amber-200" },
@@ -64,7 +64,7 @@ function StatusBadge({ status }: { status?: string }) {
 
 function SkillPill({ skill, index }: { skill: string; index: number }) {
   return (
-    <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-medium bg-gradient-to-r from-primary/[0.06] to-emerald-400/[0.04] text-primary border border-primary/5 whitespace-nowrap">
+    <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-medium bg-primary/5 text-primary border border-primary/5 whitespace-nowrap">
       {skill}
     </span>
   )
@@ -76,7 +76,7 @@ function AiScoreRing({ score }: { score?: number }) {
   const circumference = 2 * Math.PI * radius
   const offset = circumference - (value / 100) * circumference
 
-  const color = value >= 80 ? "#10B981" : value >= 60 ? "#0D9488" : value >= 40 ? "#F59E0B" : "#EF4444"
+  const color = value >= 80 ? "#4F46E5" : value >= 60 ? "#6366F1" : value >= 40 ? "#F59E0B" : "#EF4444"
   const label = value >= 80 ? "Excellent" : value >= 60 ? "Strong" : value >= 40 ? "Fair" : "Low"
 
   return (
@@ -262,7 +262,7 @@ function CandidatesContent() {
       <motion.div variants={itemVariants} className="flex flex-col lg:flex-row lg:items-end justify-between gap-4 mb-8">
         <div>
           <div className="flex items-center gap-3 mb-1">
-            <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-primary to-emerald-500 flex items-center justify-center shadow-md shadow-primary/20">
+            <div className="h-9 w-9 rounded-xl bg-primary flex items-center justify-center shadow-md shadow-primary/20">
               <Users className="h-4.5 w-4.5 text-white" />
             </div>
             <div>
@@ -301,7 +301,7 @@ function CandidatesContent() {
             </Button>
             <Button
               size="sm"
-              className="rounded-xl bg-gradient-to-r from-primary to-emerald-500 text-white shadow-lg shadow-primary/20 hover:shadow-xl transition-all h-9 px-4"
+              className="rounded-xl bg-primary text-white shadow-md shadow-primary/20 transition-all h-9 px-4"
             >
               <Plus className="h-4 w-4 mr-1.5" />
               Add Candidate
@@ -317,8 +317,8 @@ function CandidatesContent() {
             onClick={() => handleSelectSession(null)}
             className={`shrink-0 flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-medium transition-all border ${
               selectedSessionId === null
-                ? "bg-gradient-to-r from-primary/10 to-emerald-400/5 border-primary/10 text-primary shadow-sm"
-                : "bg-white/50 border-border/40 text-muted-foreground hover:text-foreground hover:border-border/60 hover:bg-white/80"
+                ? "bg-primary/5 border-primary/10 text-primary shadow-sm"
+              : "bg-white/50 border-border/40 text-muted-foreground hover:text-foreground hover:border-border/60 hover:bg-white/80"
             }`}
           >
             <Users className="h-3.5 w-3.5" />
@@ -343,7 +343,7 @@ function CandidatesContent() {
                   onClick={() => handleSelectSession(session.id)}
                   className={`shrink-0 flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-medium transition-all border whitespace-nowrap ${
                     selectedSessionId === session.id
-                      ? "bg-gradient-to-r from-primary/10 to-emerald-400/5 border-primary/10 text-primary shadow-sm"
+                ? "bg-primary/10 border-primary/10 text-primary shadow-sm"
                       : "bg-white/50 border-border/40 text-muted-foreground hover:text-foreground hover:border-border/60 hover:bg-white/80"
                   }`}
                 >
@@ -436,7 +436,7 @@ function CandidatesContent() {
           ) : candidatesData?.candidates.length === 0 ? (
             <div className="glass-card rounded-2xl p-12 md:p-16 border border-white/50">
               <div className="flex flex-col items-center text-center max-w-sm mx-auto">
-                <div className="h-16 w-16 rounded-2xl bg-gradient-to-br from-primary/5 to-emerald-400/5 border border-primary/5 flex items-center justify-center mb-5">
+                <div className="h-16 w-16 rounded-2xl bg-primary/5 border border-primary/5 flex items-center justify-center mb-5">
                   <Users className="h-7 w-7 text-primary/40" />
                 </div>
                 <h3 className="text-base font-semibold text-foreground mb-1.5">
@@ -450,7 +450,7 @@ function CandidatesContent() {
                 <div className="flex flex-col sm:flex-row gap-3">
                   <Button
                     size="sm"
-                    className="rounded-xl bg-gradient-to-r from-primary to-emerald-500 text-white shadow-lg shadow-primary/20 hover:shadow-xl transition-all"
+                    className="rounded-xl bg-primary text-white shadow-md shadow-primary/20 transition-all"
                   >
                     <Plus className="h-4 w-4 mr-1.5" />
                     Upload Resume
@@ -480,7 +480,7 @@ function CandidatesContent() {
                   >
                     <div className="flex items-start gap-4">
                       <Avatar className="h-11 w-11 ring-2 ring-white shadow-sm shrink-0">
-                        <AvatarFallback className="text-xs font-semibold bg-gradient-to-br from-primary/10 to-emerald-400/10 text-primary">
+                        <AvatarFallback className="text-xs font-semibold bg-primary/5 text-primary">
                           {getInitials(candidate.full_name)}
                         </AvatarFallback>
                       </Avatar>
@@ -533,7 +533,7 @@ function CandidatesContent() {
                                 ? "bg-red-50 border-red-200 text-red-600"
                                 : candidate.flight_risk === "Medium"
                                 ? "bg-amber-50 border-amber-200 text-amber-600"
-                                : "bg-emerald-50 border-emerald-200 text-emerald-600"
+                                : "bg-green-50 border-success text-success"
                             }`}>
                               {candidate.flight_risk} risk
                             </span>
@@ -559,7 +559,7 @@ function CandidatesContent() {
                           {candidate.current_status === CANDIDATE_STATUS.OFFERED && (
                             <button
                               onClick={(e) => { e.stopPropagation(); handleHireClick(candidate) }}
-                              className="flex h-7 w-7 items-center justify-center rounded-lg hover:bg-emerald-50 transition-colors text-emerald-500"
+                              className="flex h-7 w-7 items-center justify-center rounded-lg hover:bg-green-50 transition-colors text-primary"
                               title="Mark as Hired"
                             >
                               <BadgeCheck className="h-3.5 w-3.5" />
@@ -638,7 +638,7 @@ function CandidatesContent() {
             <div className="sticky top-24 space-y-4">
               <div className="glass-card rounded-2xl p-5 border border-white/50">
                 <div className="flex items-center gap-2 mb-4">
-                  <div className="h-7 w-7 rounded-lg bg-gradient-to-br from-primary/10 to-emerald-400/10 border border-primary/5 flex items-center justify-center">
+                  <div className="h-7 w-7 rounded-lg bg-primary/5 border border-primary/5 flex items-center justify-center">
                     <Brain className="h-3.5 w-3.5 text-primary" />
                   </div>
                   <h3 className="text-xs font-semibold text-foreground uppercase tracking-wider">AI Insights</h3>
@@ -679,7 +679,7 @@ function CandidatesContent() {
                     </div>
                     <p className="text-lg font-bold text-primary tabular-nums">{avgMatchScore}%</p>
                     <div className="mt-2 h-1.5 bg-white/60 rounded-full overflow-hidden">
-                      <div className="h-full bg-gradient-to-r from-primary to-emerald-400 rounded-full" style={{ width: `${avgMatchScore}%` }} />
+                      <div className="h-full bg-primary rounded-full" style={{ width: `${avgMatchScore}%` }} />
                     </div>
                   </div>
 
@@ -694,7 +694,7 @@ function CandidatesContent() {
                         { label: "Screening", count: candidatesData.candidates.filter(c => c.current_status?.toLowerCase() === "screening").length, color: "bg-amber-400" },
                         { label: "Interview", count: pendingInterviews, color: "bg-violet-400" },
                         { label: "Offered", count: candidatesData.candidates.filter(c => c.current_status?.toLowerCase() === "offered").length, color: "bg-blue-400" },
-                        { label: "Hired", count: candidatesData.candidates.filter(c => c.current_status?.toLowerCase() === "hired").length, color: "bg-emerald-400" },
+                        { label: "Hired", count: candidatesData.candidates.filter(c => c.current_status?.toLowerCase() === "hired").length, color: "bg-primary/30" },
                         { label: "Rejected", count: candidatesData.candidates.filter(c => c.current_status?.toLowerCase() === "rejected").length, color: "bg-red-400" },
                       ].map((item) => (
                         <div key={item.label} className="flex items-center justify-between">
@@ -728,7 +728,7 @@ function CandidatesContent() {
       <Dialog open={showHireConfirm} onOpenChange={(o) => { if (!o) { setShowHireConfirm(false); setHireCandidate(null) } }}>
         <DialogContent className="sm:max-w-md rounded-2xl">
           <div className="px-6 pt-6 pb-2">
-            <div className="flex items-center gap-2 text-emerald-600">
+            <div className="flex items-center gap-2 text-success">
               <BadgeCheck className="h-5 w-5" />
               <h2 className="text-lg font-semibold">Mark as Hired</h2>
             </div>
@@ -740,7 +740,7 @@ function CandidatesContent() {
             <Button variant="outline" size="sm" onClick={() => { setShowHireConfirm(false); setHireCandidate(null) }} disabled={hireLoading}>
               Cancel
             </Button>
-            <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700" onClick={confirmHire} disabled={hireLoading}>
+            <Button size="sm" className="bg-primary hover:bg-primary-hover" onClick={confirmHire} disabled={hireLoading}>
               {hireLoading && <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />}
               Confirm Hired
             </Button>

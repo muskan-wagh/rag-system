@@ -644,8 +644,8 @@ export function CandidateDetailModal({ open, onClose, candidate, onStatusChange 
                     <div className="mt-3">
                       {screeningQuestions ? (
                         <div className="flex items-center gap-2">
-                          <CheckCircle2 className="h-4 w-4 text-emerald-500" />
-                          <span className="text-xs text-emerald-600 font-medium">
+                          <CheckCircle2 className="h-4 w-4 text-primary" />
+                          <span className="text-xs text-success font-medium">
                             {screeningQuestions.length} questions ready
                           </span>
                           <Button variant="ghost" size="xs" onClick={() => setActiveTab("screening")}>
@@ -684,8 +684,8 @@ export function CandidateDetailModal({ open, onClose, candidate, onStatusChange 
                     <div className="mt-3">
                       {closingStrategy ? (
                         <div className="flex items-center gap-2">
-                          <CheckCircle2 className="h-4 w-4 text-emerald-500" />
-                          <span className="text-xs text-emerald-600 font-medium">
+                          <CheckCircle2 className="h-4 w-4 text-primary" />
+                          <span className="text-xs text-success font-medium">
                             Strategy ready
                           </span>
                           <Button variant="ghost" size="xs" onClick={() => setActiveTab("closing")}>

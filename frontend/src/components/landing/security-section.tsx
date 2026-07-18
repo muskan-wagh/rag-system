@@ -37,7 +37,7 @@ export function SecuritySection() {
           {items.map((item) => (
             <GlassCard key={item.title} className="text-center">
               <div className="flex justify-center mb-3">
-                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary/10 to-emerald-400/10 border border-primary/5 flex items-center justify-center">
+                <div className="w-10 h-10 rounded-xl bg-primary/5 border border-primary/5 flex items-center justify-center">
                   <item.icon className="h-5 w-5 text-primary" />
                 </div>
               </div>

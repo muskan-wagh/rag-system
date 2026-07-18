@@ -5,12 +5,12 @@ import { Sparkles, FileText, BarChart3, Users, CheckCircle, Search } from "lucid
 import { SectionHeader } from "@/components/ui/section-header"
 
 const floatingCards = [
-  { icon: Sparkles, label: "AI Match", value: "96%", color: "from-primary to-emerald-400", x: "-10%", y: "5%", delay: 0 },
+  { icon: Sparkles, label: "AI Match", value: "96%", color: "from-primary to-accent", x: "-10%", y: "5%", delay: 0 },
   { icon: FileText, label: "Resume Summary", value: "Parsed", color: "from-blue-500 to-indigo-400", x: "85%", y: "-5%", delay: 0.5 },
-  { icon: BarChart3, label: "Hiring Score", value: "92", color: "from-amber-500 to-orange-400", x: "-8%", y: "70%", delay: 1 },
-  { icon: Users, label: "Candidate Fit", value: "Strong", color: "from-emerald-500 to-teal-400", x: "80%", y: "75%", delay: 1.5 },
-  { icon: CheckCircle, label: "Interview Ready", value: "Yes", color: "from-green-500 to-emerald-400", x: "50%", y: "-8%", delay: 2 },
-  { icon: Search, label: "Semantic Search", value: "Active", color: "from-violet-500 to-purple-400", x: "45%", y: "85%", delay: 2.5 },
+  { icon: BarChart3, label: "Hiring Score", value: "92", color: "from-warning to-accent", x: "-8%", y: "70%", delay: 1 },
+  { icon: Users, label: "Candidate Fit", value: "Strong", color: "from-primary to-accent", x: "80%", y: "75%", delay: 1.5 },
+  { icon: CheckCircle, label: "Interview Ready", value: "Yes", color: "from-success to-accent", x: "50%", y: "-8%", delay: 2 },
+  { icon: Search, label: "Semantic Search", value: "Active", color: "from-accent to-accent", x: "45%", y: "85%", delay: 2.5 },
 ]
 
 export function ProductShowcase() {
@@ -40,7 +40,7 @@ export function ProductShowcase() {
                 <div className="flex gap-1.5">
                   <div className="w-3 h-3 rounded-full bg-red-400/60" />
                   <div className="w-3 h-3 rounded-full bg-yellow-400/60" />
-                  <div className="w-3 h-3 rounded-full bg-emerald-400/60" />
+                  <div className="w-3 h-3 rounded-full bg-primary/40" />
                 </div>
                 <div className="flex-1 flex justify-center">
                   <div className="bg-white/50 rounded-md px-3 py-0.5 text-xs text-muted-foreground/60 font-medium">
@@ -54,12 +54,12 @@ export function ProductShowcase() {
                   <div className="bg-white/50 rounded-xl p-4 border border-white/40">
                     <p className="text-xs font-medium text-muted-foreground mb-1">Total Candidates</p>
                     <p className="text-2xl font-bold text-foreground">1,247</p>
-                    <p className="text-xs text-emerald-500 font-medium mt-1">+12% this week</p>
+                    <p className="text-xs text-primary font-medium mt-1">+12% this week</p>
                   </div>
                   <div className="bg-white/50 rounded-xl p-4 border border-white/40">
                     <p className="text-xs font-medium text-muted-foreground mb-1">Avg. Match Score</p>
                     <p className="text-2xl font-bold text-foreground">86%</p>
-                    <p className="text-xs text-emerald-500 font-medium mt-1">+5% improvement</p>
+                    <p className="text-xs text-primary font-medium mt-1">+5% improvement</p>
                   </div>
                   <div className="bg-white/50 rounded-xl p-4 border border-white/40">
                     <p className="text-xs font-medium text-muted-foreground mb-1">Open Positions</p>
@@ -77,7 +77,7 @@ export function ProductShowcase() {
                       { name: "David Park", score: 85, skills: "Angular · Go · 7yr" },
                     ].map((c) => (
                       <div key={c.name} className="flex items-center gap-3 py-1.5">
-                        <div className="w-7 h-7 rounded-full bg-gradient-to-br from-primary to-emerald-400 flex items-center justify-center text-white text-xs font-bold">
+                        <div className="w-7 h-7 rounded-full bg-primary flex items-center justify-center text-white text-xs font-bold">
                           {c.name.split(" ").map(n => n[0]).join("")}
                         </div>
                         <div className="flex-1 min-w-0">
@@ -86,7 +86,7 @@ export function ProductShowcase() {
                         </div>
                         <div className="flex items-center gap-2">
                           <div className="h-1.5 w-16 bg-white/60 rounded-full overflow-hidden">
-                            <div className="h-full bg-gradient-to-r from-primary to-emerald-400 rounded-full" style={{ width: `${c.score}%` }} />
+                            <div className="h-full bg-primary rounded-full" style={{ width: `${c.score}%` }} />
                           </div>
                           <span className="text-xs font-bold text-primary">{c.score}%</span>
                         </div>

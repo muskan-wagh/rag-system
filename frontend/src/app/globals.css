@@ -11,6 +11,7 @@
   --color-popover: var(--popover);
   --color-popover-foreground: var(--popover-foreground);
   --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
   --color-primary-foreground: var(--primary-foreground);
   --color-secondary: var(--secondary);
   --color-secondary-foreground: var(--secondary-foreground);
@@ -20,14 +21,24 @@
   --color-accent-foreground: var(--accent-foreground);
   --color-destructive: var(--destructive);
   --color-destructive-foreground: var(--destructive-foreground);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-danger: var(--danger);
+  --color-info: var(--info);
   --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
   --color-input: var(--input);
   --color-ring: var(--ring);
   --color-sidebar: var(--sidebar);
   --color-sidebar-foreground: var(--sidebar-foreground);
   --color-sidebar-border: var(--sidebar-border);
-  --color-success: var(--success);
-  --color-warning: var(--warning);
+  --color-chart-primary: var(--chart-primary);
+  --color-chart-secondary: var(--chart-secondary);
+  --color-surface: var(--surface);
+  --color-surface-secondary: var(--surface-secondary);
+  --color-text-primary: var(--text-primary);
+  --color-text-secondary: var(--text-secondary);
+  --color-text-muted: var(--text-muted);
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
@@ -38,31 +49,42 @@
 }
 
 :root {
-  --radius: 0.5rem;
-  --background: #F8FAFC;
+  --radius: 0.625rem;
+  --background: #FAFBFC;
   --foreground: #0F172A;
   --card: #FFFFFF;
   --card-foreground: #0F172A;
   --popover: #FFFFFF;
   --popover-foreground: #0F172A;
-  --primary: #0D9488;
+  --primary: #4F46E5;
+  --primary-hover: #4338CA;
   --primary-foreground: #FFFFFF;
   --secondary: #F1F5F9;
   --secondary-foreground: #0F172A;
   --muted: #F1F5F9;
-  --muted-foreground: #64748B;
-  --accent: #14B8A6;
+  --muted-foreground: #94A3B8;
+  --accent: #6366F1;
   --accent-foreground: #FFFFFF;
   --destructive: #EF4444;
   --destructive-foreground: #FFFFFF;
-  --border: #E2E8F0;
-  --input: #E2E8F0;
-  --ring: #0D9488;
+  --success: #22C55E;
+  --warning: #F59E0B;
+  --danger: #EF4444;
+  --info: #3B82F6;
+  --border: #E5E7EB;
+  --border-strong: #CBD5E1;
+  --input: #E5E7EB;
+  --ring: #4F46E5;
   --sidebar: #FFFFFF;
   --sidebar-foreground: #475569;
-  --sidebar-border: #E2E8F0;
-  --success: #10B981;
-  --warning: #F59E0B;
+  --sidebar-border: #E5E7EB;
+  --chart-primary: #4F46E5;
+  --chart-secondary: #6366F1;
+  --surface: #FFFFFF;
+  --surface-secondary: #F8FAFC;
+  --text-primary: #0F172A;
+  --text-secondary: #475569;
+  --text-muted: #94A3B8;
 }
 
 @layer base {
@@ -74,7 +96,7 @@
     font-family: var(--font-geist-sans), system-ui, sans-serif;
   }
   ::selection {
-    background: rgba(13, 148, 136, 0.15);
+    background: rgba(79, 70, 229, 0.12);
   }
   ::-webkit-scrollbar {
     width: 6px;
@@ -147,8 +169,8 @@
 }
 
 @keyframes border-glow {
-  0%, 100% { border-color: rgba(13, 148, 136, 0.1); }
-  50% { border-color: rgba(13, 148, 136, 0.3); }
+  0%, 100% { border-color: rgba(79, 70, 229, 0.1); }
+  50% { border-color: rgba(79, 70, 229, 0.3); }
 }
 
 @keyframes counter-in {
@@ -169,7 +191,7 @@
 }
 
 @utility animate-shimmer {
-  background: linear-gradient(90deg, rgba(226, 232, 240, 0.4) 0%, rgba(203, 213, 225, 0.7) 50%, rgba(226, 232, 240, 0.4) 100%);
+  background: linear-gradient(90deg, rgba(229, 231, 235, 0.4) 0%, rgba(203, 213, 225, 0.7) 50%, rgba(229, 231, 235, 0.4) 100%);
   background-size: 200% 100%;
   animation: shimmer 1.5s infinite;
 }
@@ -225,7 +247,7 @@
   background: rgba(255, 255, 255, 0.75);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(226, 232, 240, 0.5);
+  border: 1px solid rgba(229, 231, 235, 0.5);
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.02);
 }
 
@@ -234,8 +256,8 @@
 }
 
 @utility grid-bg {
-  background-image: linear-gradient(rgba(226, 232, 240, 0.3) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(226, 232, 240, 0.3) 1px, transparent 1px);
+  background-image: linear-gradient(rgba(229, 231, 235, 0.3) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(229, 231, 235, 0.3) 1px, transparent 1px);
   background-size: 64px 64px;
 }
 

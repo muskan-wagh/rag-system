@@ -27,7 +27,7 @@ export function SectionHeader({ label, title, highlight, description, className 
       <h2 className="text-3xl md:text-4xl font-bold tracking-tight text-foreground">
         {title}
         {highlight && (
-          <span className="text-gradient bg-gradient-to-r from-primary to-emerald-400"> {highlight}</span>
+          <span className="text-gradient bg-gradient-to-r from-primary to-accent"> {highlight}</span>
         )}
       </h2>
       {description && (

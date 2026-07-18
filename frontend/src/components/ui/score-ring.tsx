@@ -20,7 +20,7 @@ export function ScoreRing({
   className,
   label,
   delay = 0,
-  color = "#2563EB",
+  color = "#4F46E5",
 }: ScoreRingProps) {
   const cx = 18
   const cy = 18

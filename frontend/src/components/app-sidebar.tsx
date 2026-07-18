@@ -42,7 +42,7 @@ export function AppSidebar() {
   return (
     <aside className="fixed left-3 top-3 bottom-3 z-40 flex w-56 flex-col rounded-2xl glass-strong border border-white/50 shadow-lg shadow-black/[0.03]">
       <div className="flex h-14 items-center gap-2.5 px-5 border-b border-border/40">
-        <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-emerald-500 shadow-sm">
+        <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary shadow-sm">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
             <path d="M12 2L2 7l10 5 10-5-10-5z" />
             <path d="M2 17l10 5 10-5" />
@@ -62,7 +62,7 @@ export function AppSidebar() {
               {active && (
                 <motion.div
                   layoutId="sidebar-active"
-                  className="absolute inset-0 rounded-lg bg-gradient-to-r from-primary/10 to-emerald-400/5 border border-primary/5"
+                  className="absolute inset-0 rounded-lg bg-primary/5 border border-primary/5"
                   transition={{ type: "spring", damping: 25, stiffness: 300 }}
                 />
               )}

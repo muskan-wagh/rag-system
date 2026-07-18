@@ -32,7 +32,7 @@ function formatDateTime(dateStr: string): string {
 
 function getStatusIcon(status: string) {
   const s = status.toLowerCase()
-  if (s === "hired") return <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+  if (s === "hired") return <CheckCircle2 className="h-4 w-4 text-primary" />
   if (s === "rejected") return <XCircle className="h-4 w-4 text-red-500" />
   return <Circle className="h-4 w-4 text-muted-foreground/60" />
 }

@@ -40,7 +40,7 @@ export function MarketingFooter() {
         <div className="grid grid-cols-2 md:grid-cols-6 gap-8 md:gap-12">
           <div className="col-span-2 md:col-span-2">
             <Link href="/" className="flex items-center gap-2.5 mb-4">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-emerald-500 shadow-md">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary shadow-md">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M12 2L2 7l10 5 10-5-10-5z" />
                   <path d="M2 17l10 5 10-5" />

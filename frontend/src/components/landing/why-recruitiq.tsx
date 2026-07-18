@@ -11,11 +11,11 @@ const blocks = [
     description: "Our advanced LLM extracts structured data from any resume format — PDF, DOCX, or plain text. Skills, experience, education, and certifications are parsed with industry-leading accuracy.",
     stat: "98%",
     statLabel: "Parsing accuracy",
-    gradient: "from-primary to-emerald-400",
+    gradient: "from-primary to-accent",
     image: (
       <div className="glass-strong rounded-2xl p-6 border border-white/50 shadow-xl">
         <div className="flex items-center gap-2 mb-4">
-          <div className="w-2 h-2 rounded-full bg-emerald-400" />
+          <div className="w-2 h-2 rounded-full bg-primary/30" />
           <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Resume Parsed</span>
         </div>
         <div className="space-y-3">
@@ -29,7 +29,7 @@ const blocks = [
             <div key={item.label} className="flex items-center gap-3">
               <span className="text-xs font-medium text-muted-foreground w-20">{item.label}</span>
               <div className="h-2 flex-1 bg-white/50 rounded-full overflow-hidden">
-                <div className="h-full w-full bg-gradient-to-r from-primary/20 to-emerald-400/20 rounded-full" />
+                <div className="h-full w-full bg-primary/10 rounded-full" />
               </div>
               <span className="text-xs font-medium text-foreground">{item.value}</span>
             </div>
@@ -86,7 +86,7 @@ const blocks = [
         </div>
         <div className="space-y-2.5">
           {[
-            { label: "Skills Match", value: 94, color: "from-primary to-emerald-400" },
+            { label: "Skills Match", value: 94, color: "from-primary to-accent" },
             { label: "Experience", value: 88, color: "from-blue-500 to-indigo-400" },
             { label: "Education", value: 82, color: "from-amber-500 to-orange-400" },
             { label: "Cultural Fit", value: 76, color: "from-violet-500 to-purple-400" },
@@ -111,7 +111,7 @@ export function WhyRecruitIQ() {
   return (
     <section className="w-full py-20 md:py-28 relative overflow-hidden">
       <div className="absolute inset-0 noise-bg pointer-events-none opacity-20" />
-      <div className="absolute bottom-0 right-0 w-[500px] h-[500px] bg-emerald-400/[0.03] rounded-full blur-3xl" />
+      <div className="absolute bottom-0 right-0 w-[500px] h-[500px] bg-primary/30/[0.03] rounded-full blur-3xl" />
 
       <div className="mx-auto max-w-7xl px-4 md:px-8 relative">
         <SectionHeader
@@ -132,7 +132,7 @@ export function WhyRecruitIQ() {
               className={`grid md:grid-cols-2 gap-8 md:gap-16 items-center ${i % 2 === 1 ? "md:direction-rtl" : ""}`}
             >
               <div className={i % 2 === 1 ? "md:order-2" : ""}>
-                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-primary/10 to-emerald-400/10 border border-primary/5 mb-5">
+                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/5 border border-primary/5 mb-5">
                   <block.icon className="h-6 w-6 text-primary" />
                 </div>
                 <h3 className="text-2xl md:text-3xl font-bold tracking-tight text-foreground mb-4">
@@ -142,7 +142,7 @@ export function WhyRecruitIQ() {
                   {block.description}
                 </p>
                 <div className="flex items-center gap-3">
-                  <span className="text-3xl font-bold text-gradient bg-gradient-to-r bg-clip-text text-transparent" style={{ backgroundImage: `linear-gradient(to right, var(--primary), #10B981)` }}>
+                  <span className="text-3xl font-bold text-gradient bg-gradient-to-r bg-clip-text text-transparent" style={{ backgroundImage: `linear-gradient(to right, var(--primary), var(--accent))` }}>
                     {block.stat}
                   </span>
                   <span className="text-sm text-muted-foreground">{block.statLabel}</span>

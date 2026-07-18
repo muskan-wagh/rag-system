@@ -19,8 +19,8 @@ export const STATUS_COLORS: Record<string, string> = {
   [CANDIDATE_STATUS.INTERVIEW_COMPLETED.toLowerCase()]: "bg-yellow-50 text-yellow-700 border-yellow-200",
   [CANDIDATE_STATUS.TECHNICAL_ROUND.toLowerCase()]: "bg-yellow-50 text-yellow-700 border-yellow-200",
   [CANDIDATE_STATUS.HR_ROUND.toLowerCase()]: "bg-yellow-50 text-yellow-700 border-yellow-200",
-  [CANDIDATE_STATUS.OFFERED.toLowerCase()]: "bg-green-50 text-green-700 border-green-200",
-  [CANDIDATE_STATUS.HIRED.toLowerCase()]: "bg-emerald-50 text-emerald-700 border-emerald-200",
+  [CANDIDATE_STATUS.OFFERED.toLowerCase()]: "bg-green-50 text-success border-success",
+  [CANDIDATE_STATUS.HIRED.toLowerCase()]: "bg-green-50 text-success border-success",
   [CANDIDATE_STATUS.REJECTED.toLowerCase()]: "bg-red-50 text-red-700 border-red-200",
 };
 

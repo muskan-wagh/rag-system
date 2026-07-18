@@ -5,12 +5,12 @@ import { Upload, Brain, Search, GitCompare, Calendar, CheckCircle } from "lucide
 import { SectionHeader } from "@/components/ui/section-header"
 
 const steps = [
-  { icon: Upload, title: "Upload Resume", description: "Candidates submit resumes through a unique application link or direct upload.", color: "from-primary to-emerald-400" },
+  { icon: Upload, title: "Upload Resume", description: "Candidates submit resumes through a unique application link or direct upload.", color: "from-primary to-accent" },
   { icon: Brain, title: "AI Parsing", description: "Advanced LLM extracts structured data — skills, experience, and education.", color: "from-blue-500 to-indigo-400" },
   { icon: Search, title: "Semantic Ranking", description: "Vector search finds semantically similar candidates at scale.", color: "from-amber-500 to-orange-400" },
   { icon: GitCompare, title: "Candidate Comparison", description: "AI-powered head-to-head analysis with score breakdowns.", color: "from-violet-500 to-purple-400" },
-  { icon: Calendar, title: "Interview Scheduling", description: "Seamless scheduling with calendar integration and reminders.", color: "from-green-500 to-emerald-400" },
-  { icon: CheckCircle, title: "Hiring", description: "Confident decisions backed by explainable AI insights.", color: "from-primary to-teal-400" },
+  { icon: Calendar, title: "Interview Scheduling", description: "Seamless scheduling with calendar integration and reminders.", color: "from-success to-accent" },
+  { icon: CheckCircle, title: "Hiring", description: "Confident decisions backed by explainable AI insights.", color: "from-primary to-accent" },
 ]
 
 export function WorkflowSection() {

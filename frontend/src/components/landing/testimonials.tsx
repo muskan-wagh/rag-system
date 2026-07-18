@@ -11,7 +11,7 @@ const testimonials = [
     role: "VP of Talent",
     company: "TechCorp",
     avatar: "SC",
-    color: "from-primary to-emerald-400",
+    color: "from-primary to-accent",
   },
   {
     quote: "The AI-powered ranking is remarkably accurate. It surfaces the best candidates consistently, and the explainable insights help us make confident hiring decisions.",

@@ -91,7 +91,7 @@ const CandidateTableRow = memo(function CandidateTableRow({
       <TableCell>
         <div className="flex items-center gap-3">
           <Avatar className="h-9 w-9 ring-2 ring-white shadow-sm">
-            <AvatarFallback className="text-xs bg-gradient-to-br from-primary/10 to-emerald-400/10 text-primary font-semibold">
+            <AvatarFallback className="text-xs bg-primary/5 text-primary font-semibold">
               {getInitials(candidate.full_name)}
             </AvatarFallback>
           </Avatar>
@@ -109,7 +109,7 @@ const CandidateTableRow = memo(function CandidateTableRow({
         <div className="flex items-center gap-2.5">
           <div className="w-20 h-1.5 bg-muted rounded-full overflow-hidden">
             <div
-              className="h-full bg-gradient-to-r from-primary to-emerald-400 rounded-full"
+              className="h-full bg-primary rounded-full"
               style={{ width: `${Math.round(candidate.match_score ?? 0)}%` }}
             />
           </div>
@@ -124,7 +124,7 @@ const CandidateTableRow = memo(function CandidateTableRow({
             ? "bg-red-50 border-red-200 text-red-600"
             : candidate.flight_risk === "Medium"
             ? "bg-amber-50 border-amber-200 text-amber-600"
-            : "bg-emerald-50 border-emerald-200 text-emerald-600"
+            : "bg-green-50 border-success text-success"
         }`}>
           {candidate.flight_risk || "Unknown"}
         </span>
@@ -179,7 +179,7 @@ const statCards = [
     label: "Total Candidates",
     valueKey: "totalCandidates" as const,
     icon: Users,
-    gradient: "from-primary to-emerald-400",
+    gradient: "from-primary to-accent",
     bgLight: "bg-primary/5",
     trend: "+12% this week",
   },
@@ -207,8 +207,8 @@ const statCards = [
     label: "Hired",
     valueKey: "hired" as const,
     icon: BadgeCheck,
-    gradient: "from-emerald-500 to-teal-400",
-    bgLight: "bg-emerald-500/5",
+    gradient: "from-primary to-accent",
+    bgLight: "bg-green-500/5",
     trend: null,
     getValue: (stats: SessionStats | null) => (stats?.hired ?? 0) + (stats?.offered ?? 0),
     sub: (stats: SessionStats | null) => `${stats?.hired ?? 0} Hired · ${stats?.offered ?? 0} Pending`,
@@ -381,7 +381,7 @@ export default function DashboardPage() {
       <div className="p-6 lg:p-8 min-h-screen flex items-center justify-center">
         <div className="flex flex-col items-center gap-3">
           <div className="relative">
-            <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-primary to-emerald-500 flex items-center justify-center shadow-lg shadow-primary/20">
+            <div className="h-10 w-10 rounded-xl bg-primary flex items-center justify-center shadow-md shadow-primary/20">
               <Sparkles className="h-5 w-5 text-white" />
             </div>
             <motion.div
@@ -407,7 +407,7 @@ export default function DashboardPage() {
       <motion.div variants={itemVariants} className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-3 mb-1">
-            <div className="h-8 w-8 rounded-xl bg-gradient-to-br from-primary to-emerald-500 flex items-center justify-center shadow-md shadow-primary/20">
+            <div className="h-8 w-8 rounded-xl bg-primary flex items-center justify-center shadow-md shadow-primary/20">
               <LayoutDashboard className="h-4 w-4 text-white" />
             </div>
             <div>
@@ -432,14 +432,14 @@ export default function DashboardPage() {
             <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-primary ring-2 ring-white" />
           </button>
           <div className="flex items-center gap-2 pl-3 border-l border-border/40">
-            <div className="h-8 w-8 rounded-full bg-gradient-to-br from-primary to-emerald-500 flex items-center justify-center text-white text-xs font-bold shadow-sm">
+            <div className="h-8 w-8 rounded-full bg-primary flex items-center justify-center text-white text-xs font-bold shadow-sm">
               {getInitials(user?.fullName || user?.primaryEmailAddress?.emailAddress || "U")}
             </div>
           </div>
           <Button
             size="sm"
             onClick={handleNewSession}
-            className="rounded-xl bg-gradient-to-r from-primary to-emerald-500 text-white shadow-lg shadow-primary/20 hover:shadow-xl hover:shadow-primary/25 transition-all h-9 px-4"
+            className="rounded-xl bg-primary text-white shadow-md shadow-primary/20 transition-all h-9 px-4"
           >
             <Plus className="h-4 w-4 mr-1.5" />
             {session ? "New Session" : "Create Session"}
@@ -451,7 +451,7 @@ export default function DashboardPage() {
       <motion.div variants={itemVariants}>
         <div className="glass-card rounded-2xl p-6 md:p-8 border border-white/50 shadow-sm">
           <div className="flex items-center gap-3 mb-5">
-            <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-primary/10 to-emerald-400/10 border border-primary/5 flex items-center justify-center">
+            <div className="h-9 w-9 rounded-xl bg-primary/5 border border-primary/5 flex items-center justify-center">
               <Sparkles className="h-4 w-4 text-primary" />
             </div>
             <div>
@@ -535,7 +535,7 @@ export default function DashboardPage() {
                 size="sm"
                 onClick={generateLink}
                 disabled={generating || !jdText.trim()}
-                className="rounded-lg h-9 bg-gradient-to-r from-primary to-emerald-500 text-white shadow-lg shadow-primary/20 hover:shadow-xl hover:shadow-primary/25 transition-all text-xs px-5"
+                className="rounded-lg h-9 bg-primary text-white shadow-md shadow-primary/20 transition-all text-xs px-5"
               >
                 {generating ? (
                   <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
@@ -552,10 +552,10 @@ export default function DashboardPage() {
       {/* Active Session Link */}
       {session && (
         <motion.div variants={itemVariants}>
-          <div className="glass-card rounded-2xl p-5 border border-primary/10 bg-gradient-to-r from-primary/[0.03] to-emerald-400/[0.02] shadow-sm">
+          <div className="glass-card rounded-2xl p-5 border border-primary/10 bg-gradient-to-r from-primary/[0.03] to-accent/[0.02] shadow-sm">
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
               <div className="flex items-center gap-3 min-w-0 w-full sm:w-auto">
-                <div className="h-8 w-8 rounded-xl bg-gradient-to-br from-primary/10 to-emerald-400/10 border border-primary/5 flex items-center justify-center shrink-0">
+                <div className="h-8 w-8 rounded-xl bg-primary/5 border border-primary/5 flex items-center justify-center shrink-0">
                   <Link2 className="h-4 w-4 text-primary" />
                 </div>
                 <div className="min-w-0 flex-1">
@@ -574,7 +574,7 @@ export default function DashboardPage() {
                 onClick={handleCopyLink}
               >
                 {copied ? (
-                  <Check className="h-3.5 w-3.5 text-emerald-500" />
+                  <Check className="h-3.5 w-3.5 text-primary" />
                 ) : (
                   <Copy className="h-3.5 w-3.5" />
                 )}
@@ -597,7 +597,7 @@ export default function DashboardPage() {
                   <div key={i} className="text-xs space-y-0.5 bg-white/50 rounded-lg p-3 border border-amber-100">
                     <span className="font-semibold text-amber-700">[{issue.category}]</span>
                     <p className="text-amber-800/80">&ldquo;{issue.text}&rdquo;</p>
-                    <p className="text-emerald-600 mt-1">→ {issue.suggestion}</p>
+                    <p className="text-success mt-1">→ {issue.suggestion}</p>
                   </div>
                 ))}
                 {biasResult.suggestions.length > 0 && (
@@ -616,9 +616,9 @@ export default function DashboardPage() {
 
       {biasResult && !biasResult.has_bias && (
         <motion.div variants={itemVariants}>
-          <Alert variant="success" className="rounded-2xl border-emerald-200 bg-emerald-50/50 backdrop-blur-sm">
+          <Alert variant="success" className="rounded-2xl border-success bg-green-50/50 backdrop-blur-sm">
             <ShieldAlert className="h-4 w-4" />
-            <AlertDescription className="text-sm font-medium text-emerald-700">
+            <AlertDescription className="text-sm font-medium text-success">
               No bias detected — JD looks great!
             </AlertDescription>
           </Alert>
@@ -650,9 +650,9 @@ export default function DashboardPage() {
                     <div className={`h-8 w-8 rounded-xl ${card.bgLight} flex items-center justify-center`}>
                       <card.icon className="h-4 w-4" style={{
                         color: card.gradient.includes('primary') ? 'var(--primary)' :
-                               card.gradient.includes('blue') ? '#3B82F6' :
-                               card.gradient.includes('amber') ? '#F59E0B' :
-                               '#10B981'
+                               card.gradient.includes('blue') ? 'var(--info)' :
+                               card.gradient.includes('amber') ? 'var(--warning)' :
+                               'var(--success)'
                       }} />
                     </div>
                   </div>
@@ -661,8 +661,8 @@ export default function DashboardPage() {
                   </p>
                   {card.trend && (
                     <div className="flex items-center gap-1 mt-1.5">
-                      <TrendingUp className="h-3 w-3 text-emerald-500" />
-                      <span className="text-[10px] font-medium text-emerald-500">{card.trend}</span>
+                      <TrendingUp className="h-3 w-3 text-primary" />
+                      <span className="text-[10px] font-medium text-primary">{card.trend}</span>
                     </div>
                   )}
                   {card.sub && (
@@ -720,7 +720,7 @@ export default function DashboardPage() {
           ) : candidates.length === 0 ? (
             <div className="p-12 md:p-16">
               <div className="flex flex-col items-center text-center max-w-sm mx-auto">
-                <div className="h-16 w-16 rounded-2xl bg-gradient-to-br from-primary/5 to-emerald-400/5 border border-primary/5 flex items-center justify-center mb-5">
+                <div className="h-16 w-16 rounded-2xl bg-primary/5 border border-primary/5 flex items-center justify-center mb-5">
                   <Users className="h-7 w-7 text-primary/40" />
                 </div>
                 <h3 className="text-base font-semibold text-foreground mb-1.5">No candidates yet</h3>
@@ -734,7 +734,7 @@ export default function DashboardPage() {
                       const el = document.querySelector('textarea')
                       if (el) el.focus()
                     }}
-                    className="rounded-xl bg-gradient-to-r from-primary to-emerald-500 text-white shadow-lg shadow-primary/20 hover:shadow-xl transition-all"
+                    className="rounded-xl bg-primary text-white shadow-md shadow-primary/20 transition-all"
                   >
                     <FilePlus className="h-4 w-4 mr-1.5" />
                     Paste Job Description

@@ -87,7 +87,7 @@ export function FeaturesBento() {
           {features.map((feature) => (
             <motion.div key={feature.title} variants={cardVariants}>
               <GlassCard className="h-full flex flex-col">
-                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-primary/10 to-emerald-400/10 border border-primary/5 mb-5">
+                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/5 border border-primary/10 mb-5">
                   <feature.icon className="h-6 w-6 text-primary" />
                 </div>
                 <h3 className="text-base font-semibold text-foreground mb-2">{feature.title}</h3>

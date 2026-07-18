@@ -37,7 +37,7 @@ export function MarketingNav() {
       >
         <div className="flex items-center justify-between px-5">
           <Link href="/" className="flex items-center gap-2.5">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-emerald-500 shadow-md shadow-primary/20">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary shadow-md shadow-primary/20">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M12 2L2 7l10 5 10-5-10-5z" />
                 <path d="M2 17l10 5 10-5" />
@@ -82,7 +82,7 @@ export function MarketingNav() {
                 </Link>
                 <Link
                   href="/sign-up"
-                  className="inline-flex items-center justify-center rounded-xl bg-gradient-to-r from-primary to-emerald-500 px-5 py-2 text-sm font-medium text-white shadow-lg shadow-primary/20 hover:shadow-xl hover:shadow-primary/25 transition-all duration-300"
+                  className="inline-flex items-center justify-center rounded-xl bg-primary px-5 py-2 text-sm font-medium text-white shadow-md shadow-primary/20 hover:shadow-xl hover:shadow-primary/25 transition-all duration-300"
                 >
                   Get Started
                 </Link>
@@ -145,7 +145,7 @@ export function MarketingNav() {
                   <Link
                     href="/sign-up"
                     onClick={() => setMenuOpen(false)}
-                    className="block px-3 py-2.5 text-sm font-medium text-center rounded-xl bg-gradient-to-r from-primary to-emerald-500 text-white shadow-md"
+                    className="block px-3 py-2.5 text-sm font-medium text-center rounded-xl bg-primary text-white shadow-md"
                   >
                     Get Started
                   </Link>
