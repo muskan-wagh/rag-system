@@ -3,7 +3,7 @@
 import { motion } from "framer-motion"
 import Link from "next/link"
 import { Calendar, Clock, Video, MapPin, ChevronRight } from "lucide-react"
-import { getInitials, ROUTES } from "@/lib/constants"
+import { ROUTES } from "@/lib/constants"
 import type { UpcomingInterview } from "@/lib/types"
 
 const itemVariants = {

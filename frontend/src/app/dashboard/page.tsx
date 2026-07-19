@@ -1,11 +1,11 @@
 "use client"
 
-import { useState, useCallback, useEffect, useRef, memo } from "react"
+import { useState, useCallback, useRef, useMemo, memo } from "react"
 import Link from "next/link"
 import { motion } from "framer-motion"
 import {
   Sparkles, Link2, RefreshCw, Loader2, ShieldAlert, Plus,
-  FilePlus, Copy, Check, Users, Briefcase,
+  FilePlus, Copy, Users, Briefcase,
   BadgeCheck, ArrowUpRight, Clock, Bot,
   ChevronRight,
 } from "lucide-react"
@@ -216,10 +216,10 @@ export default function DashboardPage() {
   const [copied, setCopied] = useState(false)
   const [scanningBias, setScanningBias] = useState(false)
   const [biasResult, setBiasResult] = useState<{ has_bias: boolean; issues: BiasIssue[]; suggestions: string[] } | null>(null)
-  const [biasError, setBiasError] = useState("")
+  const [, setBiasError] = useState("")
   const [page] = useState(1)
   const wsDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const userClearedSession = useRef(false)
+  const [userClearedSession, setUserClearedSession] = useState(false)
 
   const api = useApi()
   const {
@@ -228,15 +228,16 @@ export default function DashboardPage() {
     recentActivity, topTalentPools, quickActions,
   } = useDashboard(page, 50)
 
-  useEffect(() => {
-    if (!data) return
-    if (userClearedSession.current) return
+  const defaultSession = useMemo(() => {
+    if (!data || userClearedSession) return null
     const latestSession = sessList?.[0]
-    if (latestSession && !session) {
-      setSession({ sessionId: latestSession.id, link: `/upload/${latestSession.id}` })
-      setJdText(latestSession.job_description_text)
+    if (latestSession) {
+      return { sessionId: latestSession.id, link: `/upload/${latestSession.id}` }
     }
-  }, [data, sessList, session])
+    return null
+  }, [data, sessList, userClearedSession])
+
+  const effectiveSession = session ?? defaultSession
 
   useWebSocket('candidate:status_changed', useCallback(() => {
     if (wsDebounceRef.current) clearTimeout(wsDebounceRef.current)
@@ -289,7 +290,7 @@ export default function DashboardPage() {
   }, [jdText, api])
 
   const handleNewSession = () => {
-    userClearedSession.current = true
+    setUserClearedSession(true)
     setSession(null)
     setJdText("")
     setBiasResult(null)
@@ -305,8 +306,8 @@ export default function DashboardPage() {
 
   const handleCopyLink = async () => {
     const url = typeof window !== "undefined"
-      ? `${window.location.origin}${session?.link}`
-      : session?.link || ""
+      ? `${window.location.origin}${effectiveSession?.link}`
+      : effectiveSession?.link || ""
     try {
       await navigator.clipboard.writeText(url)
     } catch {
@@ -414,7 +415,7 @@ export default function DashboardPage() {
 
           <div className="flex items-center justify-between mt-5">
             <div className="flex items-center gap-2">
-              {session && (
+              {effectiveSession && (
                 <button
                   onClick={() => mutate()}
                   disabled={isValidating}
@@ -449,7 +450,7 @@ export default function DashboardPage() {
       </motion.div>
 
       {/* Active Application Link */}
-      {session && (
+      {effectiveSession && (
         <motion.div variants={itemVariants}>
           <div className="bg-surface border border-border rounded-xl flex items-center justify-between px-6 py-5">
             <div className="flex items-center gap-4">
@@ -458,10 +459,10 @@ export default function DashboardPage() {
                 <p className="text-[12px] font-medium text-faint uppercase" style={{ letterSpacing: "0.04em", fontFamily: "var(--font-inter)" }}>
                   Active Application Link
                 </p>
-                <p className="text-sm text-ink font-data mt-1" style={{ fontFamily: "var(--font-mono)" }}>
+                  <p className="text-sm text-ink font-data mt-1" style={{ fontFamily: "var(--font-mono)" }}>
                   {typeof window !== "undefined"
-                    ? `${window.location.origin}${session.link}`
-                    : session.link}
+                    ? `${window.location.origin}${effectiveSession.link}`
+                    : effectiveSession.link}
                 </p>
               </div>
             </div>
@@ -570,7 +571,7 @@ export default function DashboardPage() {
               </p>
             </div>
             {candidates.length > 0 && (
-              <Link href={`${ROUTES.candidates}?session=${session?.sessionId}`}>
+              <Link href={`${ROUTES.candidates}?session=${effectiveSession?.sessionId}`}>
                 <Button variant="outline" size="sm">
                   View All
                   <ArrowUpRight className="size-4" />

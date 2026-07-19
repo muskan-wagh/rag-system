@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useCallback } from "react"
+import { useState, useCallback, useMemo } from "react"
 import { useParams } from "next/navigation"
 import Link from "next/link"
 import { ArrowLeft, Mail, Phone, MapPin, Briefcase, Sparkles } from "lucide-react"
@@ -73,7 +73,7 @@ export default function CandidateDetailPage() {
   const api = useApi()
   const { mutate } = useSWRConfig()
 
-  const briefKey = ["candidate-brief", candidateId]
+  const briefKey = useMemo(() => ["candidate-brief", candidateId], [candidateId])
   const { data: briefRes, error: briefError, isLoading } = useSWR<ApiResponse<CandidateBrief>>(
     briefKey,
     () => api.getCandidateBrief(candidateId),

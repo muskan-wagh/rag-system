@@ -7,7 +7,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { ComparisonView } from "@/components/comparison-view"
 import { EmptyState } from "@/components/ui/empty-state"
 import { CandidateSearchInput } from "@/components/candidate-search-input"
-import { GitCompare, Sparkles, Loader2, Plus, Trash2, Users, Brain } from "lucide-react"
+import { GitCompare, Loader2, Plus, Trash2, Brain } from "lucide-react"
 import { useApi } from "@/hooks/use-api"
 import type { Candidate } from "@/lib/api"
 

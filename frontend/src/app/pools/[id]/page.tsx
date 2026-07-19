@@ -6,9 +6,8 @@ import Link from "next/link"
 import { ArrowLeft, Users, Trash2, BarChart3 } from "lucide-react"
 import useSWR from "swr"
 import { useApi } from "@/hooks/use-api"
-import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
-import type { TalentPool, PoolCandidate, ApiResponse } from "@/lib/types"
+import type { TalentPool, ApiResponse } from "@/lib/types"
 
 export default function PoolDetailPage() {
   const params = useParams()
@@ -49,7 +48,7 @@ export default function PoolDetailPage() {
     )
   }
 
-  const candidates = (pool as any).candidates as PoolCandidate[] | undefined
+  const candidates = pool.candidates
 
   return (
     <div className="pt-6">

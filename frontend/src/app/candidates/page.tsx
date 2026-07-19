@@ -15,9 +15,8 @@ import { CandidateDetailModal } from "@/components/candidate-detail-modal"
 import { useApi } from "@/hooks/use-api"
 import { useWebSocket } from "@/lib/use-websocket"
 import { ROUTES, getInitials } from "@/lib/constants"
-import type { SessionSummary, CandidateRecord, CandidatesPageData } from "@/lib/api"
+import type { CandidateRecord } from "@/lib/api"
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Dialog, DialogContent } from "@/components/ui/dialog"
@@ -35,19 +34,6 @@ const containerVariants = {
 const itemVariants = {
   hidden: { opacity: 0, y: 12 },
   visible: { opacity: 1, y: 0, transition: { duration: 0.35, ease: [0.25, 0.1, 0.25, 1] as const } },
-}
-
-function statusConfig(status?: string) {
-  const s = (status || "applied").toLowerCase()
-  const configs: Record<string, { label: string; color: string }> = {
-    hired: { label: "Hired", color: "text-success" },
-    offered: { label: "Offered", color: "text-text-primary" },
-    rejected: { label: "Rejected", color: "text-danger" },
-    screening: { label: "Screening", color: "text-warning" },
-    interview: { label: "Interview", color: "text-text-secondary" },
-    applied: { label: "Applied", color: "text-text-secondary" },
-  }
-  return configs[s] || configs.applied
 }
 
 function getScoreColor(score?: number) {
@@ -101,7 +87,7 @@ function CandidatesContent() {
   const api = useApi()
 
   const candidatesKey = ["candidates-page", selectedSessionId, searchQuery, page, statusFilterParam]
-  const { data: candidatesRes, error: candidatesError, isLoading: candidatesLoading, mutate: mutateCandidates } = useSWR(
+  const { data: candidatesRes, isLoading: candidatesLoading, mutate: mutateCandidates } = useSWR(
     candidatesKey,
     () => api.getCandidatesPage({
       page, limit: PAGE_SIZE, search: searchQuery || undefined,

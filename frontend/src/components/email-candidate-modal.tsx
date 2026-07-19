@@ -45,7 +45,7 @@ export function EmailCandidateModal({
     } finally {
       setGenerating(false)
     }
-  }, [candidateId])
+  }, [candidateId, api])
 
   // Trigger generation on first open
   if (open && !hasGenerated && !generating) {

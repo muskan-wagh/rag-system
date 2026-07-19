@@ -70,7 +70,7 @@ export function CandidateTimeline({ candidateId }: CandidateTimelineProps) {
       }
     }
     fetch()
-  }, [candidateId])
+  }, [candidateId, api])
 
   if (loading) {
     return (

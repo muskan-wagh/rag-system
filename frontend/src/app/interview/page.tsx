@@ -3,7 +3,7 @@
 import { useState, useCallback, useEffect, startTransition } from "react"
 import { motion } from "framer-motion"
 import {
-  Calendar, Loader2, Mail, BadgeCheck, XCircle, Users, Clock, ArrowUpRight,
+  Calendar, Loader2, Mail, BadgeCheck, XCircle,
 } from "lucide-react"
 import { toast } from "sonner"
 import { useApi } from "@/hooks/use-api"
@@ -61,7 +61,7 @@ export default function InterviewPage() {
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [api])
 
   useEffect(() => { loadCandidates() }, [loadCandidates])
   useWebSocket("candidate:status_changed", loadCandidates)

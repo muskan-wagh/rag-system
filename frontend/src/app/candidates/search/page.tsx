@@ -71,7 +71,7 @@ function CandidatesContent() {
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [api])
 
   useEffect(() => {
     const jdFromUrl = searchParams.get("jd")

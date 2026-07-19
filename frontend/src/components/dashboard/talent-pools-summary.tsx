@@ -2,7 +2,7 @@
 
 import { motion } from "framer-motion"
 import Link from "next/link"
-import { Layers, Users, TrendingUp, ChevronRight } from "lucide-react"
+import { Users, TrendingUp, ChevronRight } from "lucide-react"
 import type { TopTalentPool } from "@/lib/types"
 
 const itemVariants = {

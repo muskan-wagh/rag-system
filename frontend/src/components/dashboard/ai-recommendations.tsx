@@ -2,7 +2,7 @@
 
 import { motion } from "framer-motion"
 import Link from "next/link"
-import { Sparkles, ChevronRight } from "lucide-react"
+import { ChevronRight } from "lucide-react"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { getInitials, ROUTES } from "@/lib/constants"
 import type { AiRecommendation } from "@/lib/types"

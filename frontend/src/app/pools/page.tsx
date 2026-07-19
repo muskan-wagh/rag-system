@@ -1,13 +1,12 @@
 "use client"
 
 import { useState } from "react"
-import { Users, Plus, X } from "lucide-react"
+import { Users, Plus } from "lucide-react"
 import useSWR from "swr"
 import { useApi } from "@/hooks/use-api"
 import { TalentPoolCard } from "@/components/search/talent-pool-card"
 import { EmptyState } from "@/components/ui/empty-state"
-import { Skeleton } from "@/components/ui/skeleton"
-import type { TalentPool } from "@/lib/types"
+
 
 export default function TalentPoolsPage() {
   const api = useApi()

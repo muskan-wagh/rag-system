@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react"
 import { useRouter } from "next/navigation"
-import { Bookmark, Search, Plus } from "lucide-react"
+import { Bookmark, Plus } from "lucide-react"
 import { useApi } from "@/hooks/use-api"
 import { SavedSearchCard } from "@/components/search/saved-search-card"
 import { EmptyState } from "@/components/ui/empty-state"
@@ -18,13 +18,14 @@ export default function SavedSearchesPage() {
   const [newName, setNewName] = useState("")
   const [newJdText, setNewJdText] = useState("")
 
-  const load = useCallback(async () => {
-    const res = await api.listSavedSearches()
-    if (res.success && res.data) setSearches(res.data)
-    setLoading(false)
+  useEffect(() => {
+    async function load() {
+      const res = await api.listSavedSearches()
+      if (res.success && res.data) setSearches(res.data)
+      setLoading(false)
+    }
+    load()
   }, [api])
-
-  useEffect(() => { load() }, [load])
 
   const handleRun = useCallback((id: string) => {
     const search = searches.find((s) => s.id === id)

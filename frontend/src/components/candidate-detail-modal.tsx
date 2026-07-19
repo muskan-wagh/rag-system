@@ -108,7 +108,7 @@ export function CandidateDetailModal({ open, onClose, candidate, onStatusChange 
     } finally {
       setLoadingNotes(false)
     }
-  }, [candidate])
+  }, [candidate, api])
 
   useEffect(() => {
     if (open && candidate) {
@@ -146,7 +146,7 @@ export function CandidateDetailModal({ open, onClose, candidate, onStatusChange 
     } finally {
       setLoadingQuestions(false)
     }
-  }, [candidate])
+  }, [candidate, api])
 
   const generateStrategy = useCallback(async () => {
     if (!candidate) return
@@ -167,7 +167,7 @@ export function CandidateDetailModal({ open, onClose, candidate, onStatusChange 
     } finally {
       setLoadingStrategy(false)
     }
-  }, [candidate])
+  }, [candidate, api])
 
   const handleGenerate = useCallback(async (type: "questions" | "strategy") => {
     if (type === "questions") {

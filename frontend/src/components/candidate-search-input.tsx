@@ -44,7 +44,7 @@ export function CandidateSearchInput({ index, selected, onSelect }: CandidateSea
     } finally {
       setSearching(false)
     }
-  }, [])
+  }, [api])
 
   function handleInputChange(value: string) {
     setQuery(value)

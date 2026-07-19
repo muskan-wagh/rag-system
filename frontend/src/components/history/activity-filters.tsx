@@ -1,7 +1,6 @@
 "use client"
 
 import { Search, Filter } from "lucide-react"
-import { Input } from "@/components/ui/input"
 
 const ACTION_TYPES = [
   { value: "", label: "All Activity" },
