@@ -6,10 +6,8 @@ import { motion } from "framer-motion"
 import {
   Users, FileText, ChevronLeft, ChevronRight,
   BadgeCheck, Loader2, Search, Sparkles, Eye,
-  Briefcase, Calendar, Clock, GraduationCap,
-  Download, Plus, Brain, Target, AlertTriangle,
-  CheckCircle2, XCircle, ArrowUpRight,
-  User, MapPin, ChevronDown,
+  Briefcase, Download, Plus,
+  ArrowUpRight, MapPin,
 } from "lucide-react"
 import { toast } from "sonner"
 import { CandidateDetailModal } from "@/components/candidate-detail-modal"

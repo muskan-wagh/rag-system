@@ -6,10 +6,10 @@ import { motion } from "framer-motion"
 import {
   Sparkles, Link2, RefreshCw, Loader2, ShieldAlert, Plus,
   FilePlus, Copy, Check, Users, FileText,
-  BadgeCheck, LayoutDashboard,
-  Search, Bell, ArrowUpRight, TrendingUp, Clock, Briefcase,
-  Eye, Bot, Brain, Target, BarChart3, Calendar,
-  ChevronRight, Download, Filter,
+  BadgeCheck,
+  ArrowUpRight, Clock, Briefcase,
+  Eye, Bot, Brain, Target, Calendar,
+  ChevronRight,
 } from "lucide-react"
 import { toast } from "sonner"
 import { CandidateDetailModal } from "@/components/candidate-detail-modal"
@@ -23,11 +23,10 @@ import { Textarea } from "@/components/ui/textarea"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Badge } from "@/components/ui/badge"
-import { GlassCard } from "@/components/ui/glass-card"
+
 import { ProgressBar } from "@/components/ui/progress-bar"
 import { ScoreRing } from "@/components/ui/score-ring"
-import { useUser } from "@clerk/nextjs"
+
 
 interface SessionData {
   sessionId: string
@@ -254,7 +253,6 @@ export default function DashboardPage() {
   const wsDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const api = useApi()
-  const { user } = useUser()
   const { data, stats, candidates, sessions: sessList, isLoading, isValidating, mutate } = useDashboard(page, 50)
 
   useEffect(() => {
