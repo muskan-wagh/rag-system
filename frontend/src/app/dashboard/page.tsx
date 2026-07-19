@@ -14,8 +14,9 @@ import {
 import { toast } from "sonner"
 import { CandidateDetailModal } from "@/components/candidate-detail-modal"
 import { useApi } from "@/hooks/use-api"
+import { useDashboard } from "@/hooks/use-dashboard"
 import { useWebSocket } from "@/lib/use-websocket"
-import { ROUTES, getStatusColor, getInitials, getFlightRiskColor, CANDIDATE_STATUS } from "@/lib/constants"
+import { ROUTES, getStatusColor, getInitials, CANDIDATE_STATUS } from "@/lib/constants"
 import type { SessionStats } from "@/lib/api"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
@@ -215,24 +216,31 @@ export default function DashboardPage() {
   const [jdText, setJdText] = useState("")
   const [session, setSession] = useState<SessionData | null>(null)
   const [generating, setGenerating] = useState(false)
-  const [candidates, setCandidates] = useState<CandidateRow[]>([])
-  const [loadingCandidates, setLoadingCandidates] = useState(false)
   const [selectedCandidate, setSelectedCandidate] = useState<CandidateRow | null>(null)
   const [showDetailModal, setShowDetailModal] = useState(false)
   const [error, setError] = useState("")
-  const [initialLoading, setInitialLoading] = useState(true)
   const [copied, setCopied] = useState(false)
 
   const [scanningBias, setScanningBias] = useState(false)
   const [biasResult, setBiasResult] = useState<{ has_bias: boolean; issues: BiasIssue[]; suggestions: string[] } | null>(null)
   const [biasError, setBiasError] = useState("")
 
-  const [stats, setStats] = useState<SessionStats | null>(null)
   const [page] = useState(1)
 
   const wsDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const api = useApi()
   const { user } = useUser()
+  const { data, stats, candidates, sessions: sessList, isLoading, isValidating, mutate } = useDashboard(page, 50)
+
+  // Sync session + JD from SWR data
+  useEffect(() => {
+    if (!data) return
+    const latestSession = sessList?.[0]
+    if (latestSession) {
+      setSession({ sessionId: latestSession.id, link: `/upload/${latestSession.id}` })
+      setJdText(latestSession.job_description_text)
+    }
+  }, [data, sessList])
 
   const getGreeting = () => {
     const hour = new Date().getHours()
@@ -241,49 +249,10 @@ export default function DashboardPage() {
     return "Good evening"
   }
 
-  const loadDashboard = useCallback(async (p?: number) => {
-    const pageNum = p ?? page
-    setLoadingCandidates(true)
-    try {
-      const res = await api.getDashboard(pageNum, 50)
-      if (res.success && res.data) {
-        const { stats: s, recentUploads, sessions: sessList } = res.data
-        const latestSession = sessList?.[0]
-        if (latestSession) {
-          setSession({ sessionId: latestSession.id, link: `/upload/${latestSession.id}` })
-          setJdText(latestSession.job_description_text)
-        } else {
-          setSession(null)
-        }
-        setCandidates(recentUploads ?? [])
-        setStats(s)
-      }
-    } catch {
-      setSession(null)
-    } finally {
-      setLoadingCandidates(false)
-      setInitialLoading(false)
-    }
-  }, [page])
-
-  useWebSocket('candidate:status_changed', useCallback((payload) => {
-    const sid = payload.sessionId as string || session?.sessionId
-    if (sid && session?.sessionId === sid) {
-      if (wsDebounceRef.current) clearTimeout(wsDebounceRef.current)
-      wsDebounceRef.current = setTimeout(() => loadDashboard(), 500)
-    }
-  }, [session?.sessionId, loadDashboard]))
-
-  const initialLoadRef = useRef(false)
-
-  useEffect(() => {
-    if (initialLoadRef.current) return
-    initialLoadRef.current = true
-    loadDashboard(1)
-    return () => {
-      if (wsDebounceRef.current) clearTimeout(wsDebounceRef.current)
-    }
-  }, [loadDashboard])
+  useWebSocket('candidate:status_changed', useCallback(() => {
+    if (wsDebounceRef.current) clearTimeout(wsDebounceRef.current)
+    wsDebounceRef.current = setTimeout(() => mutate(), 500)
+  }, [mutate]))
 
   const generateLink = useCallback(async () => {
     if (!jdText.trim()) return
@@ -295,7 +264,7 @@ export default function DashboardPage() {
       if (res.success && res.data) {
         const { sessionId, link } = res.data
         setSession({ sessionId, link })
-        loadDashboard()
+        mutate()
         toast.success("Application link generated!")
       } else {
         setError(res.error || "Failed to generate link")
@@ -309,7 +278,7 @@ export default function DashboardPage() {
     } finally {
       setGenerating(false)
     }
-  }, [jdText, loadDashboard])
+  }, [jdText, api, mutate])
 
   const handleBiasScan = useCallback(async () => {
     if (!jdText.trim()) return
@@ -336,15 +305,14 @@ export default function DashboardPage() {
     } finally {
       setScanningBias(false)
     }
-  }, [jdText])
+  }, [jdText, api])
 
   const handleNewSession = () => {
     setSession(null)
-    setCandidates([])
     setJdText("")
     setBiasResult(null)
     setError("")
-    setInitialLoading(false)
+    mutate(undefined, false)
     toast.info("Started a new session")
   }
 
@@ -372,7 +340,7 @@ export default function DashboardPage() {
     setTimeout(() => setCopied(false), 2000)
   }
 
-  if (initialLoading) {
+  if (isLoading && !data) {
     return (
       <div className="p-6 lg:p-8 min-h-screen flex items-center justify-center">
         <div className="flex flex-col items-center gap-3">
@@ -498,11 +466,11 @@ export default function DashboardPage() {
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => loadDashboard()}
-                  disabled={loadingCandidates}
+                  onClick={() => mutate()}
+                  disabled={isValidating}
                   className="rounded-lg text-xs h-8 text-muted-foreground hover:text-foreground"
                 >
-                  <RefreshCw className={`h-3.5 w-3.5 mr-1.5 ${loadingCandidates ? "animate-spin" : ""}`} />
+                  <RefreshCw className={`h-3.5 w-3.5 mr-1.5 ${isValidating ? "animate-spin" : ""}`} />
                   Refresh
                   {candidates.length > 0 && (
                     <span className="ml-1.5 rounded-full bg-primary/5 px-1.5 py-0.5 text-[10px] text-primary font-medium">
@@ -698,7 +666,7 @@ export default function DashboardPage() {
         </div>
 
         <div className="glass-card rounded-2xl border border-white/50 overflow-hidden">
-          {loadingCandidates ? (
+          {isValidating && !candidates.length ? (
             <div className="p-6 space-y-4">
               {Array.from({ length: 4 }).map((_, i) => (
                 <div key={i} className="flex items-center gap-4">
@@ -782,7 +750,7 @@ export default function DashboardPage() {
           setSelectedCandidate(null)
         }}
         candidate={selectedCandidate}
-        onStatusChange={() => loadDashboard()}
+        onStatusChange={() => mutate()}
       />
     </motion.div>
   )

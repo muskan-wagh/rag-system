@@ -181,7 +181,7 @@ export async function getCandidatesBySession(sessionId: string): Promise<Candida
   // Select only columns needed for list views — exclude raw_resume_text (potentially MBs of text)
   const { data, error } = await supabase
     .from('candidates')
-    .select('id, upload_session_id, full_name, email, phone, location, current_company, current_title, total_experience_years, resume_file_url, flight_risk, growth_trajectory, current_status, created_at, processing_status, source, error_message')
+    .select('id, upload_session_id, full_name, email, current_company, current_title, resume_file_url, flight_risk, current_status, created_at')
     .eq('upload_session_id', sessionId);
 
   if (error) {
@@ -217,7 +217,7 @@ export async function getAllCandidates(limit = 50, offset = 0): Promise<Candidat
   const supabase = getSupabaseClient();
   const { data, error } = await supabase
     .from('candidates')
-    .select()
+    .select('id, upload_session_id, full_name, email, phone, location, current_company, current_title, total_experience_years, resume_file_url, flight_risk, current_status, created_at')
     .order('created_at', { ascending: false })
     .range(offset, offset + limit - 1);
 
@@ -244,20 +244,11 @@ export async function insertSkills(candidateId: string, skills: string[]): Promi
 
   if (rows.length === 0) return;
 
-  const { error: deleteError } = await supabase.from('candidate_skills').delete().eq('candidate_id', candidateId);
+  // Single upsert instead of delete-then-insert — fewer round-trips, no race conditions
+  const { error } = await supabase
+    .from('candidate_skills')
+    .upsert(rows, { onConflict: 'candidate_id,skill_name', ignoreDuplicates: false });
 
-  if (deleteError) {
-    const { error: upsertError } = await supabase
-      .from('candidate_skills')
-      .upsert(rows, { onConflict: 'candidate_id,skill_name', ignoreDuplicates: false });
-
-    if (upsertError) {
-      throw new AppError('Failed to insert skills', 500, ErrorCodes.DATABASE_ERROR);
-    }
-    return;
-  }
-
-  const { error } = await supabase.from('candidate_skills').insert(rows);
   if (error) {
     throw new AppError('Failed to insert skills', 500, ErrorCodes.DATABASE_ERROR);
   }
@@ -538,7 +529,7 @@ export async function getAllCandidatesPaginated(params: {
   // Exclude raw_resume_text (potentially MBs of text per candidate)
   let query: any = supabase
     .from('candidates')
-    .select('id, upload_session_id, full_name, email, phone, location, current_company, current_title, total_experience_years, resume_file_url, flight_risk, growth_trajectory, current_status, created_at');
+    .select('id, upload_session_id, full_name, email, current_company, current_title, total_experience_years, resume_file_url, flight_risk, current_status, created_at');
 
   query = buildStatusFilterParam(params.status)(query);
   if (params.interviewCandidateIds) {
@@ -719,7 +710,7 @@ export async function getCandidateInterviews(candidateId: string): Promise<Inter
   const supabase = getSupabaseClient();
   const { data, error } = await supabase
     .from('interviews')
-    .select('*')
+    .select('id, candidate_id, scheduled_date, scheduled_time, interview_type, interviewer_name, notes, meeting_link, status, created_at')
     .eq('candidate_id', candidateId)
     .order('scheduled_date', { ascending: false });
 
@@ -837,7 +828,7 @@ export async function getCandidateTimeline(candidateId: string): Promise<Timelin
   const supabase = getSupabaseClient();
   const { data, error } = await supabase
     .from('candidate_status_log')
-    .select('*')
+    .select('id, candidate_id, status, changed_at, changed_by, details')
     .eq('candidate_id', candidateId)
     .order('changed_at', { ascending: true });
 
@@ -936,7 +927,7 @@ export async function getNewSessionStats(sessionId: string): Promise<NewSessionS
     const ids = rows.map((r) => r.id);
     const { count, error: intError } = await supabase
       .from('interviews')
-      .select('*', { count: 'exact', head: true })
+      .select('id', { count: 'exact', head: true })
       .eq('scheduled_date', todayStr)
       .eq('status', 'scheduled')
       .in('candidate_id', ids);
@@ -977,7 +968,7 @@ export async function getRecruiterByClerkId(clerkId: string): Promise<RecruiterR
   const supabase = getSupabaseClient();
   const { data, error } = await supabase
     .from('recruiters')
-    .select('*')
+    .select('id, clerk_id, email, first_name, last_name, avatar_url, role, organization_name, created_at, updated_at')
     .eq('clerk_id', clerkId)
     .maybeSingle();
 

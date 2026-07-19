@@ -12,8 +12,8 @@ export const CANDIDATE_STATUS = {
 } as const;
 
 export const STATUS_COLORS: Record<string, string> = {
-  [CANDIDATE_STATUS.APPLIED.toLowerCase()]: "bg-blue-50 text-blue-700 border-blue-200",
-  [CANDIDATE_STATUS.SHORTLISTED.toLowerCase()]: "bg-purple-50 text-purple-700 border-purple-200",
+  [CANDIDATE_STATUS.APPLIED.toLowerCase()]: "bg-zinc-100 text-zinc-700 border-zinc-200",
+  [CANDIDATE_STATUS.SHORTLISTED.toLowerCase()]: "bg-violet-50 text-violet-700 border-violet-200",
   [CANDIDATE_STATUS.SCREENING.toLowerCase()]: "bg-orange-50 text-orange-700 border-orange-200",
   [CANDIDATE_STATUS.INTERVIEW_SCHEDULED.toLowerCase()]: "bg-yellow-50 text-yellow-700 border-yellow-200",
   [CANDIDATE_STATUS.INTERVIEW_COMPLETED.toLowerCase()]: "bg-yellow-50 text-yellow-700 border-yellow-200",

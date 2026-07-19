@@ -1,8 +1,10 @@
 class MemoryCache {
   private store = new Map<string, { value: unknown; expiresAt: number }>();
   private cleanupTimer: NodeJS.Timeout;
+  private maxSize: number;
 
-  constructor(private defaultTTL: number = 30_000) {
+  constructor(private defaultTTL: number = 30_000, maxSize = 5000) {
+    this.maxSize = maxSize;
     this.cleanupTimer = setInterval(() => this.cleanup(), 10_000);
     if (this.cleanupTimer.unref) {
       this.cleanupTimer.unref();
@@ -20,6 +22,10 @@ class MemoryCache {
   }
 
   set<T>(key: string, value: T, ttlMs?: number): void {
+    if (this.store.size >= this.maxSize) {
+      const oldest = this.store.keys().next().value;
+      if (oldest) this.store.delete(oldest);
+    }
     this.store.set(key, {
       value,
       expiresAt: Date.now() + (ttlMs ?? this.defaultTTL),

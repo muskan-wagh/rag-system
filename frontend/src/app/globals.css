@@ -50,41 +50,41 @@
 
 :root {
   --radius: 0.625rem;
-  --background: #F5F6F8;
-  --foreground: #0F172A;
+  --background: #F4F4F5;
+  --foreground: #18181B;
   --card: #FFFFFF;
-  --card-foreground: #0F172A;
+  --card-foreground: #18181B;
   --popover: #FFFFFF;
-  --popover-foreground: #0F172A;
-  --primary: #3730A3;
-  --primary-hover: #312E81;
-  --primary-foreground: #FFFFFF;
-  --secondary: #E5E7EB;
-  --secondary-foreground: #0F172A;
-  --muted: #D1D5DB;
-  --muted-foreground: #4B5563;
-  --accent: #4338CA;
-  --accent-foreground: #FFFFFF;
+  --popover-foreground: #18181B;
+  --primary: #18181B;
+  --primary-hover: #09090B;
+  --primary-foreground: #FAFAFA;
+  --secondary: #E4E4E7;
+  --secondary-foreground: #18181B;
+  --muted: #D4D4D8;
+  --muted-foreground: #52525B;
+  --accent: #27272A;
+  --accent-foreground: #FAFAFA;
   --destructive: #EF4444;
-  --destructive-foreground: #FFFFFF;
-  --success: #22C55E;
-  --warning: #F59E0B;
+  --destructive-foreground: #FAFAFA;
+  --success: #16A34A;
+  --warning: #D97706;
   --danger: #EF4444;
-  --info: #3B82F6;
-  --border: #9CA3AF;
-  --border-strong: #6B7280;
-  --input: #9CA3AF;
-  --ring: #3730A3;
+  --info: #52525B;
+  --border: #A1A1AA;
+  --border-strong: #71717A;
+  --input: #A1A1AA;
+  --ring: #18181B;
   --sidebar: #FFFFFF;
-  --sidebar-foreground: #374151;
-  --sidebar-border: #9CA3AF;
-  --chart-primary: #3730A3;
-  --chart-secondary: #4338CA;
+  --sidebar-foreground: #3F3F46;
+  --sidebar-border: #A1A1AA;
+  --chart-primary: #18181B;
+  --chart-secondary: #27272A;
   --surface: #FFFFFF;
-  --surface-secondary: #E5E7EB;
-  --text-primary: #0F172A;
-  --text-secondary: #1F2937;
-  --text-muted: #4B5563;
+  --surface-secondary: #E4E4E7;
+  --text-primary: #18181B;
+  --text-secondary: #27272A;
+  --text-muted: #52525B;
 }
 
 @layer base {
@@ -96,7 +96,7 @@
     font-family: var(--font-geist-sans), system-ui, sans-serif;
   }
   ::selection {
-    background: rgba(79, 70, 229, 0.12);
+    background: rgba(24, 24, 27, 0.12);
   }
   ::-webkit-scrollbar {
     width: 6px;
@@ -125,8 +125,8 @@
 }
 
 @keyframes border-glow {
-  0%, 100% { border-color: rgba(79, 70, 229, 0.1); }
-  50% { border-color: rgba(79, 70, 229, 0.3); }
+  0%, 100% { border-color: rgba(24, 24, 27, 0.08); }
+  50% { border-color: rgba(24, 24, 27, 0.2); }
 }
 
 @utility animate-pulse-glow {

@@ -2,11 +2,15 @@ import { Request, Response, NextFunction } from 'express';
 import { createClerkClient } from '@clerk/backend';
 import { config } from '@/config';
 import { getOrCreateRecruiter } from '@/services/recruiter';
+import { RecruiterRecord } from '@/services/supabase/database';
+import { memoryCache } from '@/utils/memory-cache';
 import { logger } from '@/utils/logger';
 
 const clerkClient = createClerkClient({ secretKey: config.clerkSecretKey });
 
 const PUBLIC_PATHS = ['/api/upload'];
+
+const RECRUITER_CACHE_TTL = 300_000;
 
 function isPublicPath(req: Request): boolean {
   return PUBLIC_PATHS.some((path) => req.path === path || req.path.startsWith(path + '/'));
@@ -45,8 +49,18 @@ export async function authMiddleware(req: Request, res: Response, next: NextFunc
 
   const clerkId = payload.sub;
 
+  // Check in-memory cache first — avoids DB lookup on every request
+  const cacheKey = `recruiter:clerk:${clerkId}`;
+  const cached = memoryCache.get<RecruiterRecord>(cacheKey);
+  if (cached) {
+    req.recruiter = cached;
+    next();
+    return;
+  }
+
   try {
     const recruiter = await getOrCreateRecruiter({ clerkId });
+    memoryCache.set(cacheKey, recruiter, RECRUITER_CACHE_TTL);
     req.recruiter = recruiter;
     next();
   } catch (err) {

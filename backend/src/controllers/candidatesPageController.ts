@@ -58,15 +58,17 @@ export const getCandidatesPageHandler = asyncHandler(async (req: Request, res: R
     const { data: intData } = await intQuery;
     interviewCandidateIds = [...new Set((intData || []).map((r: any) => r.candidate_id))];
 
-    // If no interviews today, return empty result quickly
+    // If no interviews today, avoid full data query — just return sessions
     if (interviewCandidateIds.length === 0) {
-      const sessionsResult = await supabase
-        .from('upload_sessions')
-        .select('id, job_description_text, created_at, candidates(count)')
-        .eq('recruiter_id', recruiterId)
-        .order('created_at', { ascending: false });
+      const sessionsResult = status === 'interviews-today'
+        ? await supabase
+            .from('upload_sessions')
+            .select('id, job_description_text, created_at, candidates(count)')
+            .eq('recruiter_id', recruiterId)
+            .order('created_at', { ascending: false })
+        : null;
 
-      const sessions: SessionSummary[] = (sessionsResult.data || []).map((s: Record<string, unknown>) => {
+      const sessions: SessionSummary[] = (sessionsResult?.data || []).map((s: Record<string, unknown>) => {
         const cands = s.candidates as Array<{ count: number }> | undefined;
         return {
           id: s.id as string,
@@ -112,7 +114,7 @@ export const getCandidatesPageHandler = asyncHandler(async (req: Request, res: R
   // Build data query
   let dataQuery: any = supabase
     .from('candidates')
-    .select('id, upload_session_id, full_name, email, phone, location, current_company, current_title, total_experience_years, resume_file_url, flight_risk, growth_trajectory, current_status, created_at')
+    .select('id, upload_session_id, full_name, email, current_company, current_title, total_experience_years, resume_file_url, flight_risk, current_status, created_at')
     .eq('recruiter_id', recruiterId);
 
   dataQuery = buildStatusFilter(status)(dataQuery);

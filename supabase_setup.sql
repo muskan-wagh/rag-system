@@ -278,11 +278,23 @@ ALTER TABLE candidates ADD COLUMN IF NOT EXISTS recruiter_id UUID REFERENCES rec
 ALTER TABLE candidate_notes ADD COLUMN IF NOT EXISTS recruiter_id UUID REFERENCES recruiters(id);
 ALTER TABLE candidate_status_log ADD COLUMN IF NOT EXISTS recruiter_id UUID REFERENCES recruiters(id);
 ALTER TABLE search_sessions ADD COLUMN IF NOT EXISTS recruiter_id UUID REFERENCES recruiters(id);
+ALTER TABLE search_sessions ADD COLUMN IF NOT EXISTS jd_hash TEXT;
 
 CREATE INDEX IF NOT EXISTS idx_upload_sessions_recruiter ON upload_sessions(recruiter_id);
 CREATE INDEX IF NOT EXISTS idx_candidates_recruiter ON candidates(recruiter_id);
 CREATE INDEX IF NOT EXISTS idx_candidate_notes_recruiter ON candidate_notes(recruiter_id);
 CREATE INDEX IF NOT EXISTS idx_candidate_status_log_recruiter ON candidate_status_log(recruiter_id);
+
+-- ============================================================
+-- ADDITIONAL PERFORMANCE INDEXES
+-- ============================================================
+CREATE INDEX IF NOT EXISTS idx_candidates_recruiter_created ON candidates(recruiter_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_candidates_recruiter_status ON candidates(recruiter_id, current_status);
+CREATE INDEX IF NOT EXISTS idx_candidates_recruiter_session ON candidates(recruiter_id, upload_session_id);
+CREATE INDEX IF NOT EXISTS idx_search_sessions_recruiter ON search_sessions(recruiter_id);
+CREATE INDEX IF NOT EXISTS idx_interviews_date_status ON interviews(scheduled_date, status);
+CREATE INDEX IF NOT EXISTS idx_upload_sessions_recruiter_created ON upload_sessions(recruiter_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_candidate_status_log_changed ON candidate_status_log(changed_at DESC);
 
 -- Stats RPC function for per-recruiter dashboard aggregation
 CREATE OR REPLACE FUNCTION get_recruiter_stats(p_recruiter_id UUID)
