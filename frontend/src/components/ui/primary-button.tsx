@@ -19,7 +19,7 @@ export function PrimaryButton({ href, children, className = "", icon }: PrimaryB
     >
       <Link
         href={href}
-        className={`inline-flex items-center gap-2 rounded-full bg-[#111111] px-5 py-2.5 text-sm font-medium text-white transition-all duration-200 ${className}`}
+        className={`inline-flex items-center gap-2 rounded-lg bg-primary px-5 py-[10px] text-sm font-medium text-primary-foreground transition-all duration-120 hover:bg-primary-hover ${className}`}
       >
         {icon && <span className="h-4 w-4">{icon}</span>}
         {children}

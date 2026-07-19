@@ -44,8 +44,8 @@ A full-stack **Retrieval-Augmented Generation (RAG)** application built for the 
 
 ### RAG Pattern
 
-1. **Retrieval**: Vector search against Qdrant using `text-embedding-3-small` embeddings (1536-d, cosine distance).
-2. **Augmentation**: Retrieved candidates are scored across 3 dimensions (skills, experience, education).
+1. **Retrieval**: Vector search against Qdrant using `Xenova/all-MiniLM-L6-v2` embeddings (384-d, cosine distance).
+2. **Augmentation**: Retrieved candidates are scored across 4 dimensions (semantic, skills, experience, education).
 3. **Generation**: LLM (OpenRouter) parses JDs, generates comparison analyses, and explains rankings.
 
 ---
@@ -64,8 +64,8 @@ User pastes JD in UI
                               ▼                     ▼
                         parseJD(jdText)      generateEmbedding(jdText)
                               │                     │
-                        LLM extracts:          OpenAI embedding
-                        title, skills,         (text-embedding-3-small)
+                        LLM extracts:          Local embedding
+                        title, skills,         (Xenova/all-MiniLM-L6-v2)
                         experience,
                         education, etc.
                               │                     │
@@ -87,8 +87,8 @@ User pastes JD in UI
                      │               │               │
                      └───────────────┼───────────────┘
                                      ▼
-                           finalRanker (weighted sum)
-                           skill × 0.4 + exp × 0.35 + edu × 0.25
+                            finalRanker (weighted sum)
+                            sem × 0.35 + skill × 0.30 + exp × 0.20 + edu × 0.15
                                      │
                                      ▼
                          Cache result (5 min TTL)
@@ -130,7 +130,8 @@ User enters JD text + candidate IDs
 | **Node.js / Express.js** (v5) | REST API server |
 | **TypeScript** (v6) | Type-safe development |
 | **Qdrant** (js-client-rest) | Vector database (cloud) |
-| **OpenRouter API** | LLM inference + embeddings |
+| **OpenRouter API** | LLM inference |
+| **@xenova/transformers** | Local embeddings (all-MiniLM-L6-v2, 384-d) |
 | **Winston** | Structured logging |
 | **dotenv** | Environment configuration |
 
@@ -287,15 +288,16 @@ All endpoints are prefixed with `/api`. The frontend proxies `/api/*` to `http:/
 
 ## Scoring & Ranking System
 
-Candidates are scored across 3 dimensions, weighted and aggregated:
+Candidates are scored across 4 dimensions, weighted and aggregated:
 
 | Dimension | Weight | Method |
 |---|---|---|
-| **Skills** | 40% | Jaccard similarity + coverage of required vs. candidate skills |
-| **Experience** | 35% | Linear scoring within the JD's experience range (penalty below min, bonus above max) |
-| **Education** | 25% | Level rank comparison (PhD > Master > Bachelor > Diploma) + field overlap bonus |
+| **Semantic** | 35% | Cosine similarity of vector embeddings (JD vs candidate) |
+| **Skills** | 30% | Jaccard similarity + coverage of required vs. candidate skills |
+| **Experience** | 20% | Linear scoring within the JD's experience range (penalty below min, bonus above max) |
+| **Education** | 15% | Level rank comparison (PhD > Master > Bachelor > Diploma) + field overlap bonus |
 
-**Final Score** = `skillScore × 0.40 + experienceScore × 0.35 + educationScore × 0.25`
+**Final Score** = `semanticScore × 0.35 + skillScore × 0.30 + experienceScore × 0.20 + educationScore × 0.15`
 
 Each sub-score is 0–1, so the overall score is also 0–1.
 
@@ -371,8 +373,8 @@ Both servers must run simultaneously. The frontend proxies `/api/*` requests to 
 | Setting | Value |
 |---|---|
 | LLM base URL | `https://openrouter.ai/api/v1` |
-| Embedding model | `text-embedding-3-small` |
-| Embedding dimensions | 1536 |
+| Embedding model | `Xenova/all-MiniLM-L6-v2` |
+| Embedding dimensions | 384 |
 | Vector distance | Cosine |
 | LLM temperature (parse) | 0.1 |
 | LLM temperature (compare) | 0.3 |

@@ -76,12 +76,16 @@ export interface ParseJDResponse {
 export interface SearchCandidatesRequest {
   jdText: string;
   limit?: number;
+  page?: number;
   filters?: SearchFilters;
 }
 
 export interface SearchCandidatesResponse {
   results: RankingResult[];
   query: ParsedJD;
+  total: number;
+  page: number;
+  totalPages: number;
 }
 
 export interface CompareCandidatesRequest {
@@ -92,6 +96,35 @@ export interface CompareCandidatesRequest {
 export interface CompareCandidatesResponse {
   comparison: CompareResult;
   query: ParsedJD;
+}
+
+export interface CandidateBrief {
+  candidate: Candidate;
+  record: {
+    fullName?: string;
+    email?: string;
+    phone?: string;
+    location?: string;
+    currentCompany?: string;
+    currentTitle?: string;
+    totalExperienceYears?: number;
+    rawResumeText?: string;
+    resumeFileUrl?: string;
+    flightRisk?: string;
+    growthTrajectory?: string;
+    currentStatus?: string;
+    createdAt?: string;
+  };
+  parsedResume: Record<string, unknown> | null;
+  notes: Array<{ id: string; note_text: string; created_at: string }>;
+  timeline: Array<{ id: string; status: string; changed_at: string; changed_by: string; details: Record<string, unknown> | null }>;
+  similarCandidates: Candidate[];
+  scores: {
+    skill: number;
+    experience: number;
+    education: number;
+    overall: number;
+  } | null;
 }
 
 import { RecruiterRecord } from '@/services/supabase/database';

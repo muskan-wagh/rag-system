@@ -1,9 +1,8 @@
 "use client"
 
 import Link from "next/link"
-import { usePathname, useRouter } from "next/navigation"
-import { useAuth, UserButton } from "@clerk/nextjs"
-import { motion } from "framer-motion"
+import { usePathname } from "next/navigation"
+import { useUser } from "@clerk/nextjs"
 import { cn } from "@/lib/utils"
 import {
   LayoutDashboard,
@@ -11,30 +10,32 @@ import {
   Search,
   GitCompare,
   Calendar,
-  BarChart3,
   Settings,
-  LogOut,
-  Sparkles,
+  BarChart3,
   Brain,
+  LogOut,
 } from "lucide-react"
+import { useAuth } from "@clerk/nextjs"
 
-const navItems = [
+const mainNav = [
   { href: "/dashboard", label: "Overview", icon: LayoutDashboard },
   { href: "/candidates", label: "Candidates", icon: Users },
   { href: "/candidates/search", label: "Search", icon: Search },
+  { href: "/pools", label: "Pools", icon: BarChart3 },
   { href: "/compare", label: "Compare", icon: GitCompare },
   { href: "/interview", label: "Interviews", icon: Calendar },
 ]
 
-const secondaryItems = [
-  { href: "/analytics", label: "Analytics", icon: BarChart3, disabled: true },
+const generalNav = [
+  { href: "/search", label: "Saved Searches", icon: Search },
+  { href: "/history", label: "History", icon: BarChart3 },
   { href: "/settings", label: "Settings", icon: Settings },
 ]
 
 export function AppSidebar() {
   const pathname = usePathname()
+  const { user } = useUser()
   const { signOut } = useAuth()
-  const router = useRouter()
 
   function isActive(href: string): boolean {
     if (href === "/dashboard") return pathname === "/dashboard"
@@ -44,91 +45,117 @@ export function AppSidebar() {
   }
 
   return (
-    <aside className="fixed left-4 top-4 bottom-4 z-40 flex flex-col bg-white rounded-[28px] shadow-[0_12px_40px_rgba(0,0,0,0.06)] border border-[#ECECEC]" style={{ width: "220px" }}>
-      <div className="flex items-center gap-3 px-6 pt-6 pb-4">
-        <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#111111]">
-          <Sparkles className="h-4 w-4 text-white" />
-        </div>
-        <span className="text-base font-medium tracking-tight text-[#111111]">
-          Recruit<span className="font-medium">IQ</span>
+    <aside className="fixed left-0 top-0 bottom-0 z-40 flex flex-col bg-surface border-r border-border" style={{ width: 220 }}>
+      <div className="px-5 pb-8 pt-6">
+        <span className="text-base font-medium text-ink" style={{ fontFamily: "var(--font-inter)", letterSpacing: "-0.01em" }}>
+          RecruitIQ
         </span>
       </div>
 
-      <nav className="flex-1 overflow-y-auto px-3 py-2 space-y-1">
-        {navItems.map((item) => {
-          const active = isActive(item.href)
-          return (
-            <Link key={item.href} href={item.href} className="relative block">
-              <div
-                className={cn(
-                  "relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200",
-                  active
-                    ? "text-[#111111] bg-[#F6F6F4]"
-                    : "text-[#6B7280] hover:text-[#111111] hover:bg-[#F6F6F4]/50"
-                )}
-              >
-                <item.icon className="h-4 w-4" strokeWidth={active ? 2 : 1.5} />
-                {item.label}
-              </div>
-            </Link>
-          )
-        })}
+      <nav className="flex-1 overflow-y-auto">
+        <div className="px-3 pb-2 pt-6">
+          <p className="px-3 text-[11px] font-medium text-faint uppercase" style={{ letterSpacing: "0.06em", fontFamily: "var(--font-inter)" }}>
+            Main
+          </p>
+        </div>
+        <div className="space-y-0.5 px-3">
+          {mainNav.map((item) => {
+            const active = isActive(item.href)
+            return (
+              <Link key={item.href} href={item.href}>
+                <div
+                  className={cn(
+                    "flex items-center gap-3 rounded-[6px] transition-all duration-120 relative",
+                    "h-10 px-3",
+                    active
+                      ? "bg-[#F3F4F6] text-ink font-medium shadow-[0_1px_2px_rgba(10,10,10,0.04)]"
+                      : "text-muted font-normal hover:bg-[#F9FAFB]"
+                  )}
+                  style={{ fontFamily: "var(--font-inter)" }}
+                >
+                  {active && <div className="absolute left-[-3px] top-1/2 -translate-y-1/2 w-[3px] h-4 rounded-full bg-info" />}
+                  <item.icon className="size-[18px]" strokeWidth={active ? 2 : 1.5} style={{ color: active ? "var(--ink)" : "var(--faint)" }} />
+                  <span className="text-sm">{item.label}</span>
+                </div>
+              </Link>
+            )
+          })}
+        </div>
 
-        <div className="pt-4 pb-2">
-          <div className="px-3 pb-2">
-            <p className="text-[10px] font-medium text-[#A3A3A3] uppercase tracking-widest">AI Tools</p>
-          </div>
-          <Link href="/ai-matching" className="relative block">
-            <div className={cn(
-              "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200 text-[#6B7280] hover:text-[#111111] hover:bg-[#F6F6F4]/50",
-              pathname.startsWith("/ai-matching") && "text-[#111111] bg-[#F6F6F4]"
-            )}>
-              <Brain className="h-4 w-4" strokeWidth={1.5} />
-              AI Matching
+        <div className="px-3 pb-2 pt-6">
+          <p className="px-3 text-[11px] font-medium text-faint uppercase" style={{ letterSpacing: "0.06em", fontFamily: "var(--font-inter)" }}>
+            AI Tools
+          </p>
+        </div>
+        <div className="space-y-0.5 px-3">
+          <Link href="/ai-matching">
+            <div
+              className={cn(
+                "flex items-center gap-3 rounded-[6px] transition-all duration-120 h-10 px-3 relative",
+                pathname.startsWith("/ai-matching")
+                  ? "bg-[#F3F4F6] text-ink font-medium shadow-[0_1px_2px_rgba(10,10,10,0.04)]"
+                  : "text-muted font-normal hover:bg-[#F9FAFB]"
+              )}
+              style={{ fontFamily: "var(--font-inter)" }}
+            >
+              {pathname.startsWith("/ai-matching") && <div className="absolute left-[-3px] top-1/2 -translate-y-1/2 w-[3px] h-4 rounded-full bg-info" />}
+              <Brain className="size-[18px]" strokeWidth={1.5} style={{ color: pathname.startsWith("/ai-matching") ? "var(--ink)" : "var(--faint)" }} />
+              <span className="text-sm">AI Matching</span>
             </div>
           </Link>
         </div>
 
-        {secondaryItems.map((item) => {
-          if (item.disabled) return null
-          const active = isActive(item.href)
-          return (
-            <Link key={item.href} href={item.href} className="relative block">
-              <div
-                className={cn(
-                  "relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200",
-                  active
-                    ? "text-[#111111] bg-[#F6F6F4]"
-                    : "text-[#6B7280] hover:text-[#111111] hover:bg-[#F6F6F4]/50"
-                )}
-              >
-                <item.icon className="h-4 w-4" strokeWidth={active ? 2 : 1.5} />
-                {item.label}
-              </div>
-            </Link>
-          )
-        })}
+        <div className="px-3 pb-2 pt-6">
+          <p className="px-3 text-[11px] font-medium text-faint uppercase" style={{ letterSpacing: "0.06em", fontFamily: "var(--font-inter)" }}>
+            General
+          </p>
+        </div>
+        <div className="space-y-0.5 px-3">
+          {generalNav.map((item) => {
+            const active = isActive(item.href)
+            return (
+              <Link key={item.href} href={item.href}>
+                <div
+                  className={cn(
+                    "flex items-center gap-3 rounded-[6px] transition-all duration-120 h-10 px-3 relative",
+                    active
+                      ? "bg-[#F3F4F6] text-ink font-medium shadow-[0_1px_2px_rgba(10,10,10,0.04)]"
+                      : "text-muted font-normal hover:bg-[#F9FAFB]"
+                  )}
+                  style={{ fontFamily: "var(--font-inter)" }}
+                >
+                  {active && <div className="absolute left-[-3px] top-1/2 -translate-y-1/2 w-[3px] h-4 rounded-full bg-info" />}
+                  <item.icon className="size-[18px]" strokeWidth={active ? 2 : 1.5} style={{ color: active ? "var(--ink)" : "var(--faint)" }} />
+                  <span className="text-sm">{item.label}</span>
+                </div>
+              </Link>
+            )
+          })}
+        </div>
       </nav>
 
-      <div className="border-t border-[#ECECEC] px-3 py-4 space-y-1">
-        <div className="flex items-center gap-3 rounded-xl px-3 py-2.5 hover:bg-[#F6F6F4]/50 transition-colors cursor-pointer" onClick={() => router.push("/settings")}>
-          <UserButton
-            appearance={{
-              elements: {
-                avatarBox: "h-7 w-7 rounded-full",
-              },
-            }}
-          />
+      <div className="border-t border-border px-5 py-4">
+        <div className="flex items-center gap-3">
+          <div className="size-8 rounded-full bg-[#E5E7EB] flex items-center justify-center shrink-0" style={{ fontFamily: "var(--font-inter)" }}>
+            <span className="text-[12px] font-medium text-muted">
+              {(user?.firstName?.[0] || user?.primaryEmailAddress?.emailAddress?.[0] || "U").toUpperCase()}
+            </span>
+          </div>
           <div className="flex-1 min-w-0">
-            <p className="text-xs font-medium text-[#111111] truncate">Account</p>
-            <p className="text-[10px] text-[#A3A3A3] truncate">Settings & Profile</p>
+            <p className="text-sm font-medium text-ink truncate" style={{ fontFamily: "var(--font-inter)" }}>
+              {user?.firstName || "User"}
+            </p>
+            <p className="text-xs text-faint truncate" style={{ fontFamily: "var(--font-inter)" }}>
+              {user?.primaryEmailAddress?.emailAddress || ""}
+            </p>
           </div>
         </div>
         <button
           onClick={() => signOut({ redirectUrl: "/" })}
-          className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-xs font-medium text-[#A3A3A3] hover:text-[#111111] hover:bg-[#F6F6F4]/50 transition-all duration-200"
+          className="flex w-full items-center gap-3 rounded-[6px] px-3 py-2 mt-2 text-xs font-normal text-muted hover:text-ink hover:bg-[#F9FAFB] transition-all duration-120"
+          style={{ fontFamily: "var(--font-inter)" }}
         >
-          <LogOut className="h-3.5 w-3.5" strokeWidth={1.5} />
+          <LogOut className="size-[14px]" strokeWidth={1.5} />
           Sign Out
         </button>
       </div>

@@ -36,14 +36,17 @@ import { memoryCache } from '@/utils/memory-cache';
 import { generateExplanations } from '@/services/llm/explainability';
 import { generateInterviewEmail } from '@/services/llm/emailTemplate';
 import { broadcast } from '@/services/websocket';
+import { logActivity } from '@/services/activity';
+import { enqueueEmail } from '@/services/queue/emailQueue';
+import { buildRejectionEmail, buildOfferEmail, buildInterviewEmailHtml } from '@/services/email';
 
 export const searchCandidatesHandler = asyncHandler(async (req: Request, res: Response) => {
   const startTime = Date.now();
-  const { jdText, limit = 20, filters, explain = false } = req.body;
+  const { jdText, limit = 20, page = 1, filters, explain = false } = req.body;
 
   const jdHash = crypto.createHash('md5').update(jdText).digest('hex');
-  const cacheKey = `search:${jdHash}:${limit}:${JSON.stringify(filters ?? {})}:${explain}`;
-  const cached = await getCached<{ results: import('@/types').RankingResult[]; query: import('@/types').ParsedJD; explanations?: Record<string, unknown> }>(cacheKey);
+  const cacheKey = `search:${jdHash}:${limit}:${page}:${JSON.stringify(filters ?? {})}:${explain}`;
+  const cached = await getCached<{ results: import('@/types').RankingResult[]; query: import('@/types').ParsedJD; explanations?: Record<string, unknown>; total: number; page: number; totalPages: number }>(cacheKey);
   if (cached) {
     res.status(200).json({ success: true, data: cached });
     return;
@@ -55,11 +58,19 @@ export const searchCandidatesHandler = asyncHandler(async (req: Request, res: Re
   ]);
 
   const actualLimit = limit > 100 ? 100 : limit;
-  const rawResults = await searchByEmbedding(embedding, actualLimit, filters);
+  const qdrantLimit = actualLimit + 20;
+  const offset = (page - 1) * actualLimit;
+  const rawResults = await searchByEmbedding(embedding, qdrantLimit, filters, offset);
 
-  const data: { results: import('@/types').RankingResult[]; query: import('@/types').ParsedJD; explanations?: Record<string, unknown> } = {
+  const total = rawResults.length;
+  const totalPages = Math.max(1, Math.ceil(total / actualLimit));
+
+  const data: { results: import('@/types').RankingResult[]; query: import('@/types').ParsedJD; explanations?: Record<string, unknown>; total: number; page: number; totalPages: number } = {
     results: [],
     query: jd,
+    total,
+    page,
+    totalPages,
   };
 
   if (rawResults.length > 0) {
@@ -69,7 +80,8 @@ export const searchCandidatesHandler = asyncHandler(async (req: Request, res: Re
       return r.candidate;
     });
 
-    data.results = await rankCandidates(candidates, jd, semanticScores);
+    const ranked = await rankCandidates(candidates, jd, semanticScores);
+    data.results = ranked.slice(0, actualLimit);
   }
 
   if (explain && data.results.length > 0) {
@@ -90,7 +102,15 @@ export const searchCandidatesHandler = asyncHandler(async (req: Request, res: Re
   await setCache(cacheKey, data, 300000);
   res.status(200).json({ success: true, data });
 
-  // Fire-and-forget: save search session
+  // Fire-and-forget: save search session + log activity
+  const r6 = req.recruiter;
+  if (r6) {
+    logActivity({
+      recruiterId: r6.id,
+      actionType: 'search_executed',
+      description: `Search executed — ${jd.title || jdText.slice(0, 60)}${jdText.length > 60 ? '...' : ''} (${data.results.length} results)`,
+    });
+  }
   const searchDurationMs = Date.now() - startTime;
   saveSearchSession({
     jobDescriptionText: jdText,
@@ -110,6 +130,15 @@ export const getCandidateHandler = asyncHandler(async (req: Request, res: Respon
     throw new AppError('Candidate not found', 404, ErrorCodes.NOT_FOUND);
   }
 
+  const r7 = req.recruiter;
+  if (r7 && candidates.length > 0) {
+    logActivity({
+      recruiterId: r7.id,
+      actionType: 'candidate_viewed',
+      description: `Candidate viewed: ${candidates[0].name}`,
+      candidateId: id,
+    });
+  }
   res.status(200).json({ success: true, data: candidates[0] });
 });
 
@@ -203,14 +232,33 @@ export const updateCandidateStatusHandler = asyncHandler(async (req: Request, re
 
   if (candidate?.email) {
     if (status === CANDIDATE_STATUS.REJECTED) {
-      console.log(`📧 [Rejection] email would be sent to ${candidate.email} (${candidate.full_name || 'Unknown'})`);
+      enqueueEmail({
+        to: candidate.email,
+        subject: 'Application Update',
+        html: buildRejectionEmail(candidate.full_name || 'Candidate'),
+      });
     } else if (status === CANDIDATE_STATUS.OFFERED) {
-      console.log(`📧 [Offer] email would be sent to ${candidate.email} (${candidate.full_name || 'Unknown'})`);
+      const salary = (req.body as any).details?.salary;
+      const joiningDate = (req.body as any).details?.joining_date;
+      enqueueEmail({
+        to: candidate.email,
+        subject: 'Congratulations — Offer Letter',
+        html: buildOfferEmail(candidate.full_name || 'Candidate', salary, joiningDate),
+      });
     }
   }
 
   memoryCache.delete('dashboard:overview:v2');
   broadcast('candidate:status_changed', { candidateId: id, status });
+  const r = req.recruiter;
+  if (r) {
+    logActivity({
+      recruiterId: r.id,
+      actionType: 'status_changed',
+      description: `Status changed to ${status}`,
+      candidateId: id,
+    });
+  }
   res.status(200).json({ success: true, data: { message: `Candidate status updated to ${status}` } });
 });
 
@@ -234,13 +282,37 @@ export const scheduleInterviewHandler = asyncHandler(async (req: Request, res: R
     scheduled_time: scheduledTime,
   });
 
-  // Log email sent
-  const emailBody = `Dear Candidate,\n\nYour interview has been scheduled for ${scheduledDate} at ${scheduledTime}.\n\nInterview Type: ${interviewType}\n\nBest regards,\nRecruitIQ Team`;
-  await logEmail(id, 'interview_scheduled', 'Interview Scheduled', emailBody);
+  // Send interview email
+  const interviewEmailHtml = buildInterviewEmailHtml('Candidate', '', scheduledDate, scheduledTime, interviewType, interview.meeting_link);
+  await logEmail(id, 'interview_scheduled', 'Interview Scheduled', interviewEmailHtml);
+  const supabase2 = getSupabaseClient();
+  const { data: candidate2 } = await supabase2
+    .from('candidates')
+    .select('email, full_name')
+    .eq('id', id)
+    .single();
+  if (candidate2?.email) {
+    const { generateInterviewEmail } = await import('@/services/llm/emailTemplate');
+    const emailBody2 = await generateInterviewEmail(candidate2.full_name || 'Candidate', 'the position', '');
+    enqueueEmail({
+      to: candidate2.email,
+      subject: 'Interview Scheduled',
+      html: emailBody2,
+    });
+  }
 
   memoryCache.delete('dashboard:overview:v2');
   broadcast('candidate:status_changed', { candidateId: id, status: CANDIDATE_STATUS.INTERVIEW_SCHEDULED });
   broadcast('interview:scheduled', { candidateId: id, interviewId: interview.id });
+  const r1 = req.recruiter;
+  if (r1) {
+    logActivity({
+      recruiterId: r1.id,
+      actionType: 'interview_scheduled',
+      description: `Interview scheduled (${interviewType})`,
+      candidateId: id,
+    });
+  }
 
   res.status(200).json({ success: true, data: interview });
 });
@@ -284,6 +356,15 @@ export const makeOfferHandler = asyncHandler(async (req: Request, res: Response)
 
   memoryCache.delete('dashboard:overview:v2');
   broadcast('candidate:status_changed', { candidateId: id, status: CANDIDATE_STATUS.OFFERED });
+  const r2 = req.recruiter;
+  if (r2) {
+    logActivity({
+      recruiterId: r2.id,
+      actionType: 'offer_generated',
+      description: `Offer generated${salary ? ` ($${salary})` : ''}`,
+      candidateId: id,
+    });
+  }
   res.status(200).json({ success: true, data: offer });
 });
 
@@ -306,6 +387,15 @@ export const rejectCandidateHandler = asyncHandler(async (req: Request, res: Res
 
   memoryCache.delete('dashboard:overview:v2');
   broadcast('candidate:status_changed', { candidateId: id, status: CANDIDATE_STATUS.REJECTED });
+  const r3 = req.recruiter;
+  if (r3) {
+    logActivity({
+      recruiterId: r3.id,
+      actionType: 'status_changed',
+      description: `Candidate rejected: ${reason}`,
+      candidateId: id,
+    });
+  }
   res.status(200).json({ success: true, data: { message: 'Candidate rejected' } });
 });
 
@@ -371,6 +461,16 @@ export const sendInterviewEmailHandler = asyncHandler(async (req: Request, res: 
 
   await logEmail(id, 'interview_email', emailSubject, emailBody);
 
+  const r4 = req.recruiter;
+  if (r4) {
+    logActivity({
+      recruiterId: r4.id,
+      actionType: 'email_sent',
+      description: `Email sent: ${emailSubject}`,
+      candidateId: id,
+    });
+  }
+
   res.status(200).json({ success: true, data: { message: 'Interview email sent', subject: emailSubject, body: emailBody } });
 });
 
@@ -386,7 +486,16 @@ export const addCandidateNoteHandler = asyncHandler(async (req: Request, res: Re
 
   await addCandidateNote(id, noteText.trim());
   broadcast('candidate:note_added', { candidateId: id });
-  res.status(200).json({ success: true, data: { message: 'Note added' } });
+  const r5 = req.recruiter;
+  if (r5) {
+    logActivity({
+      recruiterId: r5.id,
+      actionType: 'note_added',
+      description: `Note added`,
+      candidateId: id,
+    });
+  }
+  res.status(201).json({ success: true, data: { message: 'Note added' } });
 });
 
 export const getCandidateNotesHandler = asyncHandler(async (req: Request, res: Response) => {
@@ -394,6 +503,63 @@ export const getCandidateNotesHandler = asyncHandler(async (req: Request, res: R
 
   const notes = await getCandidateNotes(id);
   res.status(200).json({ success: true, data: notes });
+});
+
+export const getCandidateBriefHandler = asyncHandler(async (req: Request, res: Response) => {
+  const id = req.params.id as string;
+
+  const [candidates, supabaseData] = await Promise.all([
+    retrieveCandidateByIds([id]),
+    getSupabaseClient().from('candidates').select('*').eq('id', id).single(),
+  ]);
+
+  if (candidates.length === 0) {
+    throw new AppError('Candidate not found', 404, ErrorCodes.NOT_FOUND);
+  }
+
+  const candidate = candidates[0];
+  const record = supabaseData.data as Record<string, unknown> | null;
+
+  const [notes, timeline, similarCandidates] = await Promise.all([
+    getCandidateNotes(id),
+    getCandidateTimeline(id),
+    (async () => {
+      const embeddingText = `${candidate.name} Skills: ${candidate.skills.join(', ')}`;
+      const embedding = await generateEmbedding(embeddingText);
+      const similar = await searchByEmbedding(embedding, 10, {});
+      return similar.filter((r) => r.candidate.id !== id).slice(0, 5).map((r) => r.candidate);
+    })(),
+  ]);
+
+  const candidateRecord = {
+    fullName: (record?.full_name as string) || undefined,
+    email: (record?.email as string) || undefined,
+    phone: (record?.phone as string) || undefined,
+    location: (record?.location as string) || undefined,
+    currentCompany: (record?.current_company as string) || undefined,
+    currentTitle: (record?.current_title as string) || undefined,
+    totalExperienceYears: (record?.total_experience_years as number) || undefined,
+    rawResumeText: (record?.raw_resume_text as string) || undefined,
+    resumeFileUrl: (record?.resume_file_url as string) || undefined,
+    flightRisk: (record?.flight_risk as string) || undefined,
+    growthTrajectory: (record?.growth_trajectory as string) || undefined,
+    currentStatus: (record?.current_status as string) || undefined,
+    createdAt: (record?.created_at as string) || undefined,
+  };
+
+  const parsedJson = record?.parsed_json as Record<string, unknown> | null;
+
+  const brief: import('@/types').CandidateBrief = {
+    candidate,
+    record: candidateRecord,
+    parsedResume: parsedJson,
+    notes,
+    timeline,
+    similarCandidates,
+    scores: null,
+  };
+
+  res.status(200).json({ success: true, data: brief });
 });
 
 export const getSimilarCandidatesHandler = asyncHandler(async (req: Request, res: Response) => {

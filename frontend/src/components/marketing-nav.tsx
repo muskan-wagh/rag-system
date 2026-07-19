@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { useState, useEffect } from "react"
-import { Menu, X } from "lucide-react"
+import { Menu, X, Sparkles } from "lucide-react"
 import { useUser, UserButton } from "@clerk/nextjs"
 import { motion, AnimatePresence } from "framer-motion"
 
@@ -25,27 +25,23 @@ export function MarketingNav() {
   }, [])
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-50 px-4 md:px-6 pt-3">
+    <header className="fixed top-0 left-0 right-0 z-50 px-4 md:px-8 pt-3">
       <motion.div
         animate={{
           paddingTop: scrolled ? "0.5rem" : "0.75rem",
           paddingBottom: scrolled ? "0.5rem" : "0.75rem",
         }}
-        className={`mx-auto max-w-7xl rounded-2xl transition-all duration-300 ${
-          scrolled ? "glass-strong shadow-sm" : "glass"
+        className={`mx-auto max-w-7xl rounded-xl transition-all duration-300 bg-surface border border-border ${
+          scrolled ? "shadow-[0_1px_2px_rgba(10,10,10,0.04)]" : ""
         }`}
       >
         <div className="flex items-center justify-between px-5">
           <Link href="/" className="flex items-center gap-2.5">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary shadow-md shadow-primary/20">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M12 2L2 7l10 5 10-5-10-5z" />
-                <path d="M2 17l10 5 10-5" />
-                <path d="M2 12l10 5 10-5" />
-              </svg>
+            <div className="flex h-8 w-8 items-center justify-center rounded-[8px] bg-info">
+              <Sparkles className="h-4 w-4 text-white" />
             </div>
-            <span className="text-base font-semibold text-foreground tracking-tight">
-              Recruit<span className="text-primary">IQ</span>
+            <span className="text-base font-medium text-ink" style={{ fontFamily: "var(--font-inter)" }}>
+              RecruitIQ
             </span>
           </Link>
 
@@ -54,7 +50,8 @@ export function MarketingNav() {
               <Link
                 key={item.href}
                 href={item.href}
-                className="px-3.5 py-2 text-sm text-muted-foreground hover:text-foreground transition-colors rounded-lg hover:bg-white/40"
+                className="px-3 py-2 text-sm text-muted hover:text-ink transition-colors rounded-[6px] hover:bg-[#F9FAFB]"
+                style={{ fontFamily: "var(--font-inter)" }}
               >
                 {item.label}
               </Link>
@@ -66,7 +63,8 @@ export function MarketingNav() {
               <>
                 <Link
                   href="/dashboard"
-                  className="inline-flex items-center justify-center rounded-lg border border-border/60 bg-white/50 px-4 py-2 text-sm font-medium text-foreground hover:bg-white/80 transition-all backdrop-blur-sm"
+                  className="inline-flex items-center justify-center rounded-[8px] border border-border bg-surface px-4 py-2 text-sm font-medium text-ink hover:bg-[#F3F4F6] transition-all"
+                  style={{ fontFamily: "var(--font-inter)" }}
                 >
                   Dashboard
                 </Link>
@@ -76,13 +74,15 @@ export function MarketingNav() {
               <>
                 <Link
                   href="/sign-in"
-                  className="inline-flex items-center justify-center rounded-lg px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+                  className="inline-flex items-center justify-center rounded-[8px] px-4 py-2 text-sm font-medium text-muted hover:text-ink transition-colors"
+                  style={{ fontFamily: "var(--font-inter)" }}
                 >
                   Sign In
                 </Link>
                 <Link
                   href="/sign-up"
-                  className="inline-flex items-center justify-center rounded-xl bg-primary px-5 py-2 text-sm font-medium text-white shadow-md shadow-primary/20 hover:shadow-xl hover:shadow-primary/25 transition-all duration-300"
+                  className="inline-flex items-center justify-center rounded-[8px] bg-ink px-5 py-2 text-sm font-medium text-white hover:bg-ink-hover transition-all duration-120"
+                  style={{ fontFamily: "var(--font-inter)" }}
                 >
                   Get Started
                 </Link>
@@ -92,7 +92,7 @@ export function MarketingNav() {
 
           <button
             onClick={() => setMenuOpen(!menuOpen)}
-            className="md:hidden flex h-9 w-9 items-center justify-center rounded-lg hover:bg-white/40 transition-colors"
+            className="md:hidden flex h-9 w-9 items-center justify-center rounded-[6px] hover:bg-[#F9FAFB] transition-colors"
           >
             {menuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
           </button>
@@ -106,7 +106,7 @@ export function MarketingNav() {
             animate={{ opacity: 1, y: 0, scaleY: 1 }}
             exit={{ opacity: 0, y: -10, scaleY: 0.95 }}
             transition={{ duration: 0.2 }}
-            className="md:hidden mt-2 rounded-2xl glass-strong shadow-lg overflow-hidden"
+            className="md:hidden mt-2 rounded-xl border border-border bg-surface overflow-hidden"
           >
             <div className="px-4 py-4 space-y-1">
               {navItems.map((item) => (
@@ -114,18 +114,20 @@ export function MarketingNav() {
                   key={item.href}
                   href={item.href}
                   onClick={() => setMenuOpen(false)}
-                  className="block px-3 py-2.5 text-sm text-muted-foreground hover:text-foreground rounded-lg hover:bg-white/40 transition-colors"
+                  className="block px-3 py-2.5 text-sm text-muted hover:text-ink rounded-[6px] hover:bg-[#F9FAFB] transition-colors"
+                  style={{ fontFamily: "var(--font-inter)" }}
                 >
                   {item.label}
                 </Link>
               ))}
-              <hr className="my-3 border-border/60" />
+              <hr className="my-3 border-border" />
               {isSignedIn ? (
                 <>
                   <Link
                     href="/dashboard"
                     onClick={() => setMenuOpen(false)}
-                    className="block px-3 py-2.5 text-sm font-medium text-center rounded-lg border border-border/60 bg-white/50 hover:bg-white/80 transition-all"
+                    className="block px-3 py-2.5 text-sm font-medium text-center rounded-[8px] border border-border bg-surface hover:bg-[#F3F4F6] transition-all"
+                    style={{ fontFamily: "var(--font-inter)" }}
                   >
                     Dashboard
                   </Link>
@@ -138,14 +140,16 @@ export function MarketingNav() {
                   <Link
                     href="/sign-in"
                     onClick={() => setMenuOpen(false)}
-                    className="block px-3 py-2.5 text-sm font-medium text-center rounded-lg hover:bg-white/40 transition-colors"
+                    className="block px-3 py-2.5 text-sm font-medium text-center rounded-[8px] hover:bg-[#F9FAFB] transition-colors"
+                    style={{ fontFamily: "var(--font-inter)" }}
                   >
                     Sign In
                   </Link>
                   <Link
                     href="/sign-up"
                     onClick={() => setMenuOpen(false)}
-                    className="block px-3 py-2.5 text-sm font-medium text-center rounded-xl bg-primary text-white shadow-md"
+                    className="block px-3 py-2.5 text-sm font-medium text-center rounded-[8px] bg-ink text-white hover:bg-ink-hover transition-all duration-120"
+                    style={{ fontFamily: "var(--font-inter)" }}
                   >
                     Get Started
                   </Link>

@@ -7,6 +7,7 @@ import { logger } from '@/utils/logger';
 import { AppError } from '@/middleware/errorHandler';
 import { ErrorCodes } from '@/middleware/errorCodes';
 import { broadcast } from '@/services/websocket';
+import { logActivity } from '@/services/activity';
 
 export const uploadResumeHandler = asyncHandler(async (req: Request, res: Response) => {
   const uuid = req.params.id as string;
@@ -103,4 +104,13 @@ export const uploadResumeHandler = asyncHandler(async (req: Request, res: Respon
 
   // Broadcast event (non-blocking, fire-and-forget)
   broadcast('resume:uploaded', { candidateId: candidate.id, sessionId: uuid });
+  const r = req.recruiter;
+  if (r) {
+    logActivity({
+      recruiterId: r.id,
+      actionType: 'resume_uploaded',
+      description: `Resume uploaded: ${file.originalname}`,
+      candidateId: candidate.id,
+    });
+  }
 });

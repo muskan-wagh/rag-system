@@ -5,10 +5,8 @@ import Link from "next/link"
 import { motion } from "framer-motion"
 import {
   Sparkles, Link2, RefreshCw, Loader2, ShieldAlert, Plus,
-  FilePlus, Copy, Check, Users, FileText,
-  BadgeCheck,
-  ArrowUpRight, Clock, Briefcase,
-  Eye, Bot, Brain, Target, Calendar,
+  FilePlus, Copy, Check, Users, Briefcase,
+  BadgeCheck, ArrowUpRight, Clock, Bot,
   ChevronRight,
 } from "lucide-react"
 import { toast } from "sonner"
@@ -24,9 +22,12 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Skeleton } from "@/components/ui/skeleton"
 
-import { ProgressBar } from "@/components/ui/progress-bar"
-import { ScoreRing } from "@/components/ui/score-ring"
-
+import { NeedsReviewCard } from "@/components/dashboard/needs-review-card"
+import { AiRecommendations } from "@/components/dashboard/ai-recommendations"
+import { UpcomingInterviews } from "@/components/dashboard/upcoming-interviews"
+import { RecentActivity } from "@/components/dashboard/recent-activity"
+import { TalentPoolsSummary } from "@/components/dashboard/talent-pools-summary"
+import { QuickActions } from "@/components/dashboard/quick-actions"
 
 interface SessionData {
   sessionId: string
@@ -58,6 +59,24 @@ interface BiasIssue {
   suggestion: string
 }
 
+function StatusDot({ status }: { status: string }) {
+  const s = status.toLowerCase()
+  const color =
+    s === "applied" ? "#9CA3AF" :
+    s === "screening" || s === "interview scheduled" || s === "interview completed" || s === "technical round" || s === "hr round" ? "#1E40AF" :
+    s === "rejected" || s === "high risk" ? "#DC2626" :
+    s === "hired" ? "#16A34A" :
+    s === "offered" || s === "pending offer" ? "#D97706" :
+    "#6B6B6B"
+  return (
+    <span className="inline-block rounded-full shrink-0" style={{ width: 6, height: 6, backgroundColor: color, marginRight: 8 }} />
+  )
+}
+
+function DisplayNumber({ value }: { value: number }) {
+  return <span className="font-data">{value.toLocaleString()}</span>
+}
+
 const containerVariants = {
   hidden: { opacity: 0 },
   visible: {
@@ -69,26 +88,6 @@ const containerVariants = {
 const itemVariants = {
   hidden: { opacity: 0, y: 16 },
   visible: { opacity: 1, y: 0, transition: { duration: 0.4, ease: [0.25, 0.1, 0.25, 1] as const } },
-}
-
-function getRiskPillStyle(risk?: string) {
-  const r = (risk || "").toLowerCase()
-  if (r === "high") return "bg-[#EF4444]/10 text-[#EF4444] border-[#EF4444]/20"
-  if (r === "medium") return "bg-[#F59E0B]/10 text-[#F59E0B] border-[#F59E0B]/20"
-  return "bg-[#16A34A]/10 text-[#16A34A] border-[#16A34A]/20"
-}
-
-function getStatusPillStyle(status?: string) {
-  const s = (status || "").toLowerCase()
-  if (s === "offered" || s === "hired")
-    return "bg-[#16A34A]/10 text-[#16A34A] border-[#16A34A]/20"
-  if (s === "applied")
-    return "bg-[#111111]/5 text-[#111111] border-[#111111]/10"
-  if (s === "interview scheduled" || s === "interview completed" || s === "technical round" || s === "hr round" || s === "screening")
-    return "bg-[#F59E0B]/10 text-[#F59E0B] border-[#F59E0B]/20"
-  if (s === "rejected")
-    return "bg-[#EF4444]/10 text-[#EF4444] border-[#EF4444]/20"
-  return "bg-[#F6F6F4] text-[#6B7280] border-[#ECECEC]"
 }
 
 function statCards(stats: SessionStats | null) {
@@ -110,20 +109,16 @@ function statCards(stats: SessionStats | null) {
       label: "In Progress",
       value: stats?.open ?? 0,
       icon: Briefcase,
-      sub: `Applied: ${stats?.applied ?? 0} · Screening: ${stats?.screening ?? 0} · Interview: ${stats?.interview ?? 0}`,
+      sub: `${stats?.applied ?? 0} applied · ${stats?.screening ?? 0} screening · ${stats?.interview ?? 0} interview`,
     },
     {
       href: `${ROUTES.candidates}?status=hired,offer`,
       label: "Hired",
       value: (stats?.hired ?? 0) + (stats?.offered ?? 0),
       icon: BadgeCheck,
-      sub: `${stats?.hired ?? 0} Hired · ${stats?.offered ?? 0} Pending`,
+      sub: `${stats?.hired ?? 0} hired · ${stats?.offered ?? 0} pending`,
     },
   ]
-}
-
-function DisplayNumber({ value }: { value: number }) {
-  return <>{value.toLocaleString()}</>
 }
 
 const CandidateCard = memo(function CandidateCard({
@@ -139,97 +134,70 @@ const CandidateCard = memo(function CandidateCard({
     <motion.div
       variants={itemVariants}
       transition={{ delay: index * 0.03 }}
-      className="group bg-white rounded-[24px] border border-[#ECECEC] shadow-[0_10px_40px_rgba(0,0,0,0.05)] hover:shadow-[0_20px_60px_rgba(0,0,0,0.08)] hover:-translate-y-[6px] transition-all duration-300 cursor-pointer overflow-hidden"
+      className="bg-surface border border-border rounded-xl hover:border-border-hover transition-all duration-120 cursor-pointer overflow-hidden"
       onClick={() => onSelect(candidate)}
     >
       <div className="p-6">
-        <div className="flex items-start gap-4">
-          <Avatar className="h-12 w-12 ring-2 ring-white shrink-0">
-            <AvatarFallback className="text-sm font-medium bg-[#F6F6F4] text-[#6B7280]">
+        <div className="flex items-center gap-4">
+          <Avatar className="size-10 shrink-0">
+            <AvatarFallback className="text-sm font-medium bg-[#E5E7EB] text-muted" style={{ fontFamily: "var(--font-inter)" }}>
               {getInitials(candidate.full_name)}
             </AvatarFallback>
           </Avatar>
 
           <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-0.5">
-              <h3 className="text-sm font-medium text-[#111111]">
-                {candidate.full_name || "Unknown"}
-              </h3>
-              {candidate.match_score !== undefined && candidate.match_score >= 85 && (
-                <Sparkles className="h-3 w-3 text-[#111111]" />
-              )}
-            </div>
-            <p className="text-xs text-[#6B7280]">
+            <h3 className="text-[15px] font-medium text-ink" style={{ fontFamily: "var(--font-inter)" }}>
+              {candidate.full_name || "Unknown"}
+            </h3>
+
+            <p className="text-[13px] text-muted mt-0.5" style={{ fontFamily: "var(--font-inter)" }}>
               {candidate.current_title || ""}
               {candidate.current_title && candidate.current_company ? " · " : ""}
-              {candidate.current_company && (
-                <span className="text-[#111111]/60">{candidate.current_company}</span>
-              )}
+              {candidate.current_company || ""}
             </p>
 
-            <div className="flex flex-wrap items-center gap-2 mt-4">
+            <div className="flex flex-wrap items-center gap-2 mt-3">
               {(candidate.skills || []).slice(0, 3).map((skill, j) => (
-                <span key={j} className="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-medium bg-[#F6F6F4] text-[#6B7280]">
+                <span key={j} className="inline-flex items-center px-[10px] py-[3px] rounded-[6px] text-xs font-normal bg-[#F3F4F6] text-muted" style={{ fontFamily: "var(--font-inter)" }}>
                   {skill}
                 </span>
               ))}
               {(candidate.skills?.length || 0) > 3 && (
-                <span className="text-[11px] text-[#A3A3A3] font-medium">
-                  +{(candidate.skills?.length || 0) - 3} more
+                <span className="text-xs text-faint font-normal" style={{ fontFamily: "var(--font-inter)" }}>
+                  +{(candidate.skills?.length || 0) - 3}
                 </span>
               )}
             </div>
 
-            <div className="flex items-center gap-3 mt-4">
+            <div className="flex items-center gap-4 mt-3">
               {candidate.total_experience_years != null && (
-                <span className="text-[11px] text-[#A3A3A3]">{candidate.total_experience_years}y experience</span>
+                <span className="text-xs text-faint" style={{ fontFamily: "var(--font-inter)" }}>
+                  <span className="font-data text-muted">{candidate.total_experience_years}y</span>
+                </span>
               )}
               {candidate.location && (
-                <span className="text-[11px] text-[#A3A3A3]">{candidate.location}</span>
+                <span className="text-xs text-faint" style={{ fontFamily: "var(--font-inter)" }}>{candidate.location}</span>
               )}
             </div>
           </div>
 
-          <div className="flex flex-col items-end gap-3 shrink-0">
+          <div className="flex flex-col items-end gap-2 shrink-0">
             <div className="flex items-center gap-2.5">
-              <div className="w-16 h-1.5 bg-[#ECECEC] rounded-full overflow-hidden">
+              <div className="w-16 h-1.5 bg-[#E2E2E0] rounded-full overflow-hidden">
                 <div
-                  className="h-full bg-[#111111] rounded-full transition-all"
+                  className="h-full bg-info rounded-full"
                   style={{ width: `${Math.round(candidate.match_score ?? 0)}%` }}
                 />
               </div>
-              <span className="text-xs font-medium text-[#111111] tabular-nums">
-                {candidate.match_score !== undefined ? `${Math.round(candidate.match_score)}%` : "—"}
+              <span className="font-data text-xs font-medium text-ink">
+                {candidate.match_score !== undefined ? `${Math.round(candidate.match_score)}%` : "\u2014"}
               </span>
             </div>
-            <div className="flex items-center gap-2">
-              <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-medium border ${getStatusPillStyle(candidate.current_status || candidate.status)}`}>
+            <div className="flex items-center">
+              <StatusDot status={candidate.current_status || candidate.status || "Applied"} />
+              <span className="text-[13px] text-muted" style={{ fontFamily: "var(--font-inter)" }}>
                 {candidate.current_status || candidate.status || "Applied"}
               </span>
-              {candidate.flight_risk && (
-                <span className={`inline-flex items-center px-2 py-1 rounded-full text-[10px] font-medium border ${getRiskPillStyle(candidate.flight_risk)}`}>
-                  {candidate.flight_risk} risk
-                </span>
-              )}
-            </div>
-            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-              {candidate.resume_file_url && (
-                <a
-                  href={candidate.resume_file_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  onClick={(e) => e.stopPropagation()}
-                  className="flex h-8 w-8 items-center justify-center rounded-full text-[#A3A3A3] hover:text-[#111111] hover:bg-[#F6F6F4] transition-all"
-                >
-                  <FileText className="h-3.5 w-3.5" strokeWidth={1.5} />
-                </a>
-              )}
-              <button
-                onClick={(e) => { e.stopPropagation(); onSelect(candidate) }}
-                className="flex h-8 w-8 items-center justify-center rounded-full text-[#A3A3A3] hover:text-[#111111] hover:bg-[#F6F6F4] transition-all"
-              >
-                <Eye className="h-3.5 w-3.5" strokeWidth={1.5} />
-              </button>
             </div>
           </div>
         </div>
@@ -251,15 +219,20 @@ export default function DashboardPage() {
   const [biasError, setBiasError] = useState("")
   const [page] = useState(1)
   const wsDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const userClearedSession = useRef(false)
 
   const api = useApi()
-  const { data, stats, candidates, sessions: sessList, isLoading, isValidating, mutate } = useDashboard(page, 50)
+  const {
+    data, stats, candidates, sessions: sessList, isLoading, isValidating, mutate,
+    candidatesRequiringReview, aiRecommendedCandidates, upcomingInterviews,
+    recentActivity, topTalentPools, quickActions,
+  } = useDashboard(page, 50)
 
   useEffect(() => {
     if (!data) return
+    if (userClearedSession.current) return
     const latestSession = sessList?.[0]
     if (latestSession && !session) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setSession({ sessionId: latestSession.id, link: `/upload/${latestSession.id}` })
       setJdText(latestSession.job_description_text)
     }
@@ -316,6 +289,7 @@ export default function DashboardPage() {
   }, [jdText, api])
 
   const handleNewSession = () => {
+    userClearedSession.current = true
     setSession(null)
     setJdText("")
     setBiasResult(null)
@@ -348,18 +322,32 @@ export default function DashboardPage() {
     setTimeout(() => setCopied(false), 2000)
   }
 
+  const handleQuickAction = useCallback((action: string) => {
+    if (action === "scroll-to-workspace") {
+      const el = document.querySelector("textarea")
+      if (el) el.focus()
+      el?.scrollIntoView({ behavior: "smooth" })
+    } else if (action === "scroll-to-needs-review") {
+      document.getElementById("needs-review-section")?.scrollIntoView({ behavior: "smooth" })
+    } else if (action === "scroll-to-interviews") {
+      document.getElementById("interviews-section")?.scrollIntoView({ behavior: "smooth" })
+    } else if (action === "navigate-offers") {
+      window.location.href = `${ROUTES.candidates}?status=offered`
+    }
+  }, [])
+
   const statsList = statCards(stats)
 
   if (isLoading && !data) {
     return (
       <div className="min-h-[80vh] flex flex-col items-center justify-center">
         <div className="flex flex-col items-center gap-4">
-          <div className="h-12 w-12 rounded-[16px] bg-[#111111] flex items-center justify-center">
-            <Sparkles className="h-6 w-6 text-white" />
+          <div className="h-11 w-11 rounded-[10px] bg-info flex items-center justify-center">
+            <Sparkles className="h-5 w-5 text-white" />
           </div>
           <div className="space-y-2 text-center">
-            <div className="h-3 w-32 bg-[#ECECEC] rounded-full animate-pulse-soft mx-auto" />
-            <div className="h-2 w-24 bg-[#ECECEC] rounded-full animate-pulse-soft mx-auto" />
+            <div className="h-3 w-32 bg-border rounded-full animate-pulse-soft mx-auto" />
+            <div className="h-2 w-24 bg-border rounded-full animate-pulse-soft mx-auto" />
           </div>
         </div>
       </div>
@@ -371,18 +359,20 @@ export default function DashboardPage() {
       variants={containerVariants}
       initial="hidden"
       animate="visible"
-      className="pt-6 space-y-12"
+      className="pt-6 space-y-8"
     >
       {/* AI Hiring Workspace */}
       <motion.div variants={itemVariants}>
-        <div className="bg-white rounded-[24px] border border-[#ECECEC] shadow-[0_10px_40px_rgba(0,0,0,0.05)] p-8">
-          <div className="flex items-center gap-4 mb-6">
-            <div className="h-10 w-10 rounded-[14px] bg-[#111111] flex items-center justify-center">
+        <div className="bg-surface border border-border rounded-xl p-6">
+          <div className="flex items-center gap-4">
+            <div className="size-11 rounded-[10px] bg-info flex items-center justify-center shrink-0">
               <Bot className="h-5 w-5 text-white" />
             </div>
             <div>
-              <h2 className="text-base font-medium text-[#111111]">AI Hiring Workspace</h2>
-              <p className="text-sm text-[#6B7280] mt-0.5">
+              <h2 className="text-[18px] font-medium text-ink" style={{ fontFamily: "var(--font-inter)" }}>
+                AI Hiring Workspace
+              </h2>
+              <p className="text-sm text-muted mt-0.5" style={{ fontFamily: "var(--font-inter)" }}>
                 Paste a job description to generate an AI-powered hiring session
               </p>
             </div>
@@ -392,18 +382,17 @@ export default function DashboardPage() {
             value={jdText}
             onChange={(e) => setJdText(e.target.value)}
             placeholder="Paste the full job description here. The AI will parse this to match candidates..."
-            rows={5}
-            className="w-full resize-none text-sm leading-relaxed mb-4"
+            className="w-full mt-5"
           />
 
           {error && (
-            <Alert variant="destructive" className="mb-4">
+            <Alert variant="destructive" className="mt-5">
               <AlertDescription className="text-sm">{error}</AlertDescription>
             </Alert>
           )}
 
           {biasResult && biasResult.has_bias && (
-            <Alert variant="warning" className="mb-4">
+            <Alert variant="warning" className="mt-5">
               <ShieldAlert className="h-4 w-4" />
               <AlertDescription>
                 <p className="text-sm font-medium mb-2">{biasResult.issues.length} bias issue(s) found</p>
@@ -415,7 +404,7 @@ export default function DashboardPage() {
           )}
 
           {biasResult && !biasResult.has_bias && (
-            <Alert variant="success" className="mb-4">
+            <Alert variant="success" className="mt-5">
               <ShieldAlert className="h-4 w-4" />
               <AlertDescription className="text-sm font-medium">
                 No bias detected — JD looks great!
@@ -423,29 +412,34 @@ export default function DashboardPage() {
             </Alert>
           )}
 
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between mt-5">
             <div className="flex items-center gap-2">
               {session && (
-                <Button variant="ghost" size="sm" onClick={() => mutate()} disabled={isValidating}>
-                  <RefreshCw className={`h-3.5 w-3.5 mr-1.5 ${isValidating ? "animate-spin" : ""}`} />
+                <button
+                  onClick={() => mutate()}
+                  disabled={isValidating}
+                  className="inline-flex items-center gap-2 text-sm text-muted hover:text-ink transition-all duration-120"
+                  style={{ fontFamily: "var(--font-inter)" }}
+                >
+                  <RefreshCw className={`size-4 ${isValidating ? "animate-spin" : ""}`} strokeWidth={1.5} />
                   Refresh
-                </Button>
+                </button>
               )}
             </div>
             <div className="flex items-center gap-3">
               <Button variant="outline" size="sm" onClick={handleBiasScan} disabled={scanningBias || !jdText.trim()}>
                 {scanningBias ? (
-                  <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                  <Loader2 className="size-4 animate-spin" />
                 ) : (
-                  <ShieldAlert className="h-3.5 w-3.5 mr-1.5" />
+                  <ShieldAlert className="size-4" />
                 )}
                 {scanningBias ? "Scanning..." : "Check Bias"}
               </Button>
-              <Button size="sm" onClick={generateLink} disabled={generating || !jdText.trim()} className="bg-[#111111] text-white hover:bg-[#2A2A2A]">
+              <Button size="sm" onClick={generateLink} disabled={generating || !jdText.trim()}>
                 {generating ? (
-                  <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
+                  <Loader2 className="size-4 animate-spin" />
                 ) : (
-                  <Sparkles className="h-4 w-4 mr-1.5" />
+                  <Sparkles className="size-4" />
                 )}
                 {generating ? "Generating..." : "Generate Link"}
               </Button>
@@ -454,74 +448,84 @@ export default function DashboardPage() {
         </div>
       </motion.div>
 
+      {/* Active Application Link */}
       {session && (
         <motion.div variants={itemVariants}>
-          <div className="bg-white rounded-[24px] border border-[#ECECEC] shadow-[0_10px_40px_rgba(0,0,0,0.05)] p-6">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="h-9 w-9 rounded-full bg-[#F6F6F4] flex items-center justify-center">
-                  <Link2 className="h-4 w-4 text-[#111111]" strokeWidth={1.5} />
-                </div>
-                <div>
-                  <p className="text-xs font-medium text-[#6B7280]">Active Application Link</p>
-                  <code className="text-sm font-mono text-[#111111]">
-                    {typeof window !== "undefined"
-                      ? `${window.location.origin}${session.link}`
-                      : session.link}
-                  </code>
-                </div>
+          <div className="bg-surface border border-border rounded-xl flex items-center justify-between px-6 py-5">
+            <div className="flex items-center gap-4">
+              <Link2 className="size-5 text-info" strokeWidth={1.5} />
+              <div>
+                <p className="text-[12px] font-medium text-faint uppercase" style={{ letterSpacing: "0.04em", fontFamily: "var(--font-inter)" }}>
+                  Active Application Link
+                </p>
+                <p className="text-sm text-ink font-data mt-1" style={{ fontFamily: "var(--font-mono)" }}>
+                  {typeof window !== "undefined"
+                    ? `${window.location.origin}${session.link}`
+                    : session.link}
+                </p>
               </div>
-              <div className="flex items-center gap-2">
-                <Button variant="ghost" size="sm" onClick={handleCopyLink}>
-                  {copied ? (
-                    <Check className="h-3.5 w-3.5 mr-1.5 text-[#16A34A]" />
-                  ) : (
-                    <Copy className="h-3.5 w-3.5 mr-1.5" />
-                  )}
-                  {copied ? "Copied" : "Copy"}
-                </Button>
-                <Button variant="outline" size="sm" onClick={handleNewSession}>
-                  <Plus className="h-3.5 w-3.5 mr-1.5" />
-                  New Session
-                </Button>
-              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={handleCopyLink}
+                className="inline-flex items-center gap-1.5 text-sm font-medium text-muted hover:text-ink transition-all duration-120"
+                style={{ fontFamily: "var(--font-inter)" }}
+              >
+                <Copy className="size-4" strokeWidth={1.5} />
+                {copied ? "Copied" : "Copy"}
+              </button>
+              <Button variant="outline" size="sm" onClick={handleNewSession}>
+                <Plus className="size-4" />
+                New Session
+              </Button>
             </div>
           </div>
         </motion.div>
       )}
 
+      {/* Quick Actions */}
+      {quickActions.length > 0 && (
+        <QuickActions items={quickActions} onAction={handleQuickAction} />
+      )}
+
       {/* Pipeline Overview */}
       <motion.div variants={itemVariants}>
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex items-end justify-between mb-5">
           <div>
-            <h2 className="text-xl font-medium text-[#111111] tracking-tight">Pipeline Overview</h2>
-            <p className="text-sm text-[#6B7280] mt-1">Track your hiring progress at a glance</p>
+            <h2 className="text-[20px] font-medium text-ink" style={{ fontFamily: "var(--font-inter)", letterSpacing: "-0.01em" }}>
+              Pipeline Overview
+            </h2>
+            <p className="text-sm text-muted mt-1" style={{ fontFamily: "var(--font-inter)" }}>
+              Track your hiring progress at a glance
+            </p>
           </div>
-          <Link href={ROUTES.candidates} className="text-sm font-medium text-[#111111] hover:text-[#6B7280] transition-colors inline-flex items-center gap-1">
+          <Link href={ROUTES.candidates} className="text-sm font-medium text-muted hover:text-ink transition-colors duration-120 inline-flex items-center gap-1" style={{ fontFamily: "var(--font-inter)" }}>
             View all
-            <ChevronRight className="h-3 w-3" />
+            <ChevronRight className="size-4" strokeWidth={1.5} />
           </Link>
         </div>
-        <div className="grid grid-cols-4 gap-6">
+        <div className="grid grid-cols-4 gap-4">
           {statsList.map((card, i) => (
             <motion.div
               key={card.label}
               variants={itemVariants}
               transition={{ delay: i * 0.05 }}
             >
-              <Link href={card.href} className="block group">
-                <div className="bg-white rounded-[24px] border border-[#ECECEC] shadow-[0_10px_40px_rgba(0,0,0,0.05)] hover:shadow-[0_20px_60px_rgba(0,0,0,0.08)] hover:-translate-y-[6px] transition-all duration-300 p-6">
-                  <div className="flex items-center justify-between mb-4">
-                    <p className="text-xs font-medium text-[#6B7280] uppercase tracking-wider">{card.label}</p>
-                    <div className="h-9 w-9 rounded-full bg-[#F6F6F4] flex items-center justify-center">
-                      <card.icon className="h-4 w-4 text-[#111111]" strokeWidth={1.5} />
-                    </div>
+              <Link href={card.href}>
+                <div className="bg-surface border border-border rounded-xl p-6 hover:border-border-hover transition-all duration-120">
+                  <div className="flex items-center justify-between">
+                    <p className="text-[11px] font-medium text-faint uppercase" style={{ letterSpacing: "0.06em", fontFamily: "var(--font-inter)" }}>
+                      {card.label}
+                    </p>
+                    <card.icon className="size-5 text-info/40" strokeWidth={1.5} />
                   </div>
-                  <p className="text-[34px] font-medium text-[#111111] leading-none tracking-tight tabular-nums">
+                  <p className="font-data text-[36px] font-medium text-ink leading-none mt-4">
                     <DisplayNumber value={card.value} />
                   </p>
                   {card.sub && (
-                    <p className="text-xs text-[#6B7280] mt-3 leading-relaxed">{card.sub}</p>
+                    <p className="text-[13px] text-faint mt-2" style={{ fontFamily: "var(--font-inter)" }}>
+                      {card.sub}
+                    </p>
                   )}
                 </div>
               </Link>
@@ -530,111 +534,36 @@ export default function DashboardPage() {
         </div>
       </motion.div>
 
-      {/* AI Insights + Recent Candidates */}
+      {/* Needs Review */}
+      <div id="needs-review-section">
+        <NeedsReviewCard items={candidatesRequiringReview} />
+      </div>
+
+      {/* AI Recommendations + Upcoming Interviews */}
       <div className="grid grid-cols-3 gap-8">
-        {/* AI Insights */}
-        <motion.div variants={itemVariants} className="col-span-1">
-          <div className="flex items-center justify-between mb-6">
+        <div className="col-span-2">
+          <AiRecommendations items={aiRecommendedCandidates} />
+        </div>
+        <div className="col-span-1" id="interviews-section">
+          <UpcomingInterviews items={upcomingInterviews} />
+        </div>
+      </div>
+
+      {/* Talent Pools + Recent Activity */}
+      <div className="grid grid-cols-2 gap-8">
+        <TalentPoolsSummary items={topTalentPools} />
+        <RecentActivity items={recentActivity} />
+      </div>
+
+      {/* Recent Uploads */}
+      {candidates.length > 0 && (
+        <motion.div variants={itemVariants}>
+          <div className="flex items-end justify-between mb-5">
             <div>
-              <h2 className="text-xl font-medium text-[#111111] tracking-tight">AI Insights</h2>
-              <p className="text-sm text-[#6B7280] mt-1">Intelligence from your pipeline</p>
-            </div>
-          </div>
-          <div className="space-y-4">
-            <div className="bg-[rgba(255,255,255,0.7)] backdrop-blur-[20px] rounded-[24px] border border-[rgba(236,236,236,0.5)] p-6">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="h-8 w-8 rounded-[10px] bg-[#F6F6F4] flex items-center justify-center">
-                  <Brain className="h-4 w-4 text-[#111111]" strokeWidth={1.5} />
-                </div>
-                <h3 className="text-sm font-medium text-[#111111]">AI Match Analysis</h3>
-              </div>
-
-              <div className="flex items-center justify-center py-4">
-                <ScoreRing
-                  value={(candidates.reduce((s, c) => s + (c.match_score ?? 0), 0) / Math.max(candidates.length, 1)) / 100}
-                  size={96}
-                  strokeWidth={3}
-                  color="#111111"
-                  label="Avg Match Score"
-                  delay={0.2}
-                />
-              </div>
-
-              <div className="space-y-3 mt-4">
-                <ProgressBar
-                  value={candidates.filter(c => (c.match_score ?? 0) >= 80).length / Math.max(candidates.length, 1) * 100}
-                  label="Strong Matches (80%+)"
-                  size="sm"
-                  delay={0.3}
-                />
-                <ProgressBar
-                  value={candidates.filter(c => (c.match_score ?? 0) >= 50 && (c.match_score ?? 0) < 80).length / Math.max(candidates.length, 1) * 100}
-                  label="Moderate Matches (50-80%)"
-                  size="sm"
-                  color="bg-[#6B7280]"
-                  delay={0.4}
-                />
-              </div>
-            </div>
-
-            <div className="bg-[rgba(255,255,255,0.7)] backdrop-blur-[20px] rounded-[24px] border border-[rgba(236,236,236,0.5)] p-6">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="h-8 w-8 rounded-[10px] bg-[#F6F6F4] flex items-center justify-center">
-                  <Target className="h-4 w-4 text-[#111111]" strokeWidth={1.5} />
-                </div>
-                <h3 className="text-sm font-medium text-[#111111]">Pipeline Health</h3>
-              </div>
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <div className="w-2 h-2 rounded-full bg-[#111111]" />
-                    <span className="text-xs text-[#6B7280]">Applied</span>
-                  </div>
-                  <span className="text-xs font-medium text-[#111111] tabular-nums">{stats?.applied ?? 0}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <div className="w-2 h-2 rounded-full bg-[#F59E0B]" />
-                    <span className="text-xs text-[#6B7280]">Screening</span>
-                  </div>
-                  <span className="text-xs font-medium text-[#111111] tabular-nums">{stats?.screening ?? 0}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <div className="w-2 h-2 rounded-full bg-[#6B7280]" />
-                    <span className="text-xs text-[#6B7280]">Interview</span>
-                  </div>
-                  <span className="text-xs font-medium text-[#111111] tabular-nums">{stats?.interview ?? 0}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <div className="w-2 h-2 rounded-full bg-[#16A34A]" />
-                    <span className="text-xs text-[#6B7280]">Hired</span>
-                  </div>
-                  <span className="text-xs font-medium text-[#111111] tabular-nums">{stats?.hired ?? 0}</span>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-[rgba(255,255,255,0.7)] backdrop-blur-[20px] rounded-[24px] border border-[rgba(236,236,236,0.5)] p-6">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="h-8 w-8 rounded-[10px] bg-[#F6F6F4] flex items-center justify-center">
-                  <Calendar className="h-4 w-4 text-[#111111]" strokeWidth={1.5} />
-                </div>
-                <h3 className="text-sm font-medium text-[#111111]">Upcoming Interviews</h3>
-              </div>
-              <p className="text-[32px] font-medium text-[#111111] tabular-nums">{stats?.interview ?? 0}</p>
-              <p className="text-xs text-[#6B7280] mt-1">Today: {stats?.interviewsToday ?? 0}</p>
-            </div>
-          </div>
-        </motion.div>
-
-        {/* Recent Candidates */}
-        <motion.div variants={itemVariants} className="col-span-2">
-          <div className="flex items-center justify-between mb-6">
-            <div>
-              <h2 className="text-xl font-medium text-[#111111] tracking-tight">Recent Candidates</h2>
-              <p className="text-sm text-[#6B7280] mt-1">
+              <h2 className="text-[20px] font-medium text-ink" style={{ fontFamily: "var(--font-inter)", letterSpacing: "-0.01em" }}>
+                Recent Uploads
+              </h2>
+              <p className="text-sm text-muted mt-1" style={{ fontFamily: "var(--font-inter)" }}>
                 {candidates.length > 0
                   ? `${candidates.length} candidate${candidates.length === 1 ? '' : 's'} in your pipeline`
                   : "Start receiving candidates"}
@@ -644,7 +573,7 @@ export default function DashboardPage() {
               <Link href={`${ROUTES.candidates}?session=${session?.sessionId}`}>
                 <Button variant="outline" size="sm">
                   View All
-                  <ArrowUpRight className="h-3.5 w-3.5 ml-1.5" />
+                  <ArrowUpRight className="size-4" />
                 </Button>
               </Link>
             )}
@@ -653,16 +582,16 @@ export default function DashboardPage() {
           {isValidating && !candidates.length ? (
             <div className="space-y-4">
               {Array.from({ length: 3 }).map((_, i) => (
-                <div key={i} className="bg-white rounded-[24px] border border-[#ECECEC] p-6">
+                <div key={i} className="bg-surface border border-border rounded-xl p-6">
                   <div className="flex items-center gap-4">
-                    <Skeleton className="h-12 w-12 rounded-full" />
+                    <Skeleton className="h-10 w-10 rounded-full" />
                     <div className="flex-1 space-y-3">
                       <Skeleton className="h-4 w-48" />
                       <Skeleton className="h-3 w-32" />
                       <div className="flex gap-2">
-                        <Skeleton className="h-6 w-16 rounded-full" />
-                        <Skeleton className="h-6 w-20 rounded-full" />
-                        <Skeleton className="h-6 w-14 rounded-full" />
+                        <Skeleton className="h-6 w-16 rounded-md" />
+                        <Skeleton className="h-6 w-20 rounded-md" />
+                        <Skeleton className="h-6 w-14 rounded-md" />
                       </div>
                     </div>
                     <Skeleton className="h-8 w-20" />
@@ -671,22 +600,22 @@ export default function DashboardPage() {
               ))}
             </div>
           ) : candidates.length === 0 ? (
-            <div className="bg-white rounded-[24px] border border-[#ECECEC] shadow-[0_10px_40px_rgba(0,0,0,0.05)] p-16">
+            <div className="bg-surface border border-border rounded-xl p-16">
               <div className="flex flex-col items-center text-center max-w-sm mx-auto">
-                <div className="h-16 w-16 rounded-[20px] bg-[#F6F6F4] flex items-center justify-center mb-5">
-                  <Users className="h-7 w-7 text-[#A3A3A3]" strokeWidth={1.5} />
+                <div className="h-14 w-14 rounded-[10px] bg-[#F3F4F6] flex items-center justify-center mb-5">
+                  <Users className="h-6 w-6 text-info/40" strokeWidth={1.5} />
                 </div>
-                <h3 className="text-base font-medium text-[#111111] mb-1">No candidates yet</h3>
-                <p className="text-sm text-[#6B7280] mb-6 leading-relaxed">
+                <h3 className="text-base font-medium text-ink mb-1" style={{ fontFamily: "var(--font-inter)" }}>No candidates yet</h3>
+                <p className="text-sm text-muted mb-6 leading-relaxed" style={{ fontFamily: "var(--font-inter)" }}>
                   Upload a resume or create an application link above to start receiving candidates.
                 </p>
                 <div className="flex gap-3">
-                  <Button size="sm" onClick={() => { const el = document.querySelector('textarea'); if (el) el.focus() }} className="bg-[#111111] text-white hover:bg-[#2A2A2A]">
-                    <FilePlus className="h-4 w-4 mr-1.5" />
+                  <Button size="sm" onClick={() => { const el = document.querySelector('textarea'); if (el) el.focus() }}>
+                    <FilePlus className="size-4" />
                     Paste Job Description
                   </Button>
                   <Button variant="outline" size="sm" onClick={handleNewSession}>
-                    <Plus className="h-4 w-4 mr-1.5" />
+                    <Plus className="size-4" />
                     Create Session
                   </Button>
                 </div>
@@ -705,7 +634,7 @@ export default function DashboardPage() {
             </div>
           )}
         </motion.div>
-      </div>
+      )}
 
       <CandidateDetailModal
         open={showDetailModal}

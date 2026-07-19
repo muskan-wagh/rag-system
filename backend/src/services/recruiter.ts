@@ -5,6 +5,9 @@ import {
   updateRecruiter,
   RecruiterRecord,
 } from '@/services/supabase/database';
+import { getCached, setCache } from '@/utils/cache';
+
+const RECRUITER_CACHE_TTL = 300_000;
 
 export async function getOrCreateRecruiter(clerkUser: {
   clerkId: string;
@@ -13,9 +16,14 @@ export async function getOrCreateRecruiter(clerkUser: {
   lastName?: string;
   imageUrl?: string;
 }): Promise<RecruiterRecord> {
+  const cacheKey = `recruiter:${clerkUser.clerkId}`;
+  const cached = await getCached<RecruiterRecord>(cacheKey);
+  if (cached) return cached;
+
   const existing = await getRecruiterByClerkId(clerkUser.clerkId);
 
   if (existing) {
+    setCache(cacheKey, existing, RECRUITER_CACHE_TTL);
     const needsUpdate =
       (clerkUser.email && clerkUser.email !== existing.email) ||
       (clerkUser.firstName && clerkUser.firstName !== (existing.first_name ?? undefined)) ||
@@ -30,7 +38,10 @@ export async function getOrCreateRecruiter(clerkUser: {
         avatar_url: clerkUser.imageUrl,
       });
       const updated = await getRecruiterByClerkId(clerkUser.clerkId);
-      if (updated) return updated;
+      if (updated) {
+        setCache(cacheKey, updated, RECRUITER_CACHE_TTL);
+        return updated;
+      }
     }
 
     return existing;
@@ -44,6 +55,7 @@ export async function getOrCreateRecruiter(clerkUser: {
     avatar_url: clerkUser.imageUrl,
   });
 
+  setCache(cacheKey, recruiter, RECRUITER_CACHE_TTL);
   logger.info('Created new recruiter', { clerkId: clerkUser.clerkId });
 
   return recruiter;

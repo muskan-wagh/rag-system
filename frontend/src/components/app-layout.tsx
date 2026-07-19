@@ -5,11 +5,11 @@ import { TopNav } from "@/components/top-nav"
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="min-h-screen bg-[#FAFAF8]">
+    <div className="min-h-screen bg-[#FAFAFA]">
       <AppSidebar />
-      <div className="pl-[268px]">
+      <div className="pl-[220px]">
         <TopNav />
-        <main className="px-12 pb-12" style={{ maxWidth: "1600px" }}>
+        <main className="px-8 pb-12">
           {children}
         </main>
       </div>

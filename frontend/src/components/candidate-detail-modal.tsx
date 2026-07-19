@@ -16,7 +16,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Dialog, DialogContent } from "@/components/ui/dialog"
-import { getStatusColor } from "@/lib/constants"
+import { getStatusColor, getInitials, formatDate } from "@/lib/constants"
 import { Tabs, TabsList, TabsTab, TabsPanel } from "@/components/ui/tabs"
 import { ScheduleInterviewModal } from "@/components/schedule-interview-modal"
 import { RejectModal } from "@/components/reject-modal"
@@ -65,31 +65,10 @@ interface Note {
   created_at: string
 }
 
-function getInitials(name: string): string {
-  return name
-    .split(" ")
-    .map((n) => n[0])
-    .join("")
-    .slice(0, 2)
-    .toUpperCase()
-}
-
 function getFlightRiskVariant(risk?: string): "destructive" | "default" | "outline" {
   if (risk === "High") return "destructive"
   if (risk === "Medium") return "default"
   return "outline"
-}
-
-function formatDate(dateStr: string): string {
-  try {
-    return new Date(dateStr).toLocaleDateString(undefined, {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-    })
-  } catch {
-    return dateStr
-  }
 }
 
 type TabId = "insights" | "profile" | "notes" | "generate" | "screening" | "closing"

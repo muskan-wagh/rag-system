@@ -23,7 +23,7 @@ export function ProgressBar({
   label,
   showValue = true,
   size = "md",
-  color = "bg-[#111111]",
+  color = "bg-primary",
   className,
   delay = 0,
 }: ProgressBarProps) {
@@ -31,11 +31,11 @@ export function ProgressBar({
     <div className={cn("space-y-1.5", className)}>
       {(label || showValue) && (
         <div className="flex justify-between text-xs">
-          {label && <span className="text-[#6B7280]">{label}</span>}
-          {showValue && <span className="text-[#111111] font-medium tabular-nums">{Math.round(value)}%</span>}
+          {label && <span className="text-text-secondary">{label}</span>}
+          {showValue && <span className="font-data text-text-primary font-medium">{Math.round(value)}%</span>}
         </div>
       )}
-      <div className={cn("rounded-full bg-[#ECECEC] overflow-hidden", sizeClasses[size])}>
+      <div className={cn("rounded-full bg-border overflow-hidden", sizeClasses[size])}>
         <motion.div
           initial={{ width: 0 }}
           whileInView={{ width: `${value}%` }}

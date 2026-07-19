@@ -37,9 +37,6 @@ export function FAQSection() {
 
   return (
     <section id="faq" className="w-full py-20 md:py-28 relative overflow-hidden">
-      <div className="absolute inset-0 grid-bg pointer-events-none opacity-20" />
-      <div className="absolute top-0 right-0 w-[300px] h-[300px] bg-primary/[0.03] rounded-full blur-3xl" />
-
       <div className="mx-auto max-w-3xl px-4 md:px-6 relative">
         <SectionHeader
           label="FAQ"
@@ -56,15 +53,16 @@ export function FAQSection() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ delay: i * 0.04 }}
-              className="glass-card rounded-xl overflow-hidden"
+              className="rounded-xl border border-border bg-surface overflow-hidden hover:border-border-hover transition-all duration-120"
             >
               <button
                 onClick={() => setOpenIndex(openIndex === i ? null : i)}
-                className="w-full flex items-center justify-between px-6 py-4 text-sm font-medium text-foreground hover:bg-white/30 transition-colors text-left"
+                className="w-full flex items-center justify-between px-6 py-4 text-sm font-medium text-ink hover:bg-[#F9FAFB] transition-colors text-left"
+                style={{ fontFamily: "var(--font-inter)" }}
               >
                 {faq.question}
                 <ChevronDown
-                  className={`h-4 w-4 text-muted-foreground shrink-0 transition-transform duration-300 ${
+                  className={`h-4 w-4 text-muted shrink-0 transition-transform duration-300 ${
                     openIndex === i ? "rotate-180" : ""
                   }`}
                 />
@@ -78,7 +76,7 @@ export function FAQSection() {
                     transition={{ duration: 0.25, ease: "easeInOut" }}
                     className="overflow-hidden"
                   >
-                    <div className="px-6 pb-4 text-sm text-muted-foreground leading-relaxed">
+                    <div className="px-6 pb-4 text-sm text-muted leading-relaxed" style={{ fontFamily: "var(--font-inter)" }}>
                       {faq.answer}
                     </div>
                   </motion.div>

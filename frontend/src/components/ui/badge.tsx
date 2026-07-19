@@ -4,17 +4,17 @@ import { cva, type VariantProps } from "class-variance-authority"
 import { cn } from "@/lib/utils"
 
 const badgeVariants = cva(
-  "group/badge inline-flex h-5 w-fit shrink-0 items-center justify-center gap-1 overflow-hidden rounded-full border px-2 py-0.5 text-[11px] font-medium whitespace-nowrap transition-all [&>svg]:pointer-events-none [&>svg]:size-3",
+  "group/badge inline-flex h-5 w-fit shrink-0 items-center justify-center gap-1 overflow-hidden rounded-md border px-[10px] py-[3px] text-xs font-normal whitespace-nowrap transition-all duration-120 [&>svg]:pointer-events-none [&>svg]:size-3",
   {
     variants: {
       variant: {
-        default: "bg-[#111111] text-white border-transparent",
-        secondary: "bg-[#F6F6F4] text-[#6B7280] border-transparent",
-        destructive: "bg-[#EF4444]/10 text-[#EF4444] border-[#EF4444]/20",
-        outline: "border-[#ECECEC] text-[#6B7280]",
-        success: "bg-[#16A34A]/10 text-[#16A34A] border-[#16A34A]/20",
-        warning: "bg-[#F59E0B]/10 text-[#F59E0B] border-[#F59E0B]/20",
-        ghost: "bg-transparent text-[#6B7280] hover:bg-[#F6F6F4]",
+        default: "bg-primary text-primary-foreground border-transparent",
+        secondary: "bg-surface-secondary text-text-secondary border-border",
+        destructive: "bg-transparent text-danger border-danger/20",
+        outline: "border-border text-text-secondary",
+        success: "bg-transparent text-success border-success/20",
+        warning: "bg-transparent text-warning border-warning/20",
+        ghost: "bg-transparent text-text-muted hover:bg-surface-secondary",
       },
     },
     defaultVariants: {

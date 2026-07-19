@@ -19,7 +19,7 @@ export function SecondaryButton({ href, children, className = "", icon }: Second
     >
       <Link
         href={href}
-        className={`inline-flex items-center gap-2 rounded-full border border-[#ECECEC] bg-white px-5 py-2.5 text-sm font-medium text-[#111111] hover:bg-[#F6F6F4] transition-all duration-200 ${className}`}
+        className={`inline-flex items-center gap-2 rounded-full border border-border bg-surface px-5 py-2.5 text-sm font-medium text-ink hover:bg-surface-secondary transition-all duration-200 ${className}`}
       >
         {icon && <span className="h-4 w-4">{icon}</span>}
         {children}

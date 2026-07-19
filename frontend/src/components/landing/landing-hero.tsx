@@ -1,7 +1,7 @@
 "use client"
 
 import { motion } from "framer-motion"
-import { ArrowRight, Sparkles, Shield, Users, Check, Search, Bell, TrendingUp, Calendar } from "lucide-react"
+import { ArrowRight, Sparkles, Check } from "lucide-react"
 import { PrimaryButton } from "@/components/ui/primary-button"
 import { SecondaryButton } from "@/components/ui/secondary-button"
 
@@ -24,24 +24,20 @@ function ScoreRing({ value, size = 40 }: { value: number; size?: number }) {
   const cy = size / 2
   const circumference = 2 * Math.PI * r
   const offset = circumference - (value / 100) * circumference
-  const color = value >= 90 ? "#22C55E" : value >= 75 ? "#170C2B" : value >= 60 ? "#F59E0B" : "#EF4444"
 
   return (
     <svg width={size} height={size} className="-rotate-90 shrink-0">
-      <circle cx={cx} cy={cy} r={r} fill="none" stroke="rgba(148,163,184,0.12)" strokeWidth="3" />
-      <circle cx={cx} cy={cy} r={r} fill="none" stroke={color} strokeWidth="3" strokeLinecap="round" strokeDasharray={circumference} strokeDashoffset={offset} className="transition-all duration-700" />
+      <circle cx={cx} cy={cy} r={r} fill="none" stroke="#E2E2E0" strokeWidth="3" />
+      <circle
+        cx={cx} cy={cy} r={r} fill="none" stroke="#1E40AF" strokeWidth="3"
+        strokeLinecap="round" strokeDasharray={circumference} strokeDashoffset={offset}
+        className="transition-all duration-700"
+      />
     </svg>
   )
 }
 
 function DashboardMockup() {
-  const candidates = [
-    { initials: "SK", name: "Sarah Kim", role: "Sr. Frontend Engineer", skills: "React · TS · 6yrs", score: 96 },
-    { initials: "JM", name: "James Mitchell", role: "Full-Stack Engineer", skills: "Vue · Node · 8yrs", score: 92 },
-    { initials: "EZ", name: "Emily Zhao", role: "ML Engineer", skills: "Python · TF · 4yrs", score: 88 },
-    { initials: "DP", name: "David Park", role: "Backend Engineer", skills: "Go · AWS · 7yrs", score: 84 },
-  ]
-
   return (
     <div className="relative w-full max-w-[600px] mx-auto">
       <motion.div
@@ -50,70 +46,53 @@ function DashboardMockup() {
         transition={{ duration: 0.7, delay: 0.3, ease: "easeOut" }}
         className="relative z-10"
       >
-        <div className="rounded-2xl overflow-hidden shadow-2xl shadow-[#170C2B]/10 border border-white/20 bg-white/90 backdrop-blur-sm">
-          <div className="flex items-center gap-1.5 px-4 py-3 border-b border-gray-200/60 bg-gray-50/80">
+        <div className="rounded-xl overflow-hidden border border-border bg-surface">
+          <div className="flex items-center gap-1.5 px-4 py-3 border-b border-border bg-[#FAFAFA]">
             <div className="flex gap-1.5">
-              <div className="w-2.5 h-2.5 rounded-full bg-red-400/70" />
-              <div className="w-2.5 h-2.5 rounded-full bg-yellow-400/70" />
-              <div className="w-2.5 h-2.5 rounded-full bg-primary/50" />
+              <div className="w-2.5 h-2.5 rounded-full bg-border" />
+              <div className="w-2.5 h-2.5 rounded-full bg-border" />
+              <div className="w-2.5 h-2.5 rounded-full bg-border" />
             </div>
             <div className="flex-1 flex justify-center">
-              <div className="rounded-md px-3 py-0.5 text-[10px] text-muted-foreground/50 font-medium bg-white/40 border border-gray-200/40">
+              <div className="rounded-md px-3 py-0.5 text-[10px] text-faint font-medium border border-border" style={{ fontFamily: "var(--font-inter)" }}>
                 dashboard.recruitiq.ai
               </div>
             </div>
-            <div className="flex items-center gap-2">
-              <Search className="h-3 w-3 text-muted-foreground/40" />
-              <Bell className="h-3 w-3 text-muted-foreground/40" />
-              <div className="w-5 h-5 rounded-full bg-primary/50 flex items-center justify-center text-[8px] font-bold text-white">U</div>
-            </div>
           </div>
 
-          <div className="p-4 md:p-5 space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-[10px] font-semibold text-muted-foreground/60 uppercase tracking-wider">Candidate Overview</p>
-                <p className="text-[9px] text-muted-foreground/40">Senior Frontend Engineer · Google</p>
-              </div>
-              <div className="flex items-center gap-1.5 bg-primary/10 text-primary text-[10px] font-bold px-2.5 py-1 rounded-lg border border-primary/20">
-                <Sparkles className="h-3 w-3" />
-                AI Match 96%
-              </div>
-            </div>
-
+          <div className="p-5 space-y-4">
             <div className="grid grid-cols-4 gap-2">
               {[
-                { label: "Total", value: "1,247", icon: Users, color: "text-[#170C2B]", bg: "bg-[#170C2B]/10" },
-                { label: "Avg Match", value: "89%", icon: TrendingUp, color: "text-primary", bg: "bg-primary/10" },
-                { label: "Interviews", value: "18", icon: Calendar, color: "text-amber-400", bg: "bg-amber-500/10" },
-                { label: "Hired", value: "12", icon: Check, color: "text-emerald-400", bg: "bg-emerald-500/10" },
+                { label: "Total", value: "1,247" },
+                { label: "Avg Match", value: "89%" },
+                { label: "Interviews", value: "18" },
+                { label: "Hired", value: "12" },
               ].map((stat) => (
-                <div key={stat.label} className="rounded-xl p-2.5 bg-white/60 border border-gray-200/50 shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
-                  <div className={`w-5 h-5 rounded-lg ${stat.bg} flex items-center justify-center mb-1.5`}>
-                    <stat.icon className={`h-2.5 w-2.5 ${stat.color}`} />
-                  </div>
-                  <p className="text-[11px] font-bold text-foreground">{stat.value}</p>
-                  <p className="text-[7px] text-muted-foreground/50 uppercase tracking-wider">{stat.label}</p>
+                <div key={stat.label} className="rounded-lg p-3 bg-[#FAFAFA] border border-border">
+                  <p className="font-data text-lg font-medium text-ink">{stat.value}</p>
+                  <p className="text-[10px] text-faint uppercase mt-0.5" style={{ letterSpacing: "0.04em", fontFamily: "var(--font-inter)" }}>{stat.label}</p>
                 </div>
               ))}
             </div>
 
-            <div className="space-y-1.5">
-              {candidates.map((c) => (
-                <div key={c.name} className="group rounded-xl px-3 py-2.5 bg-white/70 border border-gray-200/50 shadow-[0_1px_2px_rgba(0,0,0,0.02)] hover:bg-white hover:border-gray-300/60 hover:shadow-md transition-all duration-200">
+            <div className="space-y-2">
+              {[
+                { name: "Sarah Kim", role: "Sr. Frontend Engineer", skills: "React · TS · 6yrs", score: 96 },
+                { name: "James Mitchell", role: "Full-Stack Engineer", skills: "Vue · Node · 8yrs", score: 92 },
+                { name: "Emily Zhao", role: "ML Engineer", skills: "Python · TF · 4yrs", score: 88 },
+                { name: "David Park", role: "Backend Engineer", skills: "Go · AWS · 7yrs", score: 84 },
+              ].map((c) => (
+                <div key={c.name} className="rounded-lg px-4 py-3 bg-[#FAFAFA] border border-border hover:border-border-hover transition-all duration-120">
                   <div className="flex items-center gap-3">
                     <ScoreRing value={c.score} />
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
-                        <span className="text-[11px] font-semibold text-foreground">{c.name}</span>
-                        <span className="text-[8px] text-muted-foreground/50">{c.role}</span>
+                        <span className="text-sm font-medium text-ink" style={{ fontFamily: "var(--font-inter)" }}>{c.name}</span>
+                        <span className="text-xs text-muted" style={{ fontFamily: "var(--font-inter)" }}>{c.role}</span>
                       </div>
-                      <div className="flex items-center gap-1.5 mt-0.5">
-                        <span className="text-[8px] text-muted-foreground/60">{c.skills}</span>
-                        <span className="text-[8px] font-bold text-primary">{c.score}%</span>
-                      </div>
+                      <p className="text-xs text-faint mt-0.5" style={{ fontFamily: "var(--font-inter)" }}>{c.skills} — <span className="font-data text-ink font-medium">{c.score}%</span></p>
                     </div>
-                    <div className="hidden sm:flex items-center gap-1 px-2 py-1 rounded-md bg-primary/10 text-[8px] font-semibold text-primary border border-primary/20">
+                    <div className="flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-medium text-ink bg-[#F3F4F6]" style={{ fontFamily: "var(--font-inter)" }}>
                       <Sparkles className="h-2.5 w-2.5" />
                       Match
                     </div>
@@ -121,69 +100,9 @@ function DashboardMockup() {
                 </div>
               ))}
             </div>
-
-            <div className="rounded-xl p-3.5 bg-white/70 border border-gray-200/50 shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
-              <div className="flex items-center justify-between mb-2.5">
-                <span className="text-[9px] font-semibold text-muted-foreground/60 uppercase tracking-wider">Skill Alignment</span>
-                <span className="text-[8px] text-muted-foreground/40">vs Job Description</span>
-              </div>
-              <div className="space-y-2">
-                {[
-                  { label: "React", value: 95 },
-                  { label: "TypeScript", value: 88 },
-                  { label: "System Design", value: 82 },
-                  { label: "Leadership", value: 76 },
-                ].map((skill) => (
-                  <div key={skill.label}>
-                    <div className="flex items-center justify-between mb-0.5">
-                      <span className="text-[8px] font-medium text-muted-foreground/70">{skill.label}</span>
-                      <span className="text-[8px] font-bold text-foreground/80">{skill.value}%</span>
-                    </div>
-                    <div className="h-1.5 rounded-full bg-gray-200/60 overflow-hidden">
-                      <motion.div
-                        initial={{ width: 0 }}
-                        animate={{ width: `${skill.value}%` }}
-                        transition={{ duration: 0.8, delay: 0.3 + skill.value * 0.005, ease: "easeOut" }}
-                        className="h-full rounded-full bg-gradient-to-r from-primary to-accent"
-                      />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
           </div>
         </div>
       </motion.div>
-
-      <motion.div
-        animate={{ y: [0, -8, 0] }}
-        transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
-        className="absolute -top-5 -right-5 z-20"
-      >
-        <div className="rounded-xl px-3.5 py-2 shadow-lg border border-white/30 bg-white/90 backdrop-blur-sm">
-          <div className="flex items-center gap-2">
-            <Sparkles className="h-3.5 w-3.5 text-primary" />
-            <span className="text-[10px] font-bold text-foreground">AI Score: 96</span>
-          </div>
-        </div>
-      </motion.div>
-
-      <motion.div
-        animate={{ y: [0, 6, 0] }}
-        transition={{ duration: 5, repeat: Infinity, ease: "easeInOut", delay: 1 }}
-        className="absolute -bottom-3 -left-6 z-20"
-      >
-        <div className="rounded-xl px-3.5 py-2 shadow-lg border border-white/30 bg-white/90 backdrop-blur-sm">
-          <div className="flex items-center gap-2">
-            <Shield className="h-3.5 w-3.5 text-primary" />
-            <span className="text-[10px] font-bold text-foreground">Bias Free</span>
-          </div>
-        </div>
-      </motion.div>
-
-      <div className="absolute -z-10 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] rounded-full blur-3xl bg-gradient-to-br from-primary/10 via-[#170C2B]/5 to-transparent" />
-      <div className="absolute -z-10 top-0 right-0 w-[300px] h-[300px] rounded-full blur-3xl bg-[#170C2B]/5" />
-      <div className="absolute -z-10 -bottom-10 -left-10 w-[250px] h-[250px] rounded-full blur-3xl bg-[#170C2B]/5" />
     </div>
   )
 }
@@ -197,9 +116,11 @@ function TrustBadges() {
   return (
     <div className="flex flex-wrap gap-4 mt-6">
       {badges.map((badge) => (
-        <div key={badge.text} className="flex items-center gap-1.5 text-xs text-muted-foreground">
-          <badge.icon className="h-3.5 w-3.5 text-primary" />
-          {badge.text}
+        <div key={badge.text} className="flex items-center gap-1.5 text-xs text-muted" style={{ fontFamily: "var(--font-inter)" }}>
+          <badge.icon className="h-3.5 w-3.5 text-info" />
+          {badge.text.split(/(\d+\+?)/).map((part, j) =>
+            /^\d+\+?$/.test(part) ? <span key={j} className="font-data">{part}</span> : <span key={j}>{part}</span>
+          )}
         </div>
       ))}
     </div>
@@ -209,9 +130,6 @@ function TrustBadges() {
 export function LandingHero() {
   return (
     <section className="relative w-full overflow-hidden pt-24 pb-20 md:pt-32 md:pb-28">
-      <div className="absolute inset-0 noise-bg pointer-events-none" />
-      <div className="absolute inset-0 grid-bg pointer-events-none opacity-40" />
-
       <div className="mx-auto max-w-7xl px-4 md:px-8 relative">
         <div className="grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
           <motion.div
@@ -221,26 +139,22 @@ export function LandingHero() {
             className="max-w-xl"
           >
             <motion.div variants={itemVariants}>
-              <div className="inline-flex items-center gap-1.5 rounded-full border border-white/40 bg-white/70 backdrop-blur-sm px-3.5 py-1 text-xs font-medium text-muted-foreground shadow-sm mb-6">
-                <Sparkles className="h-3 w-3 text-primary" />
+              <div className="inline-flex items-center gap-1.5 rounded-[6px] bg-[#F3F4F6] px-3 py-1 text-xs font-medium text-muted mb-6" style={{ fontFamily: "var(--font-inter)" }}>
+                <Sparkles className="h-3 w-3 text-ink" />
                 AI-Powered Recruitment Engine
               </div>
             </motion.div>
 
             <motion.h1
               variants={itemVariants}
-              className="text-5xl sm:text-6xl md:text-7xl lg:text-[72px] font-bold tracking-tight leading-[1.04] text-foreground"
+              className="text-5xl sm:text-6xl md:text-7xl lg:text-[72px] font-medium tracking-tight leading-[1.04] text-ink"
+              style={{ letterSpacing: "-0.02em", fontFamily: "var(--font-inter)" }}
             >
               Discover top talent with{" "}
-              <span className="text-gradient bg-gradient-to-r from-primary via-accent to-primary">AI</span>
+              <span className="text-muted">AI</span>
             </motion.h1>
 
-            <motion.p
-              variants={itemVariants}
-              className="mt-5 text-base md:text-lg text-muted-foreground leading-relaxed max-w-lg"
-            >
-              Search, rank, and compare candidates with AI-powered semantic matching and explainable insights. Find the right candidate in seconds.
-            </motion.p>
+
 
             <motion.div variants={itemVariants} className="flex flex-wrap gap-3 mt-8">
               <PrimaryButton href="/sign-up" icon={<ArrowRight className="h-4 w-4" />}>

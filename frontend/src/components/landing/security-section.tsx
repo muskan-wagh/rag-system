@@ -3,7 +3,6 @@
 import { motion } from "framer-motion"
 import { Shield, Lock, FileSearch, Users, Eye, Server } from "lucide-react"
 import { SectionHeader } from "@/components/ui/section-header"
-import { GlassCard } from "@/components/ui/glass-card"
 
 const items = [
   { icon: Shield, title: "SOC 2 Compliant", description: "Enterprise-grade security with SOC 2 Type II certification." },
@@ -16,10 +15,7 @@ const items = [
 
 export function SecuritySection() {
   return (
-    <section id="security" className="w-full py-20 md:py-28 relative overflow-hidden bg-gradient-to-b from-background to-primary/[0.02]">
-      <div className="absolute inset-0 grid-bg pointer-events-none opacity-20" />
-      <div className="absolute top-0 right-0 w-[300px] h-[300px] bg-primary/[0.03] rounded-full blur-3xl" />
-
+    <section id="security" className="w-full py-20 md:py-28 relative overflow-hidden">
       <div className="mx-auto max-w-7xl px-4 md:px-8 relative">
         <SectionHeader
           label="Security"
@@ -35,15 +31,15 @@ export function SecuritySection() {
           className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4"
         >
           {items.map((item) => (
-            <GlassCard key={item.title} className="text-center">
+            <div key={item.title} className="rounded-xl border border-border bg-surface p-6 text-center hover:border-border-hover transition-all duration-120">
               <div className="flex justify-center mb-3">
-                <div className="w-10 h-10 rounded-xl bg-primary/5 border border-primary/5 flex items-center justify-center">
-                  <item.icon className="h-5 w-5 text-primary" />
+                <div className="w-10 h-10 rounded-[8px] bg-info flex items-center justify-center">
+                  <item.icon className="h-5 w-5 text-white" />
                 </div>
               </div>
-              <h3 className="text-sm font-semibold text-foreground mb-1">{item.title}</h3>
-              <p className="text-xs text-muted-foreground leading-relaxed">{item.description}</p>
-            </GlassCard>
+              <h3 className="text-sm font-medium text-ink mb-1" style={{ fontFamily: "var(--font-inter)" }}>{item.title}</h3>
+              <p className="text-xs text-muted leading-relaxed" style={{ fontFamily: "var(--font-inter)" }}>{item.description}</p>
+            </div>
           ))}
         </motion.div>
       </div>

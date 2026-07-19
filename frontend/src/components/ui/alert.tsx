@@ -2,17 +2,17 @@ import { cva, type VariantProps } from "class-variance-authority"
 import { cn } from "@/lib/utils"
 
 const alertVariants = cva(
-  "relative w-full rounded-[20px] border p-5 text-sm [&>svg+div]:translate-y-[-3px] [&>svg]:absolute [&>svg]:left-5 [&>svg]:top-5 [&>svg]:text-foreground",
+  "relative w-full rounded-xl border p-5 text-sm [&>svg+div]:translate-y-[-3px] [&>svg]:absolute [&>svg]:left-5 [&>svg]:top-5 [&>svg]:text-foreground",
   {
     variants: {
       variant: {
-        default: "bg-white text-[#111111] border-[#ECECEC]",
+        default: "bg-surface text-ink border-border",
         destructive:
-          "border-[#EF4444]/20 bg-[#EF4444]/5 text-[#EF4444] [&>svg]:text-[#EF4444]",
+          "border-danger/20 bg-danger/5 text-danger [&>svg]:text-danger",
         success:
-          "border-[#16A34A]/20 bg-[#16A34A]/5 text-[#16A34A] [&>svg]:text-[#16A34A]",
+          "border-success/20 bg-success/5 text-success [&>svg]:text-success",
         warning:
-          "border-[#F59E0B]/20 bg-[#F59E0B]/5 text-[#F59E0B] [&>svg]:text-[#F59E0B]",
+          "border-warning/20 bg-warning/5 text-warning [&>svg]:text-warning",
       },
     },
     defaultVariants: {

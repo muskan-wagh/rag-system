@@ -60,6 +60,7 @@ export const jdTextSchema = z.object({
 export const searchSchema = z.object({
   jdText: nonEmptyString,
   limit: z.number().int().positive().max(100).optional(),
+  page: z.number().int().positive().optional(),
   filters: z.object({
     minExperience: z.number().min(0).optional(),
     maxExperience: z.number().min(0).optional(),

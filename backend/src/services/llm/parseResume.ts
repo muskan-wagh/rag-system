@@ -14,6 +14,8 @@ export interface ParsedResume {
     company: string;
     title: string;
     duration_years: number;
+    start_date: string;
+    end_date: string;
   }>;
   flight_risk: 'Low' | 'Medium' | 'High';
   growth_trajectory: 'Fast-track' | 'Steady' | 'Stagnant';
@@ -32,7 +34,7 @@ Return ONLY valid JSON with this exact shape:
   "skills": ["string"],
   "education": "string",
   "work_history": [
-    { "company": "string", "title": "string", "duration_years": number }
+    { "company": "string", "title": "string", "duration_years": number, "start_date": "YYYY-MM-DD or empty string", "end_date": "YYYY-MM-DD or empty string" }
   ],
   "flight_risk": "Low" | "Medium" | "High",
   "growth_trajectory": "Fast-track" | "Steady" | "Stagnant"

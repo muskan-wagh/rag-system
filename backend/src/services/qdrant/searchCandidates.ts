@@ -13,8 +13,9 @@ export async function searchByEmbedding(
   embedding: number[],
   limit: number = 10,
   filters?: SearchFilters,
+  offset?: number,
 ): Promise<SearchResult[]> {
-  logger.info('Searching candidates by embedding', { limit });
+  logger.info('Searching candidates by embedding', { limit, offset });
 
   const client = getQdrantClient();
 
@@ -51,6 +52,7 @@ export async function searchByEmbedding(
   const searchResult = await client.search(config.qdrant.collectionName, {
     vector: embedding,
     limit,
+    offset: offset ?? 0,
     with_payload: true,
     ...(filterConditions.length > 0 ? { filter: { must: filterConditions } } : {}),
   });

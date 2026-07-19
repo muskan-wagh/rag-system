@@ -84,6 +84,21 @@ async function startWorker(): Promise<void> {
         processing_status: 'COMPLETED',
       });
 
+      // Parse education level and field from education string
+      const eduLower = (parsed.education || '').toLowerCase();
+      let educationLevel = '';
+      let educationField = '';
+      if (eduLower) {
+        if (/ph\.?d|doctorate/i.test(eduLower)) educationLevel = 'PhD';
+        else if (/master|m\.?s/i.test(eduLower)) educationLevel = 'Master';
+        else if (/bachelor|b\.?s/i.test(eduLower)) educationLevel = 'Bachelor';
+        else if (/associate|a\.?s/i.test(eduLower)) educationLevel = 'Associate';
+        else educationLevel = 'Unknown';
+
+        const fieldMatch = parsed.education.match(/\b(?:Computer Science|Engineering|Business|Mathematics|Physics|Chemistry|Biology|Psychology|Economics|Finance|Marketing|Law|Medicine|Education|Arts|Data Science|Information Technology|Electrical Engineering|Mechanical Engineering)\b/i);
+        educationField = fieldMatch ? fieldMatch[0] : '';
+      }
+
       // Insert skills and experiences (parallel, independent)
       if (parsed.skills && parsed.skills.length > 0) {
         await insertSkills(candidateId, parsed.skills);
@@ -94,9 +109,9 @@ async function startWorker(): Promise<void> {
           parsed.work_history.map(w => ({
             job_title: w.title,
             company: w.company,
-            start_date: '',
-            end_date: '',
-            is_current: false,
+            start_date: w.start_date || '',
+            end_date: w.end_date || '',
+            is_current: !w.end_date,
           })),
         );
       }
@@ -114,8 +129,8 @@ async function startWorker(): Promise<void> {
             email: parsed.email,
             skills: parsed.skills,
             experience: parsed.total_experience_years,
-            education_level: '',
-            education_field: '',
+            education_level: educationLevel,
+            education_field: educationField,
             summary: cleanText.slice(0, 500),
             source: source || '',
           },

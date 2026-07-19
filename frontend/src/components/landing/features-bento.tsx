@@ -3,7 +3,6 @@
 import { motion } from "framer-motion"
 import { Brain, Search, GitCompare, FileText, Shield, Zap, Sparkles, Clock, BarChart3 } from "lucide-react"
 import { SectionHeader } from "@/components/ui/section-header"
-import { GlassCard } from "@/components/ui/glass-card"
 
 const features = [
   {
@@ -66,9 +65,6 @@ const cardVariants = {
 export function FeaturesBento() {
   return (
     <section id="features" className="w-full py-20 md:py-28 relative overflow-hidden">
-      <div className="absolute inset-0 noise-bg pointer-events-none opacity-20" />
-      <div className="absolute top-0 right-0 w-[400px] h-[400px] bg-primary/[0.03] rounded-full blur-3xl" />
-
       <div className="mx-auto max-w-7xl px-4 md:px-8 relative">
         <SectionHeader
           label="Features"
@@ -82,21 +78,27 @@ export function FeaturesBento() {
           initial="hidden"
           whileInView="visible"
           viewport={{ once: true, margin: "-60px" }}
-          className="grid md:grid-cols-2 lg:grid-cols-3 gap-5"
+          className="grid md:grid-cols-2 lg:grid-cols-3 gap-4"
         >
           {features.map((feature) => (
             <motion.div key={feature.title} variants={cardVariants}>
-              <GlassCard className="h-full flex flex-col">
-                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/5 border border-primary/10 mb-5">
-                  <feature.icon className="h-6 w-6 text-primary" />
+              <div className="h-full flex flex-col bg-surface border border-border rounded-xl hover:border-border-hover transition-all duration-120 p-6">
+                <div className="flex h-11 w-11 items-center justify-center rounded-[10px] bg-info mb-5">
+                  <feature.icon className="h-5 w-5 text-white" />
                 </div>
-                <h3 className="text-base font-semibold text-foreground mb-2">{feature.title}</h3>
-                <p className="text-sm text-muted-foreground leading-relaxed flex-1">{feature.description}</p>
-                <div className="mt-5 pt-4 border-t border-border/40 flex items-center gap-2">
-                  <feature.metricIcon className="h-3.5 w-3.5 text-primary" />
-                  <span className="text-xs font-semibold text-primary">{feature.metric}</span>
+                <h3 className="text-[15px] font-medium text-ink mb-2" style={{ fontFamily: "var(--font-inter)" }}>{feature.title}</h3>
+                <p className="text-sm text-muted leading-relaxed flex-1" style={{ fontFamily: "var(--font-inter)" }}>{feature.description}</p>
+                <div className="mt-5 pt-4 border-t border-border flex items-center gap-2">
+                  <feature.metricIcon className="h-3.5 w-3.5 text-muted" />
+                  <span className="text-xs font-medium text-muted" style={{ fontFamily: "var(--font-inter)" }}>
+                    {(() => {
+                      const num = feature.metric.match(/^[\d]+[%x]?/)?.[0]
+                      const txt = num ? feature.metric.slice(num.length).trim() : feature.metric
+                      return <>{num && <span className="font-data text-ink">{num} </span>}{txt}</>
+                    })()}
+                  </span>
                 </div>
-              </GlassCard>
+              </div>
             </motion.div>
           ))}
         </motion.div>

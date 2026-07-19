@@ -109,13 +109,13 @@ export default function InterviewPage() {
     >
       <motion.div variants={itemVariants} className="flex items-end justify-between">
         <div>
-          <h1 className="text-xl font-medium text-[#111111] tracking-tight">Interviews</h1>
-          <p className="text-sm text-[#6B7280] mt-1">Manage your interview pipeline</p>
+          <h1 className="text-xl font-medium text-text-primary tracking-tight">Interviews</h1>
+          <p className="text-sm text-text-secondary mt-1">Manage your interview pipeline</p>
         </div>
-        <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-white border border-[#ECECEC]">
+        <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-white border border-border">
           <div className="text-center">
-            <p className="text-sm font-medium text-[#111111] tabular-nums">{filteredCandidates.length}</p>
-            <p className="text-[10px] text-[#A3A3A3]">Candidates</p>
+            <p className="text-sm font-medium text-text-primary tabular-nums">{filteredCandidates.length}</p>
+            <p className="text-[10px] text-text-muted">Candidates</p>
           </div>
         </div>
       </motion.div>
@@ -128,7 +128,7 @@ export default function InterviewPage() {
         />
       </motion.div>
 
-      <motion.div variants={itemVariants} className="bg-white rounded-[24px] border border-[#ECECEC] shadow-[0_10px_40px_rgba(0,0,0,0.05)] overflow-hidden">
+      <motion.div variants={itemVariants} className="bg-white rounded-[24px] border border-border shadow-[0_10px_40px_rgba(0,0,0,0.05)] overflow-hidden">
         {loading ? (
           <div className="p-6 space-y-4">
             {Array.from({ length: 4 }).map((_, i) => (
@@ -167,12 +167,12 @@ export default function InterviewPage() {
                     <TableCell>
                       <div className="flex items-center gap-3">
                         <Avatar className="h-9 w-9">
-                          <AvatarFallback className="text-xs bg-[#F6F6F4] text-[#6B7280]">
+                          <AvatarFallback className="text-xs bg-surface-secondary text-text-secondary">
                             {getInitials(candidate.full_name)}
                           </AvatarFallback>
                         </Avatar>
                         <div>
-                          <p className="text-sm font-medium text-[#111111]">{candidate.full_name || "Unknown"}</p>
+                          <p className="text-sm font-medium text-text-primary">{candidate.full_name || "Unknown"}</p>
                           <Badge variant="warning" className="mt-0.5">
                             {candidate.current_status || "Interview"}
                           </Badge>
@@ -180,13 +180,13 @@ export default function InterviewPage() {
                       </div>
                     </TableCell>
                     <TableCell>
-                      <span className="text-sm text-[#6B7280]">{candidate.current_company || "—"}</span>
+                      <span className="text-sm text-text-secondary">{candidate.current_company || "—"}</span>
                     </TableCell>
                     <TableCell>
-                      <span className="text-sm text-[#6B7280]">{candidate.current_title || "—"}</span>
+                      <span className="text-sm text-text-secondary">{candidate.current_title || "—"}</span>
                     </TableCell>
                     <TableCell className="hidden md:table-cell">
-                      <span className="text-xs text-[#A3A3A3]">{formatDate(candidate.created_at)}</span>
+                      <span className="text-xs text-text-muted">{formatDate(candidate.created_at)}</span>
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-1">
@@ -240,10 +240,10 @@ export default function InterviewPage() {
           <div className="px-6 pt-6 pb-2">
             <div className="flex items-center gap-2 text-[#16A34A] mb-3">
               <BadgeCheck className="h-5 w-5" />
-              <h2 className="text-base font-medium text-[#111111]">Move to Offer</h2>
+              <h2 className="text-base font-medium text-text-primary">Move to Offer</h2>
             </div>
-            <p className="text-sm text-[#6B7280]">
-              This will move <strong className="text-[#111111]">{selectedCandidate?.full_name || "the candidate"}</strong> to Offer (Pending Hire).
+            <p className="text-sm text-text-secondary">
+              This will move <strong className="text-text-primary">{selectedCandidate?.full_name || "the candidate"}</strong> to Offer (Pending Hire).
             </p>
           </div>
           <div className="px-6 pb-6 flex justify-end gap-2">

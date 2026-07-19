@@ -1,7 +1,3 @@
-export function cn(...classes: (string | undefined | null | false)[]): string {
-  return classes.filter(Boolean).join(" ")
-}
-
 export function getInitials(name?: string): string {
   return (name || "?")
     .split(" ")
@@ -48,17 +44,4 @@ export function formatDateTime(dateStr?: string): string {
   }
 }
 
-export function clamp(value: number, min: number, max: number): number {
-  return Math.min(Math.max(value, min), max)
-}
 
-export function debounce<T extends (...args: unknown[]) => unknown>(
-  fn: T,
-  delay: number
-): (...args: Parameters<T>) => void {
-  let timer: ReturnType<typeof setTimeout> | null = null
-  return (...args: Parameters<T>) => {
-    if (timer) clearTimeout(timer)
-    timer = setTimeout(() => fn(...args), delay)
-  }
-}

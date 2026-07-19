@@ -19,19 +19,19 @@ export function SectionHeader({ label, title, highlight, description, className 
       className={className}
     >
       {label && (
-        <div className="inline-flex items-center gap-1.5 rounded-full bg-[#F6F6F4] px-3 py-1 text-xs font-medium text-[#6B7280] mb-5">
-          <span className="flex h-1.5 w-1.5 rounded-full bg-[#111111]" />
+        <div className="inline-flex items-center gap-1.5 rounded-[6px] bg-[#F3F4F6] px-3 py-1 text-xs font-medium text-muted mb-5" style={{ fontFamily: "var(--font-inter)" }}>
+          <span className="flex h-1.5 w-1.5 rounded-full bg-info" />
           {label}
         </div>
       )}
-      <h2 className="text-3xl md:text-4xl font-medium text-[#111111] tracking-tight">
+      <h2 className="text-3xl md:text-4xl font-medium text-ink tracking-tight" style={{ letterSpacing: "-0.02em", fontFamily: "var(--font-inter)" }}>
         {title}
         {highlight && (
-          <span className="text-[#111111]/60"> {highlight}</span>
+          <span className="text-muted"> {highlight}</span>
         )}
       </h2>
       {description && (
-        <p className="mt-4 text-base md:text-lg text-[#6B7280] leading-relaxed max-w-2xl mx-auto">
+        <p className="mt-4 text-base md:text-lg text-muted leading-relaxed max-w-2xl mx-auto" style={{ fontFamily: "var(--font-inter)" }}>
           {description}
         </p>
       )}

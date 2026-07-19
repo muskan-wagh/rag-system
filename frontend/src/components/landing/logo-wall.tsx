@@ -15,9 +15,9 @@ const companies = [
 
 export function LogoWall() {
   return (
-    <section className="w-full py-16 md:py-20 relative overflow-hidden border-y border-border/40 bg-white/30">
+    <section className="w-full py-16 md:py-20 relative overflow-hidden border-y border-border">
       <div className="mx-auto max-w-7xl px-4 md:px-8">
-        <p className="text-xs text-center text-muted-foreground uppercase tracking-widest font-medium mb-10">
+        <p className="text-xs text-center text-faint uppercase tracking-widest font-medium mb-10" style={{ fontFamily: "var(--font-inter)" }}>
           Trusted by hiring teams across industries
         </p>
 
@@ -26,10 +26,10 @@ export function LogoWall() {
             {[...companies, ...companies].map((company, i) => (
               <div
                 key={`${company.name}-${i}`}
-                className="flex items-center gap-3 text-muted-foreground/30 hover:text-muted-foreground/50 transition-colors duration-300 shrink-0"
+                className="flex items-center gap-3 text-faint hover:text-muted transition-colors duration-300 shrink-0"
               >
                 <company.icon className="h-5 w-5" />
-                <span className="text-sm font-medium whitespace-nowrap">{company.name}</span>
+                <span className="text-sm font-medium whitespace-nowrap" style={{ fontFamily: "var(--font-inter)" }}>{company.name}</span>
               </div>
             ))}
           </div>

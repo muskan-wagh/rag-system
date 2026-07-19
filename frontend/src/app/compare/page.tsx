@@ -91,21 +91,21 @@ export default function ComparePage() {
       className="pt-6 space-y-8"
     >
       <motion.div variants={itemVariants}>
-        <h1 className="text-xl font-medium text-[#111111] tracking-tight">Compare Candidates</h1>
-        <p className="text-sm text-[#6B7280] mt-1">Side-by-side AI-powered candidate comparison</p>
+        <h1 className="text-xl font-medium text-text-primary tracking-tight">Compare Candidates</h1>
+        <p className="text-sm text-text-secondary mt-1">Side-by-side AI-powered candidate comparison</p>
       </motion.div>
 
-      <motion.div variants={itemVariants} className="bg-white rounded-[24px] border border-[#ECECEC] shadow-[0_10px_40px_rgba(0,0,0,0.05)] p-6 space-y-5">
+      <motion.div variants={itemVariants} className="bg-white rounded-[10px] border border-border shadow-none p-6 space-y-5">
         <div>
-          <label className="text-xs font-medium text-[#6B7280] mb-2 block">Job Description</label>
+          <label className="text-xs font-medium text-text-secondary mb-2 block">Job Description</label>
           <div className="relative">
-            <Brain className="absolute left-4 top-3.5 h-4 w-4 text-[#A3A3A3]" strokeWidth={1.5} />
+            <Brain className="absolute left-4 top-3.5 h-4 w-4 text-text-muted" strokeWidth={1.5} />
             <textarea
               placeholder="Paste job description for comparison context..."
               value={jdText}
               onChange={(e) => setJdText(e.target.value)}
               rows={2}
-              className="w-full bg-white text-sm text-[#111111] placeholder:text-[#A3A3A3] outline-none rounded-[18px] border border-[#ECECEC] pl-10 pr-4 py-3 focus:border-[#111111] focus:shadow-[0_0_0_3px_rgba(17,17,17,0.06)] transition-all resize-none"
+              className="w-full bg-white text-sm text-text-primary placeholder:text-text-muted outline-none rounded-[18px] border border-border pl-10 pr-4 py-3 focus:border-[#111111] focus:shadow-[0_0_0_3px_rgba(17,17,17,0.06)] transition-all resize-none"
             />
           </div>
         </div>
@@ -113,7 +113,7 @@ export default function ComparePage() {
         <div className="space-y-3">
           {selectedCandidates.map((selected, index) => (
             <div key={index} className="flex items-center gap-3">
-              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#F6F6F4] text-xs font-medium text-[#6B7280]">
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-surface-secondary text-xs font-medium text-text-secondary">
                 {index + 1}
               </div>
               <CandidateSearchInput
@@ -123,9 +123,9 @@ export default function ComparePage() {
               />
               {selectedCandidates.length > 2 && (
                 <button onClick={() => removeRow(index)}
-                  className="flex h-8 w-8 items-center justify-center rounded-full hover:bg-[#F6F6F4] transition-colors"
+                  className="flex h-8 w-8 items-center justify-center rounded-full hover:bg-surface-secondary transition-colors"
                 >
-                  <Trash2 className="h-3.5 w-3.5 text-[#A3A3A3] hover:text-[#EF4444]" strokeWidth={1.5} />
+                  <Trash2 className="h-3.5 w-3.5 text-text-muted hover:text-[#EF4444]" strokeWidth={1.5} />
                 </button>
               )}
             </div>
@@ -156,7 +156,7 @@ export default function ComparePage() {
       </motion.div>
 
       {loading && (
-        <motion.div variants={itemVariants} className="bg-white rounded-[24px] border border-[#ECECEC] p-6 space-y-3">
+        <motion.div variants={itemVariants} className="bg-white rounded-[10px] border border-border p-6 space-y-3">
           <Skeleton className="h-3 w-full" />
           <Skeleton className="h-3 w-3/4" />
           <Skeleton className="h-3 w-1/2" />

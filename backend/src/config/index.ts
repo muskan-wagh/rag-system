@@ -99,11 +99,14 @@ export const config = Object.freeze({
     distance: "Cosine" as const,
   },
 
+  resend: {
+    apiKey: optional("RESEND_API_KEY", ""),
+    fromEmail: optional("RESEND_FROM_EMAIL", "onboarding@resend.dev"),
+  },
+
   redis: {
     url: required("REDIS_URL"),
   },
-
-
 
   qdrant: {
     url: required("QDRANT_URL"),

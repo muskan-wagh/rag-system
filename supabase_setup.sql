@@ -296,6 +296,81 @@ CREATE INDEX IF NOT EXISTS idx_interviews_date_status ON interviews(scheduled_da
 CREATE INDEX IF NOT EXISTS idx_upload_sessions_recruiter_created ON upload_sessions(recruiter_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_candidate_status_log_changed ON candidate_status_log(changed_at DESC);
 
+-- ============================================================
+-- 12. Saved Searches
+-- ============================================================
+CREATE TABLE IF NOT EXISTS saved_searches (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  recruiter_id UUID REFERENCES recruiters(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  jd_text TEXT NOT NULL DEFAULT '',
+  filters JSONB DEFAULT '{}',
+  embedding VECTOR(384),
+  is_favorite BOOLEAN DEFAULT FALSE,
+  usage_count INT DEFAULT 0,
+  last_used_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_saved_searches_recruiter ON saved_searches(recruiter_id);
+CREATE INDEX IF NOT EXISTS idx_saved_searches_favorite ON saved_searches(recruiter_id, is_favorite);
+
+-- 13. Talent Pools
+CREATE TABLE IF NOT EXISTS talent_pools (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  recruiter_id UUID REFERENCES recruiters(id) ON DELETE CASCADE,
+  saved_search_id UUID REFERENCES saved_searches(id) ON DELETE SET NULL,
+  name TEXT NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_talent_pools_recruiter ON talent_pools(recruiter_id);
+
+-- 14. Talent Pool Candidates
+CREATE TABLE IF NOT EXISTS talent_pool_candidates (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  pool_id UUID REFERENCES talent_pools(id) ON DELETE CASCADE,
+  candidate_id UUID REFERENCES candidates(id) ON DELETE CASCADE,
+  match_score FLOAT DEFAULT 0,
+  added_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(pool_id, candidate_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_tpc_pool ON talent_pool_candidates(pool_id);
+CREATE INDEX IF NOT EXISTS idx_tpc_candidate ON talent_pool_candidates(candidate_id);
+
+-- 15. Search History
+CREATE TABLE IF NOT EXISTS search_history (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  recruiter_id UUID REFERENCES recruiters(id) ON DELETE CASCADE,
+  jd_text TEXT NOT NULL DEFAULT '',
+  filters JSONB DEFAULT '{}',
+  result_count INT DEFAULT 0,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_search_history_recruiter ON search_history(recruiter_id);
+CREATE INDEX IF NOT EXISTS idx_search_history_created ON search_history(recruiter_id, created_at DESC);
+
+ALTER TABLE saved_searches ENABLE ROW LEVEL SECURITY;
+ALTER TABLE talent_pools ENABLE ROW LEVEL SECURITY;
+ALTER TABLE talent_pool_candidates ENABLE ROW LEVEL SECURITY;
+ALTER TABLE search_history ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "service_role_all_saved_searches" ON saved_searches;
+CREATE POLICY "service_role_all_saved_searches" ON saved_searches FOR ALL TO service_role USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "service_role_all_talent_pools" ON talent_pools;
+CREATE POLICY "service_role_all_talent_pools" ON talent_pools FOR ALL TO service_role USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "service_role_all_talent_pool_candidates" ON talent_pool_candidates;
+CREATE POLICY "service_role_all_talent_pool_candidates" ON talent_pool_candidates FOR ALL TO service_role USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "service_role_all_search_history" ON search_history;
+CREATE POLICY "service_role_all_search_history" ON search_history FOR ALL TO service_role USING (true) WITH CHECK (true);
+
 -- Stats RPC function for per-recruiter dashboard aggregation
 CREATE OR REPLACE FUNCTION get_recruiter_stats(p_recruiter_id UUID)
 RETURNS JSON AS $$

@@ -34,6 +34,7 @@ export type {
   TimelineEntry,
   DashboardData,
   CandidatesPageData,
+  CandidateBrief,
 } from "./types"
 
 export type { StatusFilter } from "./types"
@@ -265,6 +266,92 @@ export function createApiClient(getToken: () => Promise<string | null>) {
         if (params.status) searchParams.set("status", params.status)
         const qs = searchParams.toString()
         return request<CandidatesPageData>(`/candidates-page${qs ? `?${qs}` : ""}`, { method: "GET" }, a)
+      }),
+
+    getCandidateBrief: (id: string) =>
+      withAuth((a) =>
+        request<import("./types").CandidateBrief>(`/candidates/${id}/brief`, { method: "GET" }, a),
+      ),
+
+    listSavedSearches: () =>
+      withAuth((a) =>
+        request<import("./types").SavedSearch[]>("/saved-searches", { method: "GET" }, a),
+      ),
+
+    createSavedSearch: (name: string, jdText: string, filters?: Record<string, unknown>) =>
+      withAuth((a) =>
+        request<import("./types").SavedSearch>("/saved-searches", {
+          method: "POST",
+          body: JSON.stringify({ name, jdText, filters }),
+        }, a),
+      ),
+
+    updateSavedSearch: (id: string, updates: { name?: string; is_favorite?: boolean }) =>
+      withAuth((a) =>
+        request<import("./types").SavedSearch>(`/saved-searches/${id}`, {
+          method: "PUT",
+          body: JSON.stringify(updates),
+        }, a),
+      ),
+
+    deleteSavedSearch: (id: string) =>
+      withAuth((a) =>
+        request<{ message: string }>(`/saved-searches/${id}`, { method: "DELETE" }, a),
+      ),
+
+    listTalentPools: () =>
+      withAuth((a) =>
+        request<import("./types").TalentPool[]>("/talent-pools", { method: "GET" }, a),
+      ),
+
+    createTalentPool: (name: string, savedSearchId?: string) =>
+      withAuth((a) =>
+        request<import("./types").TalentPool>("/talent-pools", {
+          method: "POST",
+          body: JSON.stringify({ name, savedSearchId }),
+        }, a),
+      ),
+
+    getTalentPool: (id: string) =>
+      withAuth((a) =>
+        request<import("./types").TalentPool>(`/talent-pools/${id}`, { method: "GET" }, a),
+      ),
+
+    deleteTalentPool: (id: string) =>
+      withAuth((a) =>
+        request<{ message: string }>(`/talent-pools/${id}`, { method: "DELETE" }, a),
+      ),
+
+    addCandidateToPool: (poolId: string, candidateId: string, matchScore?: number) =>
+      withAuth((a) =>
+        request<{ message: string }>(`/talent-pools/${poolId}/candidates`, {
+          method: "POST",
+          body: JSON.stringify({ candidateId, matchScore }),
+        }, a),
+      ),
+
+    removeCandidateFromPool: (poolId: string, candidateId: string) =>
+      withAuth((a) =>
+        request<{ message: string }>(`/talent-pools/${poolId}/candidates/${candidateId}`, { method: "DELETE" }, a),
+      ),
+
+    listSearchHistory: (page = 1, limit = 20) =>
+      withAuth((a) =>
+        request<import("./types").PaginatedSearchHistory>(
+          `/search-history?page=${page}&limit=${limit}`, { method: "GET" }, a,
+        ),
+      ),
+
+    getHistory: (params: { page?: number; limit?: number; actionType?: string; search?: string } = {}) =>
+      withAuth((a) => {
+        const sp = new URLSearchParams()
+        if (params.page) sp.set("page", String(params.page))
+        if (params.limit) sp.set("limit", String(params.limit))
+        if (params.actionType) sp.set("actionType", params.actionType)
+        if (params.search) sp.set("search", params.search)
+        return request<import("./types").PaginatedHistory>(
+          `/history${sp.toString() ? `?${sp.toString()}` : ""}`, { method: "GET" }, a,
+        )
       }),
 
     markCandidateAsHired: (candidateId: string) =>

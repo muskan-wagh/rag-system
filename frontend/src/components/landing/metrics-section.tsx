@@ -16,7 +16,7 @@ function Counter({ value, suffix, prefix }: { value: number; suffix?: string; pr
   const isInView = useInView(ref, { once: true, margin: "-40px" })
 
   return (
-    <span ref={ref} className="text-4xl md:text-5xl font-bold tracking-tight text-foreground">
+    <span ref={ref} className="font-data text-4xl md:text-5xl font-medium text-ink">
       {isInView ? (
         <motion.span
           initial={{ opacity: 0, y: 20 }}
@@ -36,10 +36,7 @@ function Counter({ value, suffix, prefix }: { value: number; suffix?: string; pr
 
 export function MetricsSection() {
   return (
-    <section className="w-full py-20 md:py-28 bg-gradient-to-b from-background via-primary/[0.02] to-background relative overflow-hidden">
-      <div className="absolute inset-0 noise-bg pointer-events-none opacity-30" />
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[1px] bg-gradient-to-r from-transparent via-primary/20 to-transparent" />
-
+    <section className="w-full py-20 md:py-28 relative overflow-hidden">
       <div className="mx-auto max-w-7xl px-4 md:px-8 relative">
         <SectionHeader
           title="RecruitIQ by the"
@@ -47,7 +44,7 @@ export function MetricsSection() {
           description="Trusted by hiring teams worldwide to make better hiring decisions faster"
         />
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-6 md:gap-8">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
           {metrics.map((metric, i) => (
             <motion.div
               key={metric.label}
@@ -55,14 +52,13 @@ export function MetricsSection() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true, margin: "-40px" }}
               transition={{ delay: i * 0.1, duration: 0.5 }}
-              className="relative"
             >
-              <div className="glass-card rounded-2xl p-6 md:p-8 text-center hover:shadow-lg transition-shadow duration-300">
+              <div className="rounded-xl p-6 text-center bg-surface border border-border hover:border-border-hover transition-all duration-120">
                 <div className="mb-2">
                   <Counter value={metric.value} suffix={metric.suffix} prefix={metric.prefix} />
                 </div>
-                <p className="text-sm font-semibold text-foreground">{metric.label}</p>
-                <p className="text-xs text-muted-foreground mt-1">{metric.sublabel}</p>
+                <p className="text-sm font-medium text-ink" style={{ fontFamily: "var(--font-inter)" }}>{metric.label}</p>
+                <p className="text-xs text-faint mt-1" style={{ fontFamily: "var(--font-inter)" }}>{metric.sublabel}</p>
               </div>
             </motion.div>
           ))}

@@ -70,9 +70,6 @@ const cardVariants = {
 export function PricingSection() {
   return (
     <section id="pricing" className="w-full py-20 md:py-28 relative overflow-hidden">
-      <div className="absolute inset-0 noise-bg pointer-events-none opacity-20" />
-      <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[600px] h-[300px] bg-primary/[0.03] rounded-full blur-3xl" />
-
       <div className="mx-auto max-w-7xl px-4 md:px-8 relative">
         <SectionHeader
           label="Pricing"
@@ -86,7 +83,7 @@ export function PricingSection() {
           initial="hidden"
           whileInView="visible"
           viewport={{ once: true, margin: "-80px" }}
-          className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto"
+          className="grid md:grid-cols-3 gap-4 max-w-5xl mx-auto"
         >
           {plans.map((plan) => (
             <motion.div
@@ -94,29 +91,29 @@ export function PricingSection() {
               variants={cardVariants}
               className={`relative ${plan.popular ? "md:-mt-4 md:mb-4" : ""}`}
             >
-              <div className={`glass-card rounded-2xl p-6 md:p-8 h-full flex flex-col ${plan.popular ? "ring-2 ring-primary/20 shadow-xl shadow-primary/5" : ""}`}>
+              <div className={`rounded-xl p-6 h-full flex flex-col bg-surface border ${plan.popular ? "border-ink" : "border-border"} hover:border-border-hover transition-all duration-120`}>
                 {plan.popular && (
                   <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                    <div className="inline-flex items-center gap-1 rounded-full bg-primary px-4 py-1 text-xs font-semibold text-white shadow-lg">
+                    <div className="inline-flex items-center gap-1 rounded-[6px] bg-info px-4 py-1 text-xs font-medium text-white" style={{ fontFamily: "var(--font-inter)" }}>
                       Most Popular
                     </div>
                   </div>
                 )}
 
                 <div className="mb-6">
-                  <h3 className="text-lg font-semibold text-foreground mb-1">{plan.name}</h3>
+                  <h3 className="text-lg font-medium text-ink mb-1" style={{ fontFamily: "var(--font-inter)" }}>{plan.name}</h3>
                   <div className="flex items-baseline gap-1">
-                    <span className="text-3xl font-bold text-foreground">{plan.price}</span>
-                    {plan.period && <span className="text-sm text-muted-foreground">{plan.period}</span>}
+                    <span className="font-data text-3xl font-medium text-ink">{plan.price}</span>
+                    {plan.period && <span className="text-sm text-muted" style={{ fontFamily: "var(--font-inter)" }}>{plan.period}</span>}
                   </div>
-                  <p className="text-sm text-muted-foreground mt-2">{plan.description}</p>
+                  <p className="text-sm text-muted mt-2" style={{ fontFamily: "var(--font-inter)" }}>{plan.description}</p>
                 </div>
 
                 <ul className="space-y-3 flex-1 mb-8">
                   {plan.features.map((feature) => (
                     <li key={feature} className="flex items-start gap-2.5">
-                      <Check className="h-4 w-4 text-primary shrink-0 mt-0.5" />
-                      <span className="text-sm text-foreground">{feature}</span>
+                      <Check className="h-4 w-4 text-ink shrink-0 mt-0.5" strokeWidth={1.5} />
+                      <span className="text-sm text-ink" style={{ fontFamily: "var(--font-inter)" }}>{feature}</span>
                     </li>
                   ))}
                 </ul>

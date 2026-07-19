@@ -5,9 +5,9 @@ import { computeEducationScore } from './educationMatcher';
 import { logger } from '@/utils/logger';
 
 const WEIGHTS = {
-  semantic: 0.4,
-  skill: 0.25,
-  experience: 0.2,
+  semantic: 0.35,
+  skill: 0.30,
+  experience: 0.20,
   education: 0.15,
 };
 
@@ -56,6 +56,18 @@ export async function rankCandidates(
     scores: item.scores,
     explanation: [
       `**Match Score: ${(item.scores.overall * 100).toFixed(0)}%**`,
+      '',
+      `**Score Breakdown:**`,
+      `┌──────────────┬───────┬────────┐`,
+      `│ Component    │ Weight│ Score  │`,
+      `├──────────────┼───────┼────────┤`,
+      `│ Semantic     │  35%  │ ${(item.semanticScore * 100).toFixed(0).padStart(3)}%   │`,
+      `│ Skills       │  30%  │ ${(item.scores.skill * 100).toFixed(0).padStart(3)}%   │`,
+      `│ Experience   │  20%  │ ${(item.scores.experience * 100).toFixed(0).padStart(3)}%   │`,
+      `│ Education    │  15%  │ ${(item.scores.education * 100).toFixed(0).padStart(3)}%   │`,
+      `├──────────────┼───────┼────────┤`,
+      `│ Weighted Sum │ 100%  │ ${(item.scores.overall * 100).toFixed(0).padStart(3)}%   │`,
+      `└──────────────┴───────┴────────┘`,
       '',
       `Semantic: ${(item.semanticScore * 100).toFixed(0)}% | Skills: ${(item.scores.skill * 100).toFixed(0)}% | Experience: ${(item.scores.experience * 100).toFixed(0)}% | Education: ${(item.scores.education * 100).toFixed(0)}%`,
     ].join('\n'),
