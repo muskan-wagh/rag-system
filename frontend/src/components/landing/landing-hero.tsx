@@ -24,7 +24,7 @@ function ScoreRing({ value, size = 40 }: { value: number; size?: number }) {
   const cy = size / 2
   const circumference = 2 * Math.PI * r
   const offset = circumference - (value / 100) * circumference
-  const color = value >= 90 ? "#22C55E" : value >= 75 ? "#6366F1" : value >= 60 ? "#F59E0B" : "#EF4444"
+  const color = value >= 90 ? "#22C55E" : value >= 75 ? "#170C2B" : value >= 60 ? "#F59E0B" : "#EF4444"
 
   return (
     <svg width={size} height={size} className="-rotate-90 shrink-0">
@@ -50,7 +50,7 @@ function DashboardMockup() {
         transition={{ duration: 0.7, delay: 0.3, ease: "easeOut" }}
         className="relative z-10"
       >
-        <div className="rounded-2xl overflow-hidden shadow-2xl shadow-indigo-500/10 border border-white/20 bg-white/90 backdrop-blur-sm">
+        <div className="rounded-2xl overflow-hidden shadow-2xl shadow-[#170C2B]/10 border border-white/20 bg-white/90 backdrop-blur-sm">
           <div className="flex items-center gap-1.5 px-4 py-3 border-b border-gray-200/60 bg-gray-50/80">
             <div className="flex gap-1.5">
               <div className="w-2.5 h-2.5 rounded-full bg-red-400/70" />
@@ -83,7 +83,7 @@ function DashboardMockup() {
 
             <div className="grid grid-cols-4 gap-2">
               {[
-                { label: "Total", value: "1,247", icon: Users, color: "text-sky-400", bg: "bg-sky-500/10" },
+                { label: "Total", value: "1,247", icon: Users, color: "text-[#170C2B]", bg: "bg-[#170C2B]/10" },
                 { label: "Avg Match", value: "89%", icon: TrendingUp, color: "text-primary", bg: "bg-primary/10" },
                 { label: "Interviews", value: "18", icon: Calendar, color: "text-amber-400", bg: "bg-amber-500/10" },
                 { label: "Hired", value: "12", icon: Check, color: "text-emerald-400", bg: "bg-emerald-500/10" },
@@ -181,9 +181,9 @@ function DashboardMockup() {
         </div>
       </motion.div>
 
-      <div className="absolute -z-10 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] rounded-full blur-3xl bg-gradient-to-br from-primary/10 via-indigo-500/5 to-transparent" />
-      <div className="absolute -z-10 top-0 right-0 w-[300px] h-[300px] rounded-full blur-3xl bg-blue-500/5" />
-      <div className="absolute -z-10 -bottom-10 -left-10 w-[250px] h-[250px] rounded-full blur-3xl bg-indigo-500/5" />
+      <div className="absolute -z-10 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] rounded-full blur-3xl bg-gradient-to-br from-primary/10 via-[#170C2B]/5 to-transparent" />
+      <div className="absolute -z-10 top-0 right-0 w-[300px] h-[300px] rounded-full blur-3xl bg-[#170C2B]/5" />
+      <div className="absolute -z-10 -bottom-10 -left-10 w-[250px] h-[250px] rounded-full blur-3xl bg-[#170C2B]/5" />
     </div>
   )
 }

@@ -20,7 +20,7 @@ export function ScoreRing({
   className,
   label,
   delay = 0,
-  color = "#4F46E5",
+  color = "#111111",
 }: ScoreRingProps) {
   const cx = 18
   const cy = 18
@@ -40,7 +40,7 @@ export function ScoreRing({
           <circle
             cx={cx} cy={cy} r={r}
             fill="none"
-            stroke="rgba(0,0,0,0.06)"
+            stroke="#ECECEC"
             strokeWidth={strokeWidth}
           />
           <motion.circle
@@ -55,12 +55,12 @@ export function ScoreRing({
             transition={{ duration: 1, delay, ease: "easeOut" }}
           />
         </svg>
-        <span className="absolute text-sm font-bold text-foreground">
+        <span className="absolute text-sm font-medium text-[#111111] tabular-nums">
           {Math.round(value * 100)}%
         </span>
       </div>
       {label && (
-        <span className="text-[10px] text-muted-foreground">{label}</span>
+        <span className="text-[10px] text-[#6B7280]">{label}</span>
       )}
     </div>
   )

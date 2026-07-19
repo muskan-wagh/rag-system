@@ -28,8 +28,8 @@ function scoreLabel(score: number) {
 
 function scoreColor(score: number) {
   if (score >= 0.8) return "bg-primary"
-  if (score >= 0.6) return "bg-blue-500"
-  return "bg-cyan-500"
+  if (score >= 0.6) return "bg-[#170C2B]"
+  return "bg-[#170C2B]"
 }
 
 export const CandidateCard = memo(function CandidateCard({ result, index }: { result: RankingResult; index: number }) {

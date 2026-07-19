@@ -20,14 +20,14 @@ export function SearchInput({
 }: SearchInputProps) {
   return (
     <div className={cn("relative flex-1 max-w-md", className)}>
-      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+      <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-[#A3A3A3]" strokeWidth={1.5} />
       <input
         ref={inputRef}
         type="text"
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        className="w-full h-9 pl-9 pr-4 text-sm rounded-lg border border-input bg-background focus:outline-none focus:ring-2 focus:ring-ring/20 focus:border-ring/40 transition-all"
+        className="w-full h-10 pl-10 pr-4 text-sm rounded-[18px] border border-[#ECECEC] bg-white focus:outline-none focus:border-[#111111] focus:shadow-[0_0_0_3px_rgba(17,17,17,0.06)] transition-all"
       />
     </div>
   )

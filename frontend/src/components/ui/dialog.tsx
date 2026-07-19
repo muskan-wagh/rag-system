@@ -2,7 +2,6 @@
 
 import * as React from "react"
 import { Dialog as DialogPrimitive } from "@base-ui/react/dialog"
-
 import { cn } from "@/lib/utils"
 import { XIcon } from "lucide-react"
 
@@ -23,7 +22,7 @@ function DialogOverlay({ className, ...props }: DialogPrimitive.Backdrop.Props) 
     <DialogPrimitive.Backdrop
       data-slot="dialog-overlay"
       className={cn(
-        "fixed inset-0 z-50 bg-black/10 transition-opacity duration-150 data-ending-style:opacity-0 data-starting-style:opacity-0 supports-backdrop-filter:backdrop-blur-sm",
+        "fixed inset-0 z-50 bg-black/[0.04] transition-opacity duration-200 data-ending-style:opacity-0 data-starting-style:opacity-0",
         className
       )}
       {...props}
@@ -42,7 +41,7 @@ function DialogContent({
       <DialogPrimitive.Popup
         data-slot="dialog-content"
         className={cn(
-          "fixed left-1/2 top-1/2 z-50 flex max-h-[85vh] w-full max-w-lg -translate-x-1/2 -translate-y-1/2 flex-col gap-0 bg-white border border-border shadow-xl duration-200 data-starting-style:opacity-0 data-starting-style:scale-95 data-ending-style:opacity-0 data-ending-style:scale-95 sm:rounded-2xl",
+          "fixed left-1/2 top-1/2 z-50 flex max-h-[85vh] w-full max-w-lg -translate-x-1/2 -translate-y-1/2 flex-col gap-0 bg-white border border-[#ECECEC] shadow-xl duration-200 data-starting-style:opacity-0 data-starting-style:scale-[0.96] data-ending-style:opacity-0 data-ending-style:scale-[0.96] rounded-[24px]",
           className
         )}
         {...props}
@@ -50,9 +49,9 @@ function DialogContent({
         {children}
         <DialogPrimitive.Close
           data-slot="dialog-close"
-          className="absolute top-4 right-4 flex h-8 w-8 items-center justify-center rounded-lg hover:bg-muted transition-colors"
+          className="absolute top-5 right-5 flex h-8 w-8 items-center justify-center rounded-full hover:bg-[#F6F6F4] transition-colors"
         >
-          <XIcon className="h-4 w-4" />
+          <XIcon className="h-4 w-4 text-[#6B7280]" />
         </DialogPrimitive.Close>
       </DialogPrimitive.Popup>
     </DialogPortal>

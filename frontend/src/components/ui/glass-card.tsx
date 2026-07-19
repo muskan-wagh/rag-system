@@ -1,20 +1,23 @@
 "use client"
 
 import { motion } from "framer-motion"
+import { cn } from "@/lib/utils"
 
 interface GlassCardProps {
   children: React.ReactNode
   className?: string
   hover?: boolean
-  glow?: boolean
 }
 
-export function GlassCard({ children, className = "", hover = true, glow = false }: GlassCardProps) {
+export function GlassCard({ children, className = "", hover = true }: GlassCardProps) {
   return (
     <motion.div
-      whileHover={hover ? { y: -6, boxShadow: "0 20px 40px rgba(0,0,0,0.06), 0 8px 16px rgba(0,0,0,0.04)" } : undefined}
+      whileHover={hover ? { y: -4 } : undefined}
       transition={{ type: "spring", damping: 25, stiffness: 300 }}
-      className={`glass-card rounded-2xl p-6 transition-shadow duration-300 ${glow ? "animate-border-glow" : ""} ${className}`}
+      className={cn(
+        "bg-[rgba(255,255,255,0.7)] backdrop-blur-[20px] rounded-[24px] border border-[rgba(236,236,236,0.5)] transition-all duration-300",
+        className
+      )}
     >
       {children}
     </motion.div>

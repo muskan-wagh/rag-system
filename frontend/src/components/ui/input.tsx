@@ -6,10 +6,10 @@ function Input({ className, type, ...props }: React.ComponentProps<"input">) {
       type={type}
       data-slot="input"
       className={cn(
-        "flex h-9 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground",
-        "placeholder:text-muted-foreground/60 outline-none",
-        "focus:border-ring/40 focus:ring-2 focus:ring-ring/20",
-        "transition-colors duration-200",
+        "flex h-10 w-full rounded-[18px] border border-[#ECECEC] bg-white px-4 py-2 text-sm text-[#111111]",
+        "placeholder:text-[#A3A3A3] outline-none",
+        "focus:border-[#111111] focus:shadow-[0_0_0_3px_rgba(17,17,17,0.06)]",
+        "transition-all duration-200",
         "disabled:cursor-not-allowed disabled:opacity-50",
         className
       )}

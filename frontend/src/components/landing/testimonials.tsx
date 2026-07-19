@@ -19,7 +19,7 @@ const testimonials = [
     role: "Head of Recruitment",
     company: "InnovateInc",
     avatar: "MJ",
-    color: "from-blue-500 to-indigo-400",
+    color: "from-[#170C2B] to-[#170C2B]/80",
   },
   {
     quote: "We went from posting a job to having ranked candidates in minutes. The application link feature alone saved us hours of manual resume collection.",

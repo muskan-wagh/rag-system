@@ -5,12 +5,12 @@ import { Globe, Server, Brain, Search, Database, Palette } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 const techs = [
-  { icon: Globe, name: "Next.js", desc: "Modern frontend for a fast recruiter experience.", color: "from-blue-500/10 to-blue-600/5", iconColor: "text-blue-600" },
+  { icon: Globe, name: "Next.js", desc: "Modern frontend for a fast recruiter experience.", color: "from-[#170C2B]/10 to-[#170C2B]/5", iconColor: "text-[#170C2B]" },
   { icon: Server, name: "Express.js", desc: "Backend APIs and AI orchestration.", color: "from-gray-500/10 to-gray-600/5", iconColor: "text-gray-600" },
   { icon: Brain, name: "Qwen3 Next 80B A3B", desc: "Parses JDs, generates explanations and hiring insights.", color: "from-purple-500/10 to-purple-600/5", iconColor: "text-purple-600" },
   { icon: Search, name: "FastEmbed", desc: "Generates embeddings locally for semantic search.", color: "from-primary/10 to-accent/5", iconColor: "text-success" },
   { icon: Database, name: "Qdrant", desc: "Stores and searches vector embeddings.", color: "from-amber-500/10 to-amber-600/5", iconColor: "text-amber-600" },
-  { icon: Palette, name: "Tailwind CSS", desc: "Modern enterprise UI with consistent design system.", color: "from-cyan-500/10 to-cyan-600/5", iconColor: "text-cyan-600" },
+  { icon: Palette, name: "Tailwind CSS", desc: "Modern enterprise UI with consistent design system.", color: "from-[#170C2B]/10 to-[#170C2B]/5", iconColor: "text-[#170C2B]" },
 ]
 
 export function TechStack() {

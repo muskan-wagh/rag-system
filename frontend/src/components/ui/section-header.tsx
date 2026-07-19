@@ -16,22 +16,22 @@ export function SectionHeader({ label, title, highlight, description, className 
       initial={{ opacity: 0, y: 20 }}
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true, margin: "-60px" }}
-      className={`text-center max-w-2xl mx-auto mb-16 ${className}`}
+      className={className}
     >
       {label && (
-        <div className="inline-flex items-center gap-1.5 rounded-full border border-border/60 bg-white/60 backdrop-blur-sm px-3.5 py-1 text-xs font-medium text-muted-foreground shadow-sm mb-5">
-          <span className="flex h-1.5 w-1.5 rounded-full bg-primary animate-pulse-glow" />
+        <div className="inline-flex items-center gap-1.5 rounded-full bg-[#F6F6F4] px-3 py-1 text-xs font-medium text-[#6B7280] mb-5">
+          <span className="flex h-1.5 w-1.5 rounded-full bg-[#111111]" />
           {label}
         </div>
       )}
-      <h2 className="text-3xl md:text-4xl font-bold tracking-tight text-foreground">
+      <h2 className="text-3xl md:text-4xl font-medium text-[#111111] tracking-tight">
         {title}
         {highlight && (
-          <span className="text-gradient bg-gradient-to-r from-primary to-accent"> {highlight}</span>
+          <span className="text-[#111111]/60"> {highlight}</span>
         )}
       </h2>
       {description && (
-        <p className="mt-4 text-base md:text-lg text-muted-foreground leading-relaxed">
+        <p className="mt-4 text-base md:text-lg text-[#6B7280] leading-relaxed max-w-2xl mx-auto">
           {description}
         </p>
       )}

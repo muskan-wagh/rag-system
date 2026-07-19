@@ -2,17 +2,17 @@ import { cva, type VariantProps } from "class-variance-authority"
 import { cn } from "@/lib/utils"
 
 const alertVariants = cva(
-  "relative w-full rounded-xl border p-4 text-sm [&>svg+div]:translate-y-[-3px] [&>svg]:absolute [&>svg]:left-4 [&>svg]:top-4 [&>svg]:text-foreground",
+  "relative w-full rounded-[20px] border p-5 text-sm [&>svg+div]:translate-y-[-3px] [&>svg]:absolute [&>svg]:left-5 [&>svg]:top-5 [&>svg]:text-foreground",
   {
     variants: {
       variant: {
-        default: "bg-muted/50 text-foreground border-border",
+        default: "bg-white text-[#111111] border-[#ECECEC]",
         destructive:
-          "border-destructive/50 text-destructive dark:border-destructive [&>svg]:text-destructive",
+          "border-[#EF4444]/20 bg-[#EF4444]/5 text-[#EF4444] [&>svg]:text-[#EF4444]",
         success:
-          "border-green-200 bg-green-50/50 text-green-800 [&>svg]:text-green-600",
+          "border-[#16A34A]/20 bg-[#16A34A]/5 text-[#16A34A] [&>svg]:text-[#16A34A]",
         warning:
-          "border-amber-200 bg-amber-50/50 text-amber-800 [&>svg]:text-amber-600",
+          "border-[#F59E0B]/20 bg-[#F59E0B]/5 text-[#F59E0B] [&>svg]:text-[#F59E0B]",
       },
     },
     defaultVariants: {

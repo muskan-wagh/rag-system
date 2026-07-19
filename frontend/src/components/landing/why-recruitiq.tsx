@@ -44,11 +44,11 @@ const blocks = [
     description: "Find candidates by meaning, not keywords. Our vector search engine understands context, synonyms, and relationships to surface the best matches for any role.",
     stat: "3x",
     statLabel: "More relevant matches",
-    gradient: "from-blue-500 to-indigo-400",
+    gradient: "from-[#170C2B] to-[#170C2B]/80",
     image: (
       <div className="glass-strong rounded-2xl p-6 border border-white/50 shadow-xl">
         <div className="flex items-center gap-2 mb-4">
-          <div className="w-2 h-2 rounded-full bg-blue-400" />
+          <div className="w-2 h-2 rounded-full bg-[#170C2B]/80" />
           <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Semantic Search</span>
         </div>
         <div className="space-y-2">
@@ -61,9 +61,9 @@ const blocks = [
               <p className="text-xs text-foreground mb-1 line-clamp-1">{item.query}</p>
               <div className="flex items-center gap-2">
                 <div className="flex-1 h-1 bg-white/60 rounded-full overflow-hidden">
-                  <div className="h-full bg-gradient-to-r from-blue-500 to-indigo-400 rounded-full" style={{ width: item.match }} />
+                  <div className="h-full bg-gradient-to-r from-[#170C2B] to-[#170C2B]/80 rounded-full" style={{ width: item.match }} />
                 </div>
-                <span className="text-[10px] font-bold text-blue-500">{item.match}</span>
+                <span className="text-[10px] font-bold text-[#170C2B]">{item.match}</span>
               </div>
             </div>
           ))}
@@ -87,7 +87,7 @@ const blocks = [
         <div className="space-y-2.5">
           {[
             { label: "Skills Match", value: 94, color: "from-primary to-accent" },
-            { label: "Experience", value: 88, color: "from-blue-500 to-indigo-400" },
+            { label: "Experience", value: 88, color: "from-[#170C2B] to-[#170C2B]/80" },
             { label: "Education", value: 82, color: "from-amber-500 to-orange-400" },
             { label: "Cultural Fit", value: 76, color: "from-violet-500 to-purple-400" },
           ].map((item) => (

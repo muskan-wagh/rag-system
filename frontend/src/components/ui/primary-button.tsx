@@ -13,13 +13,13 @@ interface PrimaryButtonProps {
 export function PrimaryButton({ href, children, className = "", icon }: PrimaryButtonProps) {
   return (
     <motion.div
-      whileHover={{ y: -2, boxShadow: "0 8px 30px rgba(79, 70, 229, 0.25)" }}
-      whileTap={{ scale: 0.98 }}
+      whileHover={{ y: -2 }}
+      whileTap={{ scale: 0.97 }}
       className="inline-block"
     >
       <Link
         href={href}
-        className={`inline-flex items-center gap-2 rounded-xl bg-primary px-6 py-3 text-sm font-medium text-white shadow-md shadow-primary/20 transition-shadow duration-300 ${className}`}
+        className={`inline-flex items-center gap-2 rounded-full bg-[#111111] px-5 py-2.5 text-sm font-medium text-white transition-all duration-200 ${className}`}
       >
         {icon && <span className="h-4 w-4">{icon}</span>}
         {children}

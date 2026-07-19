@@ -6,7 +6,7 @@ import { SectionHeader } from "@/components/ui/section-header"
 
 const floatingCards = [
   { icon: Sparkles, label: "AI Match", value: "96%", color: "from-primary to-accent", x: "-10%", y: "5%", delay: 0 },
-  { icon: FileText, label: "Resume Summary", value: "Parsed", color: "from-blue-500 to-indigo-400", x: "85%", y: "-5%", delay: 0.5 },
+  { icon: FileText, label: "Resume Summary", value: "Parsed", color: "from-[#170C2B] to-[#170C2B]/80", x: "85%", y: "-5%", delay: 0.5 },
   { icon: BarChart3, label: "Hiring Score", value: "92", color: "from-warning to-accent", x: "-8%", y: "70%", delay: 1 },
   { icon: Users, label: "Candidate Fit", value: "Strong", color: "from-primary to-accent", x: "80%", y: "75%", delay: 1.5 },
   { icon: CheckCircle, label: "Interview Ready", value: "Yes", color: "from-success to-accent", x: "50%", y: "-8%", delay: 2 },
