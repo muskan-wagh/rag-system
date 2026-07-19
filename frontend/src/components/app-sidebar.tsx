@@ -14,7 +14,6 @@ import {
   History,
   Settings,
   LogOut,
-  Sparkles,
 } from "lucide-react"
 
 

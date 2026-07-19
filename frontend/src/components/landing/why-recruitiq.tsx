@@ -1,7 +1,7 @@
 "use client"
 
 import { motion } from "framer-motion"
-import { Brain, Search, GitCompare, Shield, BarChart3, Sparkles } from "lucide-react"
+import { Brain, Search, BarChart3 } from "lucide-react"
 import { SectionHeader } from "@/components/ui/section-header"
 
 const blocks = [

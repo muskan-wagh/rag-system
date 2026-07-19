@@ -7,7 +7,7 @@ import {
   Users, FileText, ChevronLeft, ChevronRight,
   BadgeCheck, Loader2, Search, Sparkles, Eye,
   Briefcase, Calendar, Clock, GraduationCap,
-  ChevronDown, MoreHorizontal, Download, Plus,
+  Download, Plus,
   Brain, Target, AlertTriangle, TrendingUp,
   CheckCircle2, XCircle, Clock as ClockIcon,
   ArrowUpRight,
@@ -16,14 +16,12 @@ import { toast } from "sonner"
 import { CandidateDetailModal } from "@/components/candidate-detail-modal"
 import { useApi } from "@/hooks/use-api"
 import { useWebSocket } from "@/lib/use-websocket"
-import { ROUTES, getStatusColor, getInitials, formatDate, getFlightRiskColor, CANDIDATE_STATUS } from "@/lib/constants"
+import { ROUTES, getStatusColor, getInitials, CANDIDATE_STATUS } from "@/lib/constants"
 import type { SessionSummary, CandidateRecord, CandidatesPageData } from "@/lib/api"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Card } from "@/components/ui/card"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Skeleton } from "@/components/ui/skeleton"
-import { EmptyState } from "@/components/ui/empty-state"
 import { Dialog, DialogContent } from "@/components/ui/dialog"
 
 const PAGE_SIZE = 20

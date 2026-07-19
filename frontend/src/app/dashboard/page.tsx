@@ -7,9 +7,9 @@ import { motion } from "framer-motion"
 import {
   Sparkles, Link2, RefreshCw, Loader2, ShieldAlert, Plus,
   FilePlus, Copy, Check, Users, FileText,
-  FolderOpen, Calendar, BadgeCheck, XCircle, LayoutDashboard,
+  BadgeCheck, LayoutDashboard,
   Search, Bell, ArrowUpRight, TrendingUp, Clock, Briefcase,
-  Zap, Eye, MoreHorizontal,
+  Eye,
 } from "lucide-react"
 import { toast } from "sonner"
 import { CandidateDetailModal } from "@/components/candidate-detail-modal"
@@ -18,14 +18,10 @@ import { useWebSocket } from "@/lib/use-websocket"
 import { ROUTES, getStatusColor, getInitials, getFlightRiskColor, CANDIDATE_STATUS } from "@/lib/constants"
 import type { SessionStats } from "@/lib/api"
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import { Card } from "@/components/ui/card"
 import { Textarea } from "@/components/ui/textarea"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { Progress } from "@/components/ui/progress"
 import { Skeleton } from "@/components/ui/skeleton"
-import { EmptyState } from "@/components/ui/empty-state"
 import {
   Table,
   TableHeader,

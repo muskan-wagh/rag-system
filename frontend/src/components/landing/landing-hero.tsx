@@ -1,7 +1,6 @@
 "use client"
 
 import { motion } from "framer-motion"
-import Link from "next/link"
 import { ArrowRight, Sparkles, Shield, Users, Check, Search, Bell, TrendingUp, Calendar } from "lucide-react"
 import { PrimaryButton } from "@/components/ui/primary-button"
 import { SecondaryButton } from "@/components/ui/secondary-button"
