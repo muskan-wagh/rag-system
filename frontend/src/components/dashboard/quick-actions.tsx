@@ -11,10 +11,10 @@ const itemVariants = {
 
 function getActionIcon(icon: string) {
   switch (icon) {
-    case "users": return <Users className="size-[18px]" strokeWidth={1.5} />
-    case "calendar": return <Calendar className="size-[18px]" strokeWidth={1.5} />
-    case "briefcase": return <Briefcase className="size-[18px]" strokeWidth={1.5} />
-    default: return <Sparkles className="size-[18px]" strokeWidth={1.5} />
+    case "users": return <Users className="size-4" strokeWidth={1.5} />
+    case "calendar": return <Calendar className="size-4" strokeWidth={1.5} />
+    case "briefcase": return <Briefcase className="size-4" strokeWidth={1.5} />
+    default: return <Sparkles className="size-4" strokeWidth={1.5} />
   }
 }
 
@@ -22,7 +22,7 @@ export function QuickActions({ items, onAction }: { items: QuickAction[]; onActi
   if (items.length === 0) return null
   return (
     <motion.div variants={itemVariants}>
-      <h2 className="text-base font-medium text-ink mb-4" style={{ fontFamily: "var(--font-inter)" }}>
+      <h2 className="text-[18px] font-semibold text-ink mb-3" style={{ fontFamily: "var(--font-inter)", letterSpacing: "-0.01em" }}>
         Quick Actions
       </h2>
       <div className="flex flex-wrap gap-3">
@@ -37,16 +37,16 @@ export function QuickActions({ items, onAction }: { items: QuickAction[]; onActi
               onClick={() => onAction(action.action)}
               className={
                 isPrimary
-                  ? "inline-flex items-center gap-2 px-5 py-3 bg-ink text-white rounded-[10px] text-sm font-medium transition-all duration-120 hover:bg-ink-hover active:scale-[0.98]"
-                  : "inline-flex items-center gap-2 px-5 py-3 bg-transparent text-ink border border-border rounded-[10px] text-sm font-medium transition-all duration-120 hover:bg-[#F3F4F6] active:scale-[0.98]"
+                  ? "inline-flex items-center gap-2 px-4 py-2 bg-ink text-white rounded-[10px] text-[13px] font-medium transition-all duration-120 hover:bg-ink-hover active:scale-[0.98]"
+                  : "inline-flex items-center gap-2 px-4 py-2 bg-transparent text-ink border border-border rounded-[10px] text-[13px] font-medium transition-all duration-120 hover:bg-[#F3F4F6] active:scale-[0.98]"
               }
               style={{ fontFamily: "var(--font-inter)" }}
             >
               {getActionIcon(action.icon)}
               <span>{action.label}</span>
               {isPrimary
-                ? <ArrowRight className="size-4" strokeWidth={1.5} />
-                : <ArrowUpRight className="size-4" strokeWidth={1.5} />
+                ? <ArrowRight className="size-3.5" strokeWidth={1.5} />
+                : <ArrowUpRight className="size-3.5" strokeWidth={1.5} />
               }
             </motion.button>
           )

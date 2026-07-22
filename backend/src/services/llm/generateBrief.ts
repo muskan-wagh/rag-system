@@ -1,6 +1,10 @@
+import crypto from 'crypto';
 import { chatCompletion } from './client';
 import { logger } from '@/utils/logger';
-import { memoryCache } from '@/utils/memory-cache';
+import { getCached, setCache } from '@/utils/cache';
+import { config } from '@/config';
+
+const CACHE_TTL = 3_600_000;
 
 export interface HiringBrief {
   executiveSummary: string;
@@ -56,6 +60,11 @@ function tryParseJSON(raw: string): Record<string, unknown> | null {
   }
 }
 
+function briefCacheKey(jdText: string, candidateName: string, resumeText: string): string {
+  const hash = crypto.createHash('md5').update(jdText + resumeText).digest('hex');
+  return `brief:${candidateName}:${hash}`;
+}
+
 export async function generateHiringBrief(
   jdText: string,
   resumeText: string,
@@ -63,9 +72,14 @@ export async function generateHiringBrief(
   skills: string[],
   experience: number,
 ): Promise<HiringBrief> {
-  const cacheKey = `brief:${candidateName}:${jdText.slice(0, 100)}`;
-  const cached = memoryCache.get<HiringBrief>(cacheKey);
-  if (cached) return cached;
+  const cacheKey = briefCacheKey(jdText, candidateName, resumeText);
+
+  const cached = await getCached<HiringBrief>(cacheKey);
+  if (cached) {
+    logger.info('Brief cache hit', { cacheKey });
+    return cached;
+  }
+  logger.info('Brief cache miss', { cacheKey, candidate: candidateName });
 
   const resumePreview = resumeText.slice(0, 4000);
   const jdPreview = jdText ? jdText.slice(0, 4000) : 'No job description provided';
@@ -79,7 +93,11 @@ export async function generateHiringBrief(
           { role: 'system', content: SYSTEM_PROMPT },
           { role: 'user', content: userPrompt },
         ],
-        { temperature: 0.1, maxTokens: 2048 },
+        {
+          temperature: 0.1,
+          maxTokens: 2048,
+          model: config.openai.premiumModel,
+        },
       );
 
       const parsed = tryParseJSON(response.content);
@@ -100,7 +118,7 @@ export async function generateHiringBrief(
           followUpTopics: Array.isArray(p.follow_up_topics) ? (p.follow_up_topics as string[]) : [],
         };
 
-        memoryCache.set(cacheKey, brief, 3_600_000);
+        await setCache(cacheKey, brief, CACHE_TTL).catch(() => {});
         logger.info('Hiring brief generated', { candidate: candidateName });
         return brief;
       }

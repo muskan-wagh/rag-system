@@ -16,6 +16,7 @@ import type {
   TimelineEntry,
   DashboardData,
   CandidatesPageData,
+  CompareResult,
 } from "./types"
 
 export type {
@@ -35,6 +36,11 @@ export type {
   DashboardData,
   CandidatesPageData,
   CandidateBrief,
+  CompareResult,
+  ComparisonCandidate,
+  ComparisonCandidateScore,
+  ComparisonRecommendation,
+  ComparisonSkillOverlap,
 } from "./types"
 
 export type { StatusFilter } from "./types"
@@ -77,7 +83,7 @@ export function createApiClient(getToken: () => Promise<string | null>) {
 
     compareCandidates: (jdText: string, candidateIds: string[]) =>
       withAuth((a) =>
-        request<{ comparison: string; query: ParsedJD }>(
+        request<{ comparison: CompareResult; query: ParsedJD }>(
           "/candidates/compare",
           { method: "POST", body: JSON.stringify({ jdText, candidateIds }) },
           a,

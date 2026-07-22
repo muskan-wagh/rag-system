@@ -13,9 +13,9 @@ const itemVariants = {
 
 function getInterviewIcon(type: string) {
   const t = type.toLowerCase()
-  if (t.includes("google") || t.includes("meet") || t.includes("video")) return <Video className="size-[14px]" strokeWidth={1.5} />
-  if (t.includes("phone") || t.includes("call")) return <Clock className="size-[14px]" strokeWidth={1.5} />
-  return <MapPin className="size-[14px]" strokeWidth={1.5} />
+  if (t.includes("google") || t.includes("meet") || t.includes("video")) return <Video className="size-3.5" strokeWidth={1.5} />
+  if (t.includes("phone") || t.includes("call")) return <Clock className="size-3.5" strokeWidth={1.5} />
+  return <MapPin className="size-3.5" strokeWidth={1.5} />
 }
 
 function formatTime(time: string) {
@@ -44,34 +44,34 @@ function formatDate(date: string) {
 export function UpcomingInterviews({ items }: { items: UpcomingInterview[] }) {
   return (
     <motion.div variants={itemVariants}>
-      <div className="flex items-end justify-between mb-5">
+      <div className="flex items-end justify-between mb-4">
         <div>
-          <h2 className="text-[20px] font-medium text-ink" style={{ fontFamily: "var(--font-inter)", letterSpacing: "-0.01em" }}>
+          <h2 className="text-[18px] font-semibold text-ink" style={{ fontFamily: "var(--font-inter)", letterSpacing: "-0.01em" }}>
             Upcoming Interviews
           </h2>
-          <p className="text-sm text-muted mt-1" style={{ fontFamily: "var(--font-inter)" }}>
+          <p className="text-[13px] text-muted mt-0.5" style={{ fontFamily: "var(--font-inter)" }}>
             {items.length > 0 ? `${items.length} scheduled` : "No interviews scheduled"}
           </p>
         </div>
         {items.length > 0 && (
-          <Link href="/interview" className="text-sm font-medium text-muted hover:text-ink transition-colors duration-120 inline-flex items-center gap-1" style={{ fontFamily: "var(--font-inter)" }}>
+          <Link href="/interview" className="text-[13px] font-medium text-muted hover:text-ink transition-colors duration-120 inline-flex items-center gap-1" style={{ fontFamily: "var(--font-inter)" }}>
             Manage
-            <ChevronRight className="size-4" strokeWidth={1.5} />
+            <ChevronRight className="size-3.5" strokeWidth={1.5} />
           </Link>
         )}
       </div>
       {items.length === 0 ? (
-        <div className="bg-surface border border-border rounded-xl p-8">
+        <div className="bg-surface border border-border rounded-xl px-6 flex items-center justify-center min-h-[180px]">
           <div className="flex flex-col items-center text-center">
-            <div className="h-10 w-10 rounded-[10px] bg-[#F3F4F6] flex items-center justify-center mb-3">
-              <Calendar className="h-5 w-5 text-info/40" strokeWidth={1.5} />
+            <div className="h-9 w-9 rounded-[10px] bg-[#F3F4F6] flex items-center justify-center mb-2.5">
+              <Calendar className="h-4 w-4 text-info/40" strokeWidth={1.5} />
             </div>
-            <p className="text-sm font-medium text-ink" style={{ fontFamily: "var(--font-inter)" }}>No interviews scheduled</p>
-            <p className="text-xs text-muted mt-1" style={{ fontFamily: "var(--font-inter)" }}>Schedule interviews from candidate profiles.</p>
+            <p className="text-[13px] font-medium text-ink" style={{ fontFamily: "var(--font-inter)" }}>No interviews scheduled</p>
+            <p className="text-[12px] text-muted mt-0.5" style={{ fontFamily: "var(--font-inter)" }}>Schedule interviews from candidate profiles.</p>
           </div>
         </div>
       ) : (
-        <div className="space-y-3">
+        <div className="bg-surface border border-border rounded-xl p-5 space-y-2">
           {items.map((item, i) => {
             const isToday = item.scheduled_date === new Date().toISOString().split("T")[0]
             return (
@@ -81,47 +81,45 @@ export function UpcomingInterviews({ items }: { items: UpcomingInterview[] }) {
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: i * 0.05, duration: 0.35, ease: [0.25, 0.1, 0.25, 1] }}
               >
-                <div className={`bg-surface border rounded-xl p-6 transition-all duration-120 ${isToday ? "border-border-hover" : "border-border"}`}>
-                  <div className="flex items-center gap-4">
-                    <div className={`size-10 rounded-full flex items-center justify-center shrink-0 ${isToday ? "bg-info text-white" : "bg-[#F3F4F6] text-muted"}`}>
-                      {getInterviewIcon(item.interview_type)}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <Link href={`${ROUTES.candidates}/${item.candidate_id}`} className="text-[15px] font-medium text-ink hover:text-muted transition-colors duration-120 truncate" style={{ fontFamily: "var(--font-inter)" }}>
-                          {item.candidate_name || "Unknown"}
-                        </Link>
-                        {isToday && (
-                          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-medium bg-info text-white shrink-0" style={{ fontFamily: "var(--font-inter)" }}>
-                            TODAY
-                          </span>
-                        )}
-                      </div>
-                      <p className="text-[13px] text-muted truncate mt-0.5" style={{ fontFamily: "var(--font-inter)" }}>
-                        {item.candidate_title || "No title"} · {item.interview_type || "Interview"}
-                      </p>
-                      <div className="flex items-center gap-3 mt-2">
-                        <span className="text-[12px] text-muted inline-flex items-center gap-1" style={{ fontFamily: "var(--font-inter)" }}>
-                          <Calendar className="size-3" strokeWidth={1.5} />
-                          {formatDate(item.scheduled_date)}
-                        </span>
-                        <span className="text-[12px] text-muted inline-flex items-center gap-1 font-data" style={{ fontFamily: "var(--font-inter)" }}>
-                          <Clock className="size-3" strokeWidth={1.5} />
-                          {formatTime(item.scheduled_time)}
-                        </span>
-                      </div>
-                    </div>
-                    {item.meeting_link && (
-                      <a
-                        href={item.meeting_link}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="size-9 rounded-full bg-[#F3F4F6] flex items-center justify-center hover:bg-ink hover:text-white transition-all duration-120 shrink-0"
-                      >
-                        <Video className="size-4" strokeWidth={1.5} />
-                      </a>
-                    )}
+                <div className={`px-1 py-2 rounded-[8px] flex items-center gap-3 transition-all duration-120 hover:bg-[#F9FAFB] ${isToday ? "border-l-2 border-info -ml-0.5 pl-2.5" : ""}`}>
+                  <div className={`size-9 rounded-full flex items-center justify-center shrink-0 ${isToday ? "bg-info text-white" : "bg-[#F3F4F6] text-muted"}`}>
+                    {getInterviewIcon(item.interview_type)}
                   </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <Link href={`${ROUTES.candidates}/${item.candidate_id}`} className="text-[14px] font-medium text-ink hover:text-muted transition-colors duration-120 truncate" style={{ fontFamily: "var(--font-inter)" }}>
+                        {item.candidate_name || "Unknown"}
+                      </Link>
+                      {isToday && (
+                        <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-medium bg-info text-white shrink-0" style={{ fontFamily: "var(--font-inter)" }}>
+                          TODAY
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-[12px] text-muted truncate mt-0.5" style={{ fontFamily: "var(--font-inter)" }}>
+                      {item.candidate_title || "No title"} · {item.interview_type || "Interview"}
+                    </p>
+                    <div className="flex items-center gap-3 mt-1.5">
+                      <span className="text-[11px] text-muted inline-flex items-center gap-1" style={{ fontFamily: "var(--font-inter)" }}>
+                        <Calendar className="size-3" strokeWidth={1.5} />
+                        {formatDate(item.scheduled_date)}
+                      </span>
+                      <span className="text-[11px] text-muted inline-flex items-center gap-1 font-data">
+                        <Clock className="size-3" strokeWidth={1.5} />
+                        {formatTime(item.scheduled_time)}
+                      </span>
+                    </div>
+                  </div>
+                  {item.meeting_link && (
+                    <a
+                      href={item.meeting_link}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="size-8 rounded-full bg-[#F3F4F6] flex items-center justify-center hover:bg-ink hover:text-white transition-all duration-120 shrink-0"
+                    >
+                      <Video className="size-3.5" strokeWidth={1.5} />
+                    </a>
+                  )}
                 </div>
               </motion.div>
             )

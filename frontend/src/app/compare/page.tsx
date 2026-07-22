@@ -2,14 +2,17 @@
 
 import { useState } from "react"
 import { motion } from "framer-motion"
+import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { ComparisonView } from "@/components/comparison-view"
 import { EmptyState } from "@/components/ui/empty-state"
 import { CandidateSearchInput } from "@/components/candidate-search-input"
-import { GitCompare, Loader2, Plus, Trash2, Brain } from "lucide-react"
+import { ScheduleInterviewModal } from "@/components/schedule-interview-modal"
+import { RejectModal } from "@/components/reject-modal"
+import { GitCompare, Loader2, Plus, Trash2, Brain, Sparkles } from "lucide-react"
 import { useApi } from "@/hooks/use-api"
-import type { Candidate } from "@/lib/api"
+import type { CompareResult } from "@/lib/api"
 
 interface SelectedCandidate {
   id: string
@@ -31,10 +34,14 @@ const itemVariants = {
 export default function ComparePage() {
   const [jdText, setJdText] = useState("")
   const [selectedCandidates, setSelectedCandidates] = useState<(SelectedCandidate | null)[]>([null, null])
-  const [comparison, setComparison] = useState("")
+  const [comparison, setComparison] = useState<CompareResult | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
-  const [foundCandidates, setFoundCandidates] = useState<Map<string, Candidate>>(new Map())
+  const [modalState, setModalState] = useState<{
+    type: "schedule" | "reject" | null
+    candidateId: string
+    candidateName: string
+  }>({ type: null, candidateId: "", candidateName: "" })
   const api = useApi()
 
   function updateSelection(index: number, candidate: SelectedCandidate | null) {
@@ -64,12 +71,6 @@ export default function ComparePage() {
     setError("")
 
     try {
-      const batchRes = await api.batchCandidates(ids)
-      const nameMap = new Map<string, Candidate>()
-      if (batchRes.success && batchRes.data) {
-        for (const candidate of batchRes.data) nameMap.set(candidate.id, candidate)
-      }
-      setFoundCandidates(nameMap)
       const compareRes = await api.compareCandidates(jdText, ids)
       if (compareRes.success && compareRes.data) {
         setComparison(compareRes.data.comparison)
@@ -80,6 +81,51 @@ export default function ComparePage() {
       setError("Failed to connect to server")
     } finally {
       setLoading(false)
+    }
+  }
+
+  async function handleShortlist(candidateId: string, name: string) {
+    try {
+      const res = await api.updateCandidateStatus(candidateId, "screening")
+      if (res.success) {
+        toast.success(`${name} moved to Screening`)
+      } else {
+        toast.error(res.error || "Failed to shortlist")
+      }
+    } catch {
+      toast.error("Failed to shortlist candidate")
+    }
+  }
+
+  async function handleAddToPool(candidateId: string, name: string) {
+    try {
+      const pools = await api.listTalentPools()
+      if (!pools.success || !pools.data || pools.data.length === 0) {
+        toast.error("No talent pools available. Create one first.")
+        return
+      }
+      const pool = pools.data[0]
+      const res = await api.addCandidateToPool(pool.id, candidateId)
+      if (res.success) {
+        toast.success(`${name} added to ${pool.name}`)
+      } else {
+        toast.error(res.error || "Failed to add to pool")
+      }
+    } catch {
+      toast.error("Failed to add candidate to pool")
+    }
+  }
+
+  async function handleEmail(candidateId: string, name: string) {
+    try {
+      const res = await api.generateEmailTemplate(candidateId)
+      if (res.success && res.data) {
+        toast.success(`Email template generated for ${name}`)
+      } else {
+        toast.error(res.error || "Failed to generate email")
+      }
+    } catch {
+      toast.error("Failed to generate email")
     }
   }
 
@@ -104,8 +150,8 @@ export default function ComparePage() {
               placeholder="Paste job description for comparison context..."
               value={jdText}
               onChange={(e) => setJdText(e.target.value)}
-              rows={2}
-              className="w-full bg-white text-sm text-text-primary placeholder:text-text-muted outline-none rounded-[18px] border border-border pl-10 pr-4 py-3 focus:border-[#111111] focus:shadow-[0_0_0_3px_rgba(17,17,17,0.06)] transition-all resize-none"
+              rows={3}
+              className="w-full bg-white text-sm text-text-primary placeholder:text-text-muted outline-none rounded-[18px] border border-border pl-10 pr-4 py-3 focus:border-[#111111] focus:shadow-[0_0_0_3px_rgba(17,17,17,0.06)] transition-all resize-y min-h-[80px]"
             />
           </div>
         </div>
@@ -141,7 +187,7 @@ export default function ComparePage() {
             {loading ? (
               <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />
             ) : (
-              <GitCompare className="h-3.5 w-3.5 mr-1.5" />
+              <Sparkles className="h-3.5 w-3.5 mr-1.5" />
             )}
             {loading ? "Comparing..." : "Compare"}
           </Button>
@@ -156,20 +202,25 @@ export default function ComparePage() {
       </motion.div>
 
       {loading && (
-        <motion.div variants={itemVariants} className="bg-white rounded-[10px] border border-border p-6 space-y-3">
-          <Skeleton className="h-3 w-full" />
-          <Skeleton className="h-3 w-3/4" />
-          <Skeleton className="h-3 w-1/2" />
-          <Skeleton className="h-3 w-5/6" />
+        <motion.div variants={itemVariants} className="space-y-5">
+          <Skeleton className="h-24 w-full rounded-2xl" />
+          <div className="flex gap-5">
+            <Skeleton className="h-64 flex-1 rounded-2xl" />
+            <Skeleton className="h-64 flex-1 rounded-2xl" />
+          </div>
+          <Skeleton className="h-48 w-full rounded-2xl" />
         </motion.div>
       )}
 
       {comparison && !loading && (
         <motion.div variants={itemVariants}>
           <ComparisonView
-            comparison={comparison}
-            candidates={foundCandidates}
-            candidateIds={selectedCandidates.map((c) => c!.id)}
+            result={comparison}
+            onScheduleInterview={(id, name) => setModalState({ type: "schedule", candidateId: id, candidateName: name })}
+            onAddToPool={handleAddToPool}
+            onEmail={handleEmail}
+            onShortlist={handleShortlist}
+            onReject={(id, name) => setModalState({ type: "reject", candidateId: id, candidateName: name })}
           />
         </motion.div>
       )}
@@ -183,6 +234,18 @@ export default function ComparePage() {
           />
         </motion.div>
       )}
+
+      <ScheduleInterviewModal
+        open={modalState.type === "schedule"}
+        onClose={() => setModalState({ type: null, candidateId: "", candidateName: "" })}
+        candidateId={modalState.candidateId}
+      />
+
+      <RejectModal
+        open={modalState.type === "reject"}
+        onClose={() => setModalState({ type: null, candidateId: "", candidateName: "" })}
+        candidateId={modalState.candidateId}
+      />
     </motion.div>
   )
 }

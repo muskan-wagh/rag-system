@@ -26,7 +26,7 @@ import {
   getCandidateTimeline,
   logEmail,
 } from '@/services/supabase/database';
-import { Candidate } from '@/types';
+import { Candidate, CompareResult } from '@/types';
 import { logger } from '@/utils/logger';
 import { AppError } from '@/middleware/errorHandler';
 import { ErrorCodes } from '@/middleware/errorCodes';
@@ -198,18 +198,88 @@ export const closingStrategyHandler = asyncHandler(async (req: Request, res: Res
   res.status(200).json({ success: true, data: result });
 });
 
+function compareCacheKey(jdText: string, candidateIds: string[]): string {
+  const jdHash = crypto.createHash('md5').update(jdText).digest('hex');
+  const ids = [...candidateIds].sort().join(',');
+  return `compare:${jdHash}:${ids}`;
+}
+
 export const compareCandidatesHandler = asyncHandler(async (req: Request, res: Response) => {
   const { jdText, candidateIds } = req.body;
+  const t0 = Date.now();
 
+  const cacheKey = compareCacheKey(jdText, candidateIds);
+  const cached = await getCached<CompareResult>(cacheKey);
+  if (cached) {
+    res.status(200).json({ success: true, data: { comparison: cached, query: null, cached: true } });
+    logger.info('Compare lifecycle: cache hit', { cacheKey, totalMs: Date.now() - t0 });
+    return;
+  }
+
+  const t1 = Date.now();
   const jd = await parseJD(jdText);
+  logger.info('Compare lifecycle: parseJD done', { ms: Date.now() - t1 });
+
+  const t2 = Date.now();
   const candidates = await retrieveCandidateByIds(candidateIds);
+  logger.info('Compare lifecycle: retrieveCandidates done', { ms: Date.now() - t2, count: candidates.length });
 
   if (candidates.length < 2) {
     throw new AppError('Could not find all specified candidates', 404, ErrorCodes.NOT_FOUND);
   }
 
-  const comparisonText = await compareCandidates(candidates, jd);
-  res.status(200).json({ success: true, data: { comparison: comparisonText, query: jd } });
+  const t3 = Date.now();
+  const comparison = await compareCandidates(candidates, jd, jdText);
+  logger.info('Compare lifecycle: compareCandidates done', {
+    ms: Date.now() - t3,
+    candidateCount: comparison.candidates.length,
+    recommendedId: comparison.recommendation.candidateId,
+  });
+
+  // Enrich comparison with candidate profile metadata (title, company, location)
+  const supabase = getSupabaseClient();
+  const { data: records } = await supabase
+    .from('candidates')
+    .select('id, full_name, current_title, current_company, location')
+    .in('id', candidateIds);
+
+  const recordMap = new Map<string, { current_title?: string; current_company?: string; location?: string }>();
+  if (records) {
+    for (const r of records as Array<{ id: string; current_title?: string; current_company?: string; location?: string }>) {
+      recordMap.set(r.id, r);
+    }
+  }
+
+  for (const c of comparison.candidates) {
+    const record = recordMap.get(c.candidateId);
+    if (record) {
+      c.title = record.current_title || '';
+      c.company = record.current_company || '';
+      c.location = record.location || '';
+    }
+  }
+
+  const t4 = Date.now();
+  const body = { success: true, data: { comparison, query: jd } };
+  res.status(200).json(body);
+
+  logger.info('Compare lifecycle: response sent', { totalMs: Date.now() - t0 });
+
+  // Fire-and-forget: log activity
+  const r = req.recruiter;
+  if (r) {
+    const nameList = comparison.candidates.map(c => c.name).join(', ');
+    logActivity({
+      recruiterId: r.id,
+      actionType: 'candidate_compared',
+      description: `Compared ${comparison.candidates.length} candidates: ${nameList}`,
+      metadata: {
+        candidateIds,
+        recommendedId: comparison.recommendation.candidateId,
+        jdTitle: jd.title,
+      },
+    });
+  }
 });
 
 export const updateCandidateStatusHandler = asyncHandler(async (req: Request, res: Response) => {
@@ -581,6 +651,9 @@ export const getSimilarCandidatesHandler = asyncHandler(async (req: Request, res
 });
 
 export const getAllCandidatesHandler = asyncHandler(async (req: Request, res: Response) => {
+  const recruiter = req.recruiter;
+  const recruiterId = recruiter?.id;
+
   const {
     page = '1',
     limit = '20',
@@ -624,6 +697,7 @@ export const getAllCandidatesHandler = asyncHandler(async (req: Request, res: Re
     sessionId,
     status,
     interviewCandidateIds,
+    recruiterId,
   });
 
   res.status(200).json({ success: true, data: result });

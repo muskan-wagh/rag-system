@@ -100,6 +100,30 @@ const server = app.listen(config.port, () => {
 });
 
 server.timeout = 120000;
+server.headersTimeout = 125000;
+server.requestTimeout = 120000;
+
+server.on('connection', (socket) => {
+  socket.on('error', (err: NodeJS.ErrnoException) => {
+    if (err.code === 'ECONNRESET') {
+      logger.warn('Socket ECONNRESET - proxy likely closed connection', {
+        remoteAddress: socket.remoteAddress,
+        remotePort: socket.remotePort,
+      });
+    } else {
+      logger.warn('Socket error', { code: err.code, message: err.message });
+    }
+  });
+
+  socket.on('close', (hadError: boolean) => {
+    if (hadError) {
+      logger.warn('Socket closed with error', {
+        remoteAddress: socket.remoteAddress,
+        remotePort: socket.remotePort,
+      });
+    }
+  });
+});
 
 server.on('error', (error: NodeJS.ErrnoException) => {
   if (error.code === 'EADDRINUSE') {

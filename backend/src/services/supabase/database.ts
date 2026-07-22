@@ -500,6 +500,7 @@ export async function getAllCandidatesPaginated(params: {
   sessionId?: string;
   status?: string;
   interviewCandidateIds?: string[];
+  recruiterId?: string;
 }): Promise<PaginatedCandidatesResult> {
   const supabase = getSupabaseClient();
   const page = params.page || 1;
@@ -513,6 +514,9 @@ export async function getAllCandidatesPaginated(params: {
     .from('candidates')
     .select('id', { count: 'exact', head: true });
 
+  if (params.recruiterId) {
+    countQuery = countQuery.eq('recruiter_id', params.recruiterId);
+  }
   countQuery = buildStatusFilterParam(params.status)(countQuery);
   if (params.interviewCandidateIds) {
     countQuery = countQuery.in('id', params.interviewCandidateIds);
@@ -531,6 +535,9 @@ export async function getAllCandidatesPaginated(params: {
     .from('candidates')
     .select('id, upload_session_id, full_name, email, current_company, current_title, total_experience_years, resume_file_url, flight_risk, current_status, created_at');
 
+  if (params.recruiterId) {
+    query = query.eq('recruiter_id', params.recruiterId);
+  }
   query = buildStatusFilterParam(params.status)(query);
   if (params.interviewCandidateIds) {
     query = query.in('id', params.interviewCandidateIds);

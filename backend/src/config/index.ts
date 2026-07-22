@@ -89,7 +89,8 @@ export const config = Object.freeze({
 
   openai: {
     apiKey: required("QWEN_API_KEY"),
-    model: optional("QWEN_MODEL", "qwen/qwen3-next-80b-a3b-instruct"),
+    model: optional("QWEN_MODEL", "qwen/qwen-2.5-7b-instruct"),
+    premiumModel: optional("QWEN_PREMIUM_MODEL", "qwen/qwen3-next-80b-a3b-instruct"),
     baseUrl: "https://openrouter.ai/api/v1",
   },
 

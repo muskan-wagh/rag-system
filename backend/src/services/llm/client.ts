@@ -12,6 +12,7 @@ interface LLMRequestOptions {
   temperature?: number;
   maxTokens?: number;
   stream?: boolean;
+  model?: string;
 }
 
 interface LLMResponse {
@@ -44,7 +45,7 @@ const BASE_URL = config.openai.baseUrl;
 async function fetchWithRetry(
   url: string,
   options: RequestInit,
-  retries: number = 3,
+  retries: number = 2,
 ): Promise<Response> {
   for (let attempt = 0; attempt < retries; attempt++) {
     try {
@@ -56,8 +57,8 @@ async function fetchWithRetry(
         continue;
       }
       return response;
-    } catch (error) {
-      if (attempt === retries - 1) throw error;
+    } catch (error: any) {
+      if (error.name === 'AbortError' || attempt === retries - 1) throw error;
       const delay = Math.pow(2, attempt) * 500;
       logger.warn(`Request failed, retrying in ${delay}ms (attempt ${attempt + 1}/${retries})`);
       await new Promise((resolve) => setTimeout(resolve, delay));
@@ -70,26 +71,36 @@ export async function chatCompletion(
   messages: LLMMessage[],
   options: LLMRequestOptions = {},
 ): Promise<LLMResponse> {
-  const { temperature = 0.1, maxTokens = 4096, stream = false } = options;
+  const { temperature = 0.1, maxTokens = 4096, stream = false, model } = options;
+  const resolvedModel = model || config.openai.model;
 
   const startTime = Date.now();
 
-  const response = await fetchWithRetry(`${BASE_URL}/chat/completions`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${config.openai.apiKey}`,
-      'HTTP-Referer': config.clientUrl,
-      'X-Title': 'Candidate Discovery Engine',
-    },
-    body: JSON.stringify({
-      model: config.openai.model,
-      messages,
-      temperature,
-      max_tokens: maxTokens,
-      stream,
-    }),
-  });
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 45_000);
+
+  let response: Response;
+  try {
+    response = await fetchWithRetry(`${BASE_URL}/chat/completions`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${config.openai.apiKey}`,
+        'HTTP-Referer': config.clientUrl,
+        'X-Title': 'Candidate Discovery Engine',
+      },
+      body: JSON.stringify({
+        model: resolvedModel,
+        messages,
+        temperature,
+        max_tokens: maxTokens,
+        stream,
+      }),
+      signal: controller.signal,
+    });
+  } finally {
+    clearTimeout(timeoutId);
+  }
 
   if (!response.ok) {
     const errorBody = await response.text().catch(() => '');
@@ -104,21 +115,23 @@ export async function chatCompletion(
   const data = (await response.json()) as ChatCompletionResponse;
 
   const duration = Date.now() - startTime;
-  logger.debug(`LLM request completed in ${duration}ms`, {
+  const usage = data.usage;
+  logger.info('LLM request completed', {
     model: data.model,
-    usage: data.usage,
+    durationMs: duration,
+    promptTokens: usage.prompt_tokens,
+    completionTokens: usage.completion_tokens,
+    totalTokens: usage.total_tokens,
+    reasoningTokens: (usage as any).completion_tokens_details?.reasoning_tokens ?? 0,
   });
 
   return {
     content: data.choices[0].message.content,
     model: data.model,
     usage: {
-      promptTokens: data.usage.prompt_tokens,
-      completionTokens: data.usage.completion_tokens,
-      totalTokens: data.usage.total_tokens,
+      promptTokens: usage.prompt_tokens,
+      completionTokens: usage.completion_tokens,
+      totalTokens: usage.total_tokens,
     },
   };
 }
-
-
-

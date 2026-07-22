@@ -1,3 +1,48 @@
+export interface ComparisonCandidateScore {
+  overall: number
+  technical: number
+  experience: number
+  education: number
+  culture: number
+  leadership: number
+  communication: number
+}
+
+export interface ComparisonCandidate {
+  candidateId: string
+  name: string
+  title: string
+  company: string
+  location: string
+  experience: number
+  education: { level: string; field: string }
+  skills: string[]
+  scores: ComparisonCandidateScore
+  strengths: string[]
+  weaknesses: string[]
+  missingSkills: string[]
+  risks: string[]
+  verdict: string
+}
+
+export interface ComparisonRecommendation {
+  candidateId: string
+  reasoning: string
+}
+
+export interface ComparisonSkillOverlap {
+  shared: string[]
+  unique: Record<string, string[]>
+}
+
+export interface CompareResult {
+  candidates: ComparisonCandidate[]
+  recommendation: ComparisonRecommendation
+  summary: string
+  interviewQuestions: string[]
+  skillOverlap: ComparisonSkillOverlap
+}
+
 export interface ParsedJD {
   title: string
   skills: string[]

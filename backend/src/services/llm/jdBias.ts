@@ -1,5 +1,10 @@
+import crypto from 'crypto';
 import { chatCompletion } from './client';
 import { logger } from '@/utils/logger';
+import { getCached, setCache } from '@/utils/cache';
+import { extractJson } from '@/utils/parse-llm-json';
+
+const CACHE_TTL = 300_000;
 
 export interface BiasIssue {
   category: string;
@@ -36,24 +41,23 @@ Look for:
 - Cultural bias (culture fit, must speak X dialect)
 - Overly aggressive personality traits`;
 
-function tryParseJSON(raw: string): BiasResult | null {
-  try {
-    return JSON.parse(raw) as BiasResult;
-  } catch {
-    const match = raw.match(/\{[\s\S]*\}/);
-    if (match) {
-      try { return JSON.parse(match[0]) as BiasResult; } catch {}
-    }
-    return null;
-  }
+function biasCacheKey(jdText: string): string {
+  return `bias:${crypto.createHash('md5').update(jdText).digest('hex')}`;
 }
 
 export async function scanBias(jdText: string): Promise<BiasResult> {
-  logger.info('Scanning JD for bias', { textLength: jdText.length });
+  const cacheKey = biasCacheKey(jdText);
+
+  const cached = await getCached<BiasResult>(cacheKey);
+  if (cached) {
+    logger.info('Bias scan cache hit', { cacheKey });
+    return cached;
+  }
+  logger.info('Bias scan cache miss', { cacheKey, textLength: jdText.length });
 
   const truncated = jdText.slice(0, 8000);
 
-  for (let attempt = 0; attempt < 3; attempt++) {
+  for (let attempt = 0; attempt < 2; attempt++) {
     const response = await chatCompletion(
       [
         { role: 'system', content: SYSTEM_PROMPT },
@@ -62,8 +66,9 @@ export async function scanBias(jdText: string): Promise<BiasResult> {
       { temperature: 0.1, maxTokens: 1024 },
     );
 
-    const parsed = tryParseJSON(response.content);
-    if (parsed) {
+    const parsed = extractJson<BiasResult>(response.content);
+    if (parsed && typeof parsed.has_bias === 'boolean') {
+      await setCache(cacheKey, parsed, CACHE_TTL).catch(() => {});
       logger.info('Bias scan complete', { hasBias: parsed.has_bias, issueCount: parsed.issues.length });
       return parsed;
     }
@@ -71,5 +76,7 @@ export async function scanBias(jdText: string): Promise<BiasResult> {
     logger.warn(`Bias scan attempt ${attempt + 1} returned invalid JSON, retrying`);
   }
 
-  return { has_bias: false, issues: [], suggestions: [] };
+  const fallback: BiasResult = { has_bias: false, issues: [], suggestions: [] };
+  await setCache(cacheKey, fallback, CACHE_TTL).catch(() => {});
+  return fallback;
 }

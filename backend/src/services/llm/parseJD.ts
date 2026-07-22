@@ -4,8 +4,8 @@ import { ParsedJD } from '@/types';
 import { logger } from '@/utils/logger';
 import { AppError } from '@/middleware/errorHandler';
 import { ErrorCodes } from '@/middleware/errorCodes';
+import { getCached, setCache } from '@/utils/cache';
 
-const jdCache = new Map<string, { value: ParsedJD; expiry: number }>();
 const CACHE_TTL = 300_000;
 
 const SYSTEM_PROMPT = `You are a job description parser. Extract structured information from job descriptions.
@@ -35,27 +35,34 @@ function tryParseJSON(raw: string): ParsedJD | null {
   }
 }
 
-export async function parseJD(jdText: string): Promise<ParsedJD> {
-  const cacheKey = `jd:${crypto.createHash('md5').update(jdText).digest('hex')}`;
-  const cached = jdCache.get(cacheKey);
-  if (cached && Date.now() < cached.expiry) {
-    return cached.value;
-  }
+function jdCacheKey(jdText: string): string {
+  return `jd:${crypto.createHash('md5').update(jdText).digest('hex')}`;
+}
 
-  for (let attempt = 0; attempt < 3; attempt++) {
+export async function parseJD(jdText: string): Promise<ParsedJD> {
+  const cacheKey = jdCacheKey(jdText);
+
+  const cached = await getCached<ParsedJD>(cacheKey);
+  if (cached) {
+    logger.info('JD cache hit', { cacheKey });
+    return cached;
+  }
+  logger.info('JD cache miss', { cacheKey });
+
+  for (let attempt = 0; attempt < 2; attempt++) {
     const response = await chatCompletion([
       { role: 'system', content: SYSTEM_PROMPT },
       { role: 'user', content: jdText },
-    ], { temperature: 0.1 });
+    ], { temperature: attempt === 0 ? 0.05 : 0.1, maxTokens: 1024 });
 
     const parsed = tryParseJSON(response.content);
     if (parsed) {
-      jdCache.set(cacheKey, { value: parsed, expiry: Date.now() + CACHE_TTL });
+      await setCache(cacheKey, parsed, CACHE_TTL).catch(() => {});
       return parsed;
     }
 
     logger.warn(`JD parse attempt ${attempt + 1} returned invalid JSON, retrying`);
   }
 
-  throw new AppError('Failed to parse JD: LLM returned invalid JSON after 3 attempts', 502, ErrorCodes.AI_ERROR);
+  throw new AppError('Failed to parse JD: LLM returned invalid JSON after 2 attempts', 502, ErrorCodes.AI_ERROR);
 }
