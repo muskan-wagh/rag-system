@@ -8,7 +8,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { ProgressBar } from "@/components/ui/progress-bar"
 import { EmptyState } from "@/components/ui/empty-state"
 import { Badge } from "@/components/ui/badge"
-import { Search, Sparkles, Loader2, SlidersHorizontal, ListFilter, LayoutGrid, X, ArrowUpDown, Brain, FlaskConical, Plus } from "lucide-react"
+import { Search, Sparkles, Loader2, SlidersHorizontal, ListFilter, LayoutGrid, X, ArrowUpDown, Brain, FlaskConical } from "lucide-react"
 import { toast } from "sonner"
 import { useApi } from "@/hooks/use-api"
 import { CandidateCard } from "@/components/candidate-card"
@@ -425,8 +425,6 @@ function CandidatesContent() {
                 {hasResults && (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     {sortedResults.map((result, i) => {
-                      const jdSkillSet = new Set(jdSkills)
-                      const matchedInCard = result.candidate.skills.filter(s => jdSkillSet.has(s)).length
                       return (
                         <div
                           key={result.candidate.id}

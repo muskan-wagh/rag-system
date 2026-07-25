@@ -5,7 +5,6 @@ import { FileText, Award, CheckCircle2, AlertTriangle, MessageSquareText, XCircl
 import type { CompareResult } from "@/lib/api"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { ProgressBar } from "@/components/ui/progress-bar"
 import { cn } from "@/lib/utils"
 
 interface ComparisonResultsProps {
@@ -58,7 +57,7 @@ const containerVariants = {
 
 const itemVariants = {
   hidden: { opacity: 0, y: 16 },
-  visible: { opacity: 1, y: 0, transition: { duration: 0.4, ease: [0.25, 0.1, 0.25, 1] } },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.4, ease: [0.25, 0.1, 0.25, 1] as const } },
 }
 
 export function ComparisonResults({

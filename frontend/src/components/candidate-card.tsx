@@ -8,7 +8,7 @@ import { ScoreRing } from "@/components/ui/score-ring"
 import { Bookmark, GitCompare, Eye, ChevronDown, ChevronUp, Plus, ExternalLink } from "lucide-react"
 import Link from "next/link"
 import { ROUTES, getInitials } from "@/lib/constants"
-import type { RankingResult, ParsedJD } from "@/lib/api"
+import type { RankingResult } from "@/lib/api"
 import { Button } from "@/components/ui/button"
 
 function scoreLabel(score: number) {
