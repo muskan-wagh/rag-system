@@ -12,7 +12,6 @@ import {
   Calendar,
   Settings,
   BarChart3,
-  Brain,
   LogOut,
 } from "lucide-react"
 import { useAuth } from "@clerk/nextjs"
@@ -20,7 +19,7 @@ import { useAuth } from "@clerk/nextjs"
 const mainNav = [
   { href: "/dashboard", label: "Overview", icon: LayoutDashboard },
   { href: "/candidates", label: "Candidates", icon: Users },
-  { href: "/candidates/search", label: "Search", icon: Search },
+  { href: "/candidates/search", label: "AI Search", icon: Search },
   { href: "/pools", label: "Pools", icon: BarChart3 },
   { href: "/compare", label: "Compare", icon: GitCompare },
   { href: "/interview", label: "Interviews", icon: Calendar },
@@ -80,29 +79,6 @@ export function AppSidebar() {
               </Link>
             )
           })}
-        </div>
-
-        <div className="px-3 pb-1.5 pt-6">
-          <p className="px-3 text-[10px] font-medium text-faint uppercase" style={{ letterSpacing: "0.06em", fontFamily: "var(--font-inter)" }}>
-            AI Tools
-          </p>
-        </div>
-        <div className="space-y-0.5 px-3">
-          <Link href="/ai-matching">
-            <div
-              className={cn(
-                "flex items-center gap-3 rounded-[6px] transition-all duration-120 h-[34px] px-3 relative",
-                pathname.startsWith("/ai-matching")
-                  ? "bg-[#F3F4F6] text-ink font-medium shadow-[0_1px_2px_rgba(10,10,10,0.04)]"
-                  : "text-muted font-normal hover:bg-[#F9FAFB]"
-              )}
-              style={{ fontFamily: "var(--font-inter)" }}
-            >
-              {pathname.startsWith("/ai-matching") && <div className="absolute left-[-3px] top-1/2 -translate-y-1/2 w-[3px] h-4 rounded-full bg-info" />}
-              <Brain className="size-4" strokeWidth={1.5} style={{ color: pathname.startsWith("/ai-matching") ? "var(--ink)" : "var(--faint)" }} />
-              <span className="text-[13px]">AI Matching</span>
-            </div>
-          </Link>
         </div>
 
         <div className="px-3 pb-1.5 pt-6">

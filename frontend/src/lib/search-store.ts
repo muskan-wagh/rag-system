@@ -18,12 +18,15 @@ export function isCacheValid(timestamp: number | null): boolean {
   return Date.now() - timestamp < CACHE_TTL
 }
 
+export type SearchViewMode = "results" | "workspace"
+
 interface SearchState {
   jdText: string
   parsedJD: ParsedJD | null
   results: RankingResult[]
   activeTab: "results" | "analytics"
   viewMode: "list" | "grid"
+  resultViewMode: SearchViewMode
   filters: SearchFilters
   filterFormValues: FilterFormValues
   showMobileFilters: boolean
@@ -37,6 +40,7 @@ interface SearchState {
   setError: (error: string) => void
   setActiveTab: (tab: "results" | "analytics") => void
   setViewMode: (mode: "list" | "grid") => void
+  setResultViewMode: (mode: SearchViewMode) => void
   setFilters: (filters: SearchFilters) => void
   setFilterFormValues: (values: FilterFormValues) => void
   setShowMobileFilters: (show: boolean) => void
@@ -58,6 +62,7 @@ export const useSearchStore = create<SearchState>()(
       results: [],
       activeTab: "results",
       viewMode: "list",
+      resultViewMode: "results",
       filters: {},
       filterFormValues: { ...initialFilterFormValues },
       showMobileFilters: false,
@@ -72,6 +77,7 @@ export const useSearchStore = create<SearchState>()(
       setError: (error) => set({ error }),
       setActiveTab: (activeTab) => set({ activeTab }),
       setViewMode: (viewMode) => set({ viewMode }),
+      setResultViewMode: (resultViewMode) => set({ resultViewMode }),
       setFilters: (filters) => set({ filters }),
       setFilterFormValues: (filterFormValues) => set({ filterFormValues }),
       setShowMobileFilters: (showMobileFilters) => set({ showMobileFilters }),
@@ -82,6 +88,7 @@ export const useSearchStore = create<SearchState>()(
           results: [],
           activeTab: "results",
           viewMode: "list",
+          resultViewMode: "results",
           filters: {},
           filterFormValues: { ...initialFilterFormValues },
           lastSearchTimestamp: null,
@@ -109,6 +116,7 @@ export const useSearchStore = create<SearchState>()(
         parsedJD: state.parsedJD,
         filterFormValues: state.filterFormValues,
         lastSearchTimestamp: state.lastSearchTimestamp,
+        resultViewMode: state.resultViewMode,
       }),
     },
   ),

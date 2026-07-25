@@ -20,6 +20,7 @@ import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Dialog, DialogContent } from "@/components/ui/dialog"
+import { StatusDot } from "@/components/ui/status-dot"
 
 const PAGE_SIZE = 20
 
@@ -50,17 +51,6 @@ function getScoreLabel(score?: number) {
   if (score >= 60) return "Strong"
   if (score >= 40) return "Fair"
   return "Low"
-}
-
-function StatusDot({ status }: { status?: string }) {
-  const s = (status || "applied").toLowerCase()
-  const color =
-    s === "applied" ? "#9CA3AF" :
-    s === "screening" || s === "interview scheduled" || s === "interview completed" || s === "technical round" || s === "hr round" ? "#1E40AF" :
-    s === "rejected" ? "#DC2626" :
-    s === "hired" || s === "offered" ? "#16A34A" :
-    "#D97706"
-  return <span className="inline-block rounded-full shrink-0" style={{ width: 6, height: 6, backgroundColor: color }} />
 }
 
 function CandidatesContent() {

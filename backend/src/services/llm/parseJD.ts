@@ -29,7 +29,22 @@ Rules:
 
 function tryParseJSON(raw: string): ParsedJD | null {
   try {
-    return JSON.parse(raw) as ParsedJD;
+    const obj = JSON.parse(raw);
+    if (!obj || typeof obj !== 'object') return null;
+    return {
+      title: typeof obj.title === 'string' ? obj.title : '',
+      skills: Array.isArray(obj.skills) ? obj.skills : [],
+      experience: {
+        min: typeof obj.experience?.min === 'number' ? obj.experience.min : 0,
+        max: typeof obj.experience?.max === 'number' ? obj.experience.max : 0,
+      },
+      education: {
+        level: typeof obj.education?.level === 'string' ? obj.education.level : '',
+        field: typeof obj.education?.field === 'string' ? obj.education.field : '',
+      },
+      responsibilities: Array.isArray(obj.responsibilities) ? obj.responsibilities : [],
+      requirements: Array.isArray(obj.requirements) ? obj.requirements : [],
+    } as ParsedJD;
   } catch {
     return null;
   }

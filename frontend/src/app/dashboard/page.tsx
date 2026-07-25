@@ -21,6 +21,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Skeleton } from "@/components/ui/skeleton"
+import { StatusDot } from "@/components/ui/status-dot"
 
 import { NeedsReviewCard } from "@/components/dashboard/needs-review-card"
 import { AiRecommendations } from "@/components/dashboard/ai-recommendations"
@@ -59,19 +60,7 @@ interface BiasIssue {
   suggestion: string
 }
 
-function StatusDot({ status }: { status: string }) {
-  const s = status.toLowerCase()
-  const color =
-    s === "applied" ? "#9CA3AF" :
-    s === "screening" || s === "interview scheduled" || s === "interview completed" || s === "technical round" || s === "hr round" ? "#1E40AF" :
-    s === "rejected" || s === "high risk" ? "#DC2626" :
-    s === "hired" ? "#16A34A" :
-    s === "offered" || s === "pending offer" ? "#D97706" :
-    "#6B6B6B"
-  return (
-    <span className="inline-block rounded-full shrink-0" style={{ width: 6, height: 6, backgroundColor: color, marginRight: 8 }} />
-  )
-}
+
 
 function DisplayNumber({ value }: { value: number }) {
   return <span className="font-data">{value.toLocaleString()}</span>

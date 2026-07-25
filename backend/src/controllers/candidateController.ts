@@ -236,16 +236,16 @@ export const compareCandidatesHandler = asyncHandler(async (req: Request, res: R
     recommendedId: comparison.recommendation.candidateId,
   });
 
-  // Enrich comparison with candidate profile metadata (title, company, location)
+  // Enrich comparison with candidate profile metadata (name, title, company, location) from DB
   const supabase = getSupabaseClient();
   const { data: records } = await supabase
     .from('candidates')
     .select('id, full_name, current_title, current_company, location')
     .in('id', candidateIds);
 
-  const recordMap = new Map<string, { current_title?: string; current_company?: string; location?: string }>();
+  const recordMap = new Map<string, { full_name?: string; current_title?: string; current_company?: string; location?: string }>();
   if (records) {
-    for (const r of records as Array<{ id: string; current_title?: string; current_company?: string; location?: string }>) {
+    for (const r of records as Array<{ id: string; full_name?: string; current_title?: string; current_company?: string; location?: string }>) {
       recordMap.set(r.id, r);
     }
   }
@@ -253,11 +253,35 @@ export const compareCandidatesHandler = asyncHandler(async (req: Request, res: R
   for (const c of comparison.candidates) {
     const record = recordMap.get(c.candidateId);
     if (record) {
+      c.name = record.full_name || c.name;
       c.title = record.current_title || '';
       c.company = record.current_company || '';
       c.location = record.location || '';
     }
   }
+
+  // Strip markdown from LLM-generated text
+  const stripMarkdown = (text: string) =>
+    text
+      .replace(/#{1,6}\s+/g, '')
+      .replace(/\*\*([^*]+)\*\*/g, '$1')
+      .replace(/\*([^*]+)\*/g, '$1')
+      .replace(/`([^`]+)`/g, '$1')
+      .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+      .replace(/>\s+/g, '')
+      .replace(/[-*+]\s+/g, '')
+      .replace(/\n{3,}/g, '\n\n')
+      .trim();
+
+  comparison.summary = stripMarkdown(comparison.summary);
+  for (const c of comparison.candidates) {
+    c.verdict = stripMarkdown(c.verdict);
+    c.strengths = c.strengths.map(stripMarkdown);
+    c.weaknesses = c.weaknesses.map(stripMarkdown);
+    c.risks = c.risks.map(stripMarkdown);
+  }
+  comparison.interviewQuestions = comparison.interviewQuestions.map(stripMarkdown);
+  comparison.recommendation.reasoning = stripMarkdown(comparison.recommendation.reasoning);
 
   const t4 = Date.now();
   const body = { success: true, data: { comparison, query: jd } };
