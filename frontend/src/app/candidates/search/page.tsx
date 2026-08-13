@@ -192,7 +192,7 @@ function CandidatesContent() {
           className="mb-6"
         >
           <div className="flex items-center gap-3 mb-1">
-            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary shadow-sm">
+            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary-solid shadow-sm">
               {resultViewMode === "results" ? (
                 <Brain className="h-3.5 w-3.5 text-white" />
               ) : (
@@ -218,7 +218,7 @@ function CandidatesContent() {
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.05 }}
-          className="bg-white rounded-2xl p-4 border border-border mb-4 card-hover"
+          className="bg-surface rounded-2xl p-4 border border-border mb-4 card-hover"
         >
           <div className="flex flex-col gap-3">
             <div className="relative">
@@ -238,7 +238,7 @@ function CandidatesContent() {
                   <button
                     key={p}
                     onClick={() => { setJdText(p); performSearch(p) }}
-                    className="rounded-full border border-border bg-white px-2.5 py-1 text-[11px] text-muted-foreground hover:text-foreground hover:border-primary/20 transition-all"
+                    className="rounded-full border border-border bg-surface px-2.5 py-1 text-[11px] text-muted-foreground hover:text-foreground hover:border-primary/20 transition-all"
                   >
                     {p}
                   </button>
@@ -255,7 +255,7 @@ function CandidatesContent() {
                 <Button
                   onClick={handleSearch}
                   disabled={loading || !jdText.trim()}
-                  className="bg-primary text-white hover:bg-primary/90 h-8 px-4 text-xs shadow-sm"
+                  className="bg-primary-solid text-white hover:bg-primary-solid/90 h-8 px-4 text-xs shadow-sm"
                 >
                   {loading ? (
                     <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />
@@ -290,7 +290,7 @@ function CandidatesContent() {
                   className={cn(
                     "flex items-center gap-1.5 rounded-md px-3 py-1 text-xs font-medium transition-all",
                     resultViewMode === "results"
-                      ? "bg-white text-foreground shadow-sm"
+                      ? "bg-surface text-foreground shadow-sm"
                       : "text-muted-foreground hover:text-foreground"
                   )}
                 >
@@ -302,7 +302,7 @@ function CandidatesContent() {
                   className={cn(
                     "flex items-center gap-1.5 rounded-md px-3 py-1 text-xs font-medium transition-all",
                     resultViewMode === "workspace"
-                      ? "bg-white text-foreground shadow-sm"
+                      ? "bg-surface text-foreground shadow-sm"
                       : "text-muted-foreground hover:text-foreground"
                   )}
                 >
@@ -389,7 +389,7 @@ function CandidatesContent() {
             {loading && (
               <div className={resultViewMode === "results" ? "grid grid-cols-1 md:grid-cols-2 gap-3" : "space-y-3"}>
                 {Array.from({ length: resultViewMode === "results" ? 4 : 3 }).map((_, i) => (
-                  <div key={i} className="bg-white rounded-2xl p-5 border border-border">
+                  <div key={i} className="bg-surface rounded-2xl p-5 border border-border">
                     <div className="flex gap-4">
                       <Skeleton className="h-12 w-12 rounded-xl shrink-0" />
                       <div className="flex-1 space-y-3">
@@ -445,7 +445,7 @@ function CandidatesContent() {
                 )}
 
                 {!loading && !error && sortedResults.length === 0 && results.length > 0 && (
-                  <div className="bg-white rounded-2xl p-6 border border-border text-center">
+                  <div className="bg-surface rounded-2xl p-6 border border-border text-center">
                     <p className="text-sm text-muted-foreground">All candidates filtered out. Try lowering the minimum score.</p>
                   </div>
                 )}
@@ -550,7 +550,7 @@ function CandidatesContent() {
 
                 {activeTab === "analytics" && results.length > 0 && (
                   <div className="space-y-4">
-                    <div className="bg-white rounded-2xl p-5 border border-border">
+                    <div className="bg-surface rounded-2xl p-5 border border-border">
                       <h3 className="text-sm font-medium text-foreground mb-4">Analytics Overview</h3>
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                         {analyticsStats.map((stat) => (
@@ -562,7 +562,7 @@ function CandidatesContent() {
                       </div>
                     </div>
 
-                    <div className="bg-white rounded-2xl p-5 border border-border">
+                    <div className="bg-surface rounded-2xl p-5 border border-border">
                       <h3 className="text-sm font-medium text-foreground mb-4">Score Breakdown</h3>
                       <div className="grid grid-cols-2 gap-6">
                         <div className="space-y-3">
@@ -616,7 +616,7 @@ function CandidatesContent() {
               animate={{ x: 0 }}
               exit={{ x: "-100%" }}
               transition={{ type: "spring", damping: 25, stiffness: 200 }}
-              className="fixed left-0 top-0 bottom-0 w-72 z-50 bg-white border-r border-border p-6 overflow-y-auto"
+              className="fixed left-0 top-0 bottom-0 w-72 z-50 bg-surface border-r border-border p-6 overflow-y-auto"
             >
               <div className="flex items-center justify-between mb-6">
                 <h3 className="text-sm font-medium text-foreground">Filters</h3>

@@ -13,9 +13,9 @@ export function SimilarCandidatesBar({ candidates }: SimilarCandidatesBarProps) 
   if (candidates.length === 0) return null
 
   return (
-    <div className="bg-white rounded-xl border border-border p-5">
+    <div className="bg-surface rounded-xl border border-border p-5">
       <div className="flex items-center gap-2 mb-3">
-        <Users className="h-4 w-4 text-[#1F4770]" />
+        <Users className="h-4 w-4 text-brand" />
         <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Similar Candidates</h3>
       </div>
 
@@ -26,7 +26,7 @@ export function SimilarCandidatesBar({ candidates }: SimilarCandidatesBarProps) 
             href={ROUTES.candidateDetail(c.id)}
             className="flex items-center gap-2 shrink-0 px-3 py-2 rounded-lg border border-border hover:bg-muted/50 transition-colors"
           >
-            <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-[#1F4770]/10 text-[#1F4770] text-xs font-medium">
+            <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-brand/10 text-brand text-xs font-medium">
               {c.name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2)}
             </div>
             <div className="min-w-0">

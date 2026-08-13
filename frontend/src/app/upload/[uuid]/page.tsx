@@ -48,13 +48,13 @@ export default function UploadPage() {
 
   if (uploaded) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-green-50 to-white flex items-center justify-center p-4">
+      <div className="min-h-[calc(100vh-0.75rem)] bg-gradient-to-b from-green-50 to-white flex items-center justify-center p-4">
         <motion.div
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
           className="max-w-md w-full text-center"
         >
-          <div className="bg-white rounded-2xl p-10 border border-green-200 shadow-lg">
+          <div className="bg-surface rounded-2xl p-10 border border-green-200 shadow-lg">
             <div className="flex justify-center mb-4">
               <div className="h-16 w-16 rounded-full bg-green-100 flex items-center justify-center">
                 <CheckCircle className="h-8 w-8 text-green-600" />
@@ -74,13 +74,13 @@ export default function UploadPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-[#170C2B]/5 to-white flex items-center justify-center p-4">
+    <div className="min-h-[calc(100vh-0.75rem)] bg-gradient-to-b from-[#170C2B]/5 to-white flex items-center justify-center p-4">
       <motion.div
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
         className="max-w-lg w-full"
       >
-        <div className="bg-white rounded-2xl p-8 border border-border shadow-sm">
+        <div className="bg-surface rounded-2xl p-8 border border-border shadow-sm">
           <div className="flex items-center gap-3 mb-6">
             <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center">
               <FileText className="h-5 w-5 text-primary" />
@@ -131,7 +131,7 @@ export default function UploadPage() {
           <button
             onClick={handleUpload}
             disabled={!file || uploading}
-            className="mt-5 w-full flex items-center justify-center gap-2 h-11 rounded-xl bg-primary text-white text-sm font-medium hover:bg-primary/90 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            className="mt-5 w-full flex items-center justify-center gap-2 h-11 rounded-xl bg-primary-solid text-white text-sm font-medium hover:bg-primary-solid/90 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {uploading ? (
               <>

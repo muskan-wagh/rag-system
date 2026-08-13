@@ -47,7 +47,7 @@ function DashboardMockup() {
         className="relative z-10"
       >
         <div className="rounded-xl overflow-hidden border border-border bg-surface">
-          <div className="flex items-center gap-1.5 px-4 py-3 border-b border-border bg-[#FAFAFA]">
+          <div className="flex items-center gap-1.5 px-4 py-3 border-b border-border bg-canvas">
             <div className="flex gap-1.5">
               <div className="w-2.5 h-2.5 rounded-full bg-border" />
               <div className="w-2.5 h-2.5 rounded-full bg-border" />
@@ -68,7 +68,7 @@ function DashboardMockup() {
                 { label: "Interviews", value: "18" },
                 { label: "Hired", value: "12" },
               ].map((stat) => (
-                <div key={stat.label} className="rounded-lg p-3 bg-[#FAFAFA] border border-border">
+                <div key={stat.label} className="rounded-lg p-3 bg-canvas border border-border">
                   <p className="font-data text-lg font-medium text-ink">{stat.value}</p>
                   <p className="text-[10px] text-faint uppercase mt-0.5" style={{ letterSpacing: "0.04em", fontFamily: "var(--font-inter)" }}>{stat.label}</p>
                 </div>
@@ -82,7 +82,7 @@ function DashboardMockup() {
                 { name: "Emily Zhao", role: "ML Engineer", skills: "Python · TF · 4yrs", score: 88 },
                 { name: "David Park", role: "Backend Engineer", skills: "Go · AWS · 7yrs", score: 84 },
               ].map((c) => (
-                <div key={c.name} className="rounded-lg px-4 py-3 bg-[#FAFAFA] border border-border hover:border-border-hover transition-all duration-120">
+                <div key={c.name} className="rounded-lg px-4 py-3 bg-canvas border border-border hover:border-border-hover transition-all duration-120">
                   <div className="flex items-center gap-3">
                     <ScoreRing value={c.score} />
                     <div className="flex-1 min-w-0">
@@ -92,7 +92,7 @@ function DashboardMockup() {
                       </div>
                       <p className="text-xs text-faint mt-0.5" style={{ fontFamily: "var(--font-inter)" }}>{c.skills} — <span className="font-data text-ink font-medium">{c.score}%</span></p>
                     </div>
-                    <div className="flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-medium text-ink bg-[#F3F4F6]" style={{ fontFamily: "var(--font-inter)" }}>
+                    <div className="flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-medium text-ink bg-surface-secondary" style={{ fontFamily: "var(--font-inter)" }}>
                       <Sparkles className="h-2.5 w-2.5" />
                       Match
                     </div>
@@ -139,7 +139,7 @@ export function LandingHero() {
             className="max-w-xl"
           >
             <motion.div variants={itemVariants}>
-              <div className="inline-flex items-center gap-1.5 rounded-[6px] bg-[#F3F4F6] px-3 py-1 text-xs font-medium text-muted mb-6" style={{ fontFamily: "var(--font-inter)" }}>
+              <div className="inline-flex items-center gap-1.5 rounded-[6px] bg-surface-secondary px-3 py-1 text-xs font-medium text-muted mb-6" style={{ fontFamily: "var(--font-inter)" }}>
                 <Sparkles className="h-3 w-3 text-ink" />
                 AI-Powered Recruitment Engine
               </div>

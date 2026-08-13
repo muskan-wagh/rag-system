@@ -15,6 +15,7 @@ import {
   LogOut,
 } from "lucide-react"
 import { useAuth } from "@clerk/nextjs"
+import { ThemeToggle } from "@/components/theme-toggle"
 
 const mainNav = [
   { href: "/dashboard", label: "Overview", icon: LayoutDashboard },
@@ -44,7 +45,7 @@ export function AppSidebar() {
   }
 
   return (
-    <aside className="fixed left-0 top-0 bottom-0 z-40 flex flex-col bg-surface border-r border-border" style={{ width: 220 }}>
+    <aside className="fixed left-0 top-3 bottom-0 z-40 flex flex-col bg-surface border-r border-border" style={{ width: 240 }}>
       <div className="px-4 pb-6 pt-5">
         <span className="text-base font-medium text-ink" style={{ fontFamily: "var(--font-inter)", letterSpacing: "-0.01em" }}>
           RecruitIQ
@@ -67,8 +68,8 @@ export function AppSidebar() {
                     "flex items-center gap-3 rounded-[6px] transition-all duration-120 relative",
                     "h-[34px] px-3",
                     active
-                      ? "bg-[#F3F4F6] text-ink font-medium shadow-[0_1px_2px_rgba(10,10,10,0.04)]"
-                      : "text-muted font-normal hover:bg-[#F9FAFB]"
+                      ? "bg-surface-secondary text-ink font-medium shadow-[0_1px_2px_rgba(10,10,10,0.04)]"
+                      : "text-muted font-normal hover:bg-hover-tone"
                   )}
                   style={{ fontFamily: "var(--font-inter)" }}
                 >
@@ -95,8 +96,8 @@ export function AppSidebar() {
                   className={cn(
                     "flex items-center gap-3 rounded-[6px] transition-all duration-120 h-[34px] px-3 relative",
                     active
-                      ? "bg-[#F3F4F6] text-ink font-medium shadow-[0_1px_2px_rgba(10,10,10,0.04)]"
-                      : "text-muted font-normal hover:bg-[#F9FAFB]"
+                      ? "bg-surface-secondary text-ink font-medium shadow-[0_1px_2px_rgba(10,10,10,0.04)]"
+                      : "text-muted font-normal hover:bg-hover-tone"
                   )}
                   style={{ fontFamily: "var(--font-inter)" }}
                 >
@@ -112,7 +113,7 @@ export function AppSidebar() {
 
       <div className="border-t border-border px-4 py-3">
         <div className="flex items-center gap-3">
-          <div className="size-8 rounded-full bg-[#E5E7EB] flex items-center justify-center shrink-0" style={{ fontFamily: "var(--font-inter)" }}>
+          <div className="size-8 rounded-full bg-soft flex items-center justify-center shrink-0" style={{ fontFamily: "var(--font-inter)" }}>
             <span className="text-[12px] font-medium text-muted">
               {(user?.firstName?.[0] || user?.primaryEmailAddress?.emailAddress?.[0] || "U").toUpperCase()}
             </span>
@@ -126,14 +127,17 @@ export function AppSidebar() {
             </p>
           </div>
         </div>
-        <button
-          onClick={() => signOut({ redirectUrl: "/" })}
-          className="flex w-full items-center gap-3 rounded-[6px] px-3 py-1.5 mt-2 text-[12px] font-normal text-muted hover:text-ink hover:bg-[#F9FAFB] transition-all duration-120"
-          style={{ fontFamily: "var(--font-inter)" }}
-        >
-          <LogOut className="size-[14px]" strokeWidth={1.5} />
-          Sign Out
-        </button>
+        <div className="mt-2 flex items-center justify-between">
+          <button
+            onClick={() => signOut({ redirectUrl: "/" })}
+            className="flex items-center gap-2 rounded-[6px] px-2 py-1.5 text-[12px] font-normal text-muted hover:text-ink hover:bg-hover-tone transition-all duration-120"
+            style={{ fontFamily: "var(--font-inter)" }}
+          >
+            <LogOut className="size-[14px]" strokeWidth={1.5} />
+            Sign Out
+          </button>
+          <ThemeToggle className="h-7 w-7" />
+        </div>
       </div>
     </aside>
   )

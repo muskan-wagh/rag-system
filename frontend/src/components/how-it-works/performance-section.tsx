@@ -62,7 +62,7 @@ export function PerformanceSection() {
               whileInView={{ opacity: 1, scale: 1 }}
               viewport={{ once: true }}
               transition={{ delay: i * 0.06 }}
-              className="bg-white rounded-xl border border-border p-4 md:p-5 text-center card-hover hover:border-primary/20 hover:shadow-sm"
+              className="bg-surface rounded-xl border border-border p-4 md:p-5 text-center card-hover hover:border-primary/20 hover:shadow-sm"
             >
               <div className="flex justify-center mb-3">
                 <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10">

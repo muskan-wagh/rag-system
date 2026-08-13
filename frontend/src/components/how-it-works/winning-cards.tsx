@@ -71,7 +71,7 @@ export function WinningCards() {
               whileHover={{ y: -6 }}
               className="group card-hover"
             >
-              <div className="relative bg-white rounded-2xl border border-border p-6 h-full flex flex-col">
+              <div className="relative bg-surface rounded-2xl border border-border p-6 h-full flex flex-col">
                 <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-primary shadow-sm group-hover:shadow-md transition-shadow">
                   <card.icon className="h-5 w-5 text-white" />
                 </div>

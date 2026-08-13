@@ -13,7 +13,9 @@
   --color-primary: var(--ink);
   --color-primary-hover: var(--ink-hover);
   --color-primary-foreground: #FFFFFF;
-  --color-secondary: #F3F4F6;
+  --color-primary-solid: var(--primary-solid);
+  --color-primary-solid-hover: var(--primary-solid-hover);
+  --color-secondary: var(--surface-secondary);
   --color-secondary-foreground: var(--ink);
   --color-muted: var(--muted);
   --color-muted-foreground: var(--muted);
@@ -35,7 +37,7 @@
   --color-chart-primary: var(--ink);
   --color-chart-secondary: var(--border);
   --color-surface: var(--surface);
-  --color-surface-secondary: #F3F4F6;
+  --color-surface-secondary: var(--surface-secondary);
   --color-text-primary: var(--ink);
   --color-text-secondary: var(--muted);
   --color-text-muted: var(--faint);
@@ -43,9 +45,15 @@
   --color-signal-red: var(--danger);
   --color-signal-green: var(--success);
   --color-signal-amber: var(--warning);
+  --color-ink: var(--ink);
+  --color-canvas: var(--canvas);
+  --color-hover-tone: var(--hover-tone);
+  --color-soft: var(--soft);
+  --color-track: var(--track);
+  --color-brand: var(--brand);
   --radius-sm: 6px;
   --radius-md: 8px;
-  --radius-lg: 10px;
+  --radius-lg: 12px;
   --radius-xl: 12px;
   --radius-2xl: 12px;
   --font-sans: var(--font-inter);
@@ -55,21 +63,84 @@
 :root {
   --canvas: #FAFAFA;
   --surface: #FFFFFF;
+  --surface-secondary: #F3F4F6;
+  --hover-tone: #F9FAFB;
+  --soft: #E5E7EB;
+  --track: #E2E2E0;
   --border: #E2E2E0;
   --border-hover: #D1D1CE;
   --ink: #0A0A0A;
   --ink-hover: #262626;
+  --primary-solid: #0A0A0A;
+  --primary-solid-hover: #262626;
   --muted: #6B6B6B;
   --faint: #9CA3AF;
   --danger: #DC2626;
   --success: #16A34A;
   --warning: #D97706;
   --info: #1E40AF;
+  --brand: #1F4770;
+  --background: var(--canvas);
+  --foreground: var(--ink);
+  --card: var(--surface);
+  --card-foreground: var(--ink);
+  --primary: var(--ink);
+  --primary-foreground: #FFFFFF;
+  --secondary: var(--surface-secondary);
+  --secondary-foreground: var(--ink);
+  --muted-foreground: var(--muted);
+  --accent: var(--ink);
+  --accent-foreground: var(--ink);
+  --border-strong: var(--border-hover);
+  --input: var(--border);
+  --ring: var(--ink);
+}
+
+.dark {
+  --canvas: #000000;
+  --surface: #0A0A0A;
+  --surface-secondary: #1A1A1A;
+  --hover-tone: #141414;
+  --soft: #232323;
+  --track: #2A2A2A;
+  --border: #1F1F1F;
+  --border-hover: #2E2E2E;
+  --ink: #F5F5F5;
+  --ink-hover: #D4D4D4;
+  --primary-solid: #1A1A1A;
+  --primary-solid-hover: #262626;
+  --muted: #A0A0A0;
+  --faint: #6E6E6E;
+  --danger: #E5484D;
+  --success: #30A46C;
+  --warning: #FFB224;
+  --info: #3E63DD;
+  --brand: #5E8FC4;
+  --background: var(--canvas);
+  --foreground: var(--ink);
+  --card: var(--surface);
+  --card-foreground: var(--ink);
+  --primary: var(--ink);
+  --primary-foreground: #0A0A0A;
+  --secondary: var(--surface-secondary);
+  --secondary-foreground: var(--ink);
+  --muted-foreground: var(--muted);
+  --accent: var(--ink);
+  --accent-foreground: var(--ink);
+  --border-strong: var(--border-hover);
+  --input: var(--border);
+  --ring: var(--ink);
 }
 
 @layer base {
   * {
     @apply border-border;
+  }
+  html {
+    font-feature-settings: "rlig" 1, "calt" 0, "ss11" 1;
+    text-rendering: optimizeLegibility;
+    font-synthesis: none;
+    -webkit-text-size-adjust: 100%;
   }
   body {
     @apply bg-background text-foreground;
@@ -80,6 +151,9 @@
   }
   ::selection {
     background: rgba(10, 10, 10, 0.08);
+  }
+  .dark ::selection {
+    background: rgba(245, 245, 245, 0.12);
   }
   ::-webkit-scrollbar {
     width: 4px;
@@ -129,4 +203,14 @@
 @utility font-data {
   font-family: var(--font-jetbrains-mono), "SF Mono", Monaco, "Cascadia Code", monospace;
   font-variant-numeric: tabular-nums;
+}
+@utility grid-bg {
+  background-image:
+    linear-gradient(to right, color-mix(in srgb, var(--border) 45%, transparent) 1px, transparent 1px),
+    linear-gradient(to bottom, color-mix(in srgb, var(--border) 45%, transparent) 1px, transparent 1px);
+  background-size: 32px 32px;
+}
+@utility noise-bg {
+  background-image: radial-gradient(circle, color-mix(in srgb, var(--border) 55%, transparent) 1px, transparent 1px);
+  background-size: 8px 8px;
 }

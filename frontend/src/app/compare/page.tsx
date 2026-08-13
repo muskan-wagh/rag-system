@@ -141,7 +141,7 @@ export default function ComparePage() {
         <p className="text-sm text-text-secondary mt-1">Side-by-side AI-powered candidate comparison</p>
       </motion.div>
 
-      <motion.div variants={itemVariants} className="bg-white rounded-[10px] border border-border shadow-none p-6 space-y-5">
+      <motion.div variants={itemVariants} className="bg-surface rounded-[10px] border border-border shadow-none p-6 space-y-5">
         <div>
           <label className="text-xs font-medium text-text-secondary mb-2 block">Job Description</label>
           <div className="relative">
@@ -151,7 +151,7 @@ export default function ComparePage() {
               value={jdText}
               onChange={(e) => setJdText(e.target.value)}
               rows={3}
-              className="w-full bg-white text-sm text-text-primary placeholder:text-text-muted outline-none rounded-[18px] border border-border pl-10 pr-4 py-3 focus:border-[#111111] focus:shadow-[0_0_0_3px_rgba(17,17,17,0.06)] transition-all resize-y min-h-[80px]"
+              className="w-full bg-surface text-sm text-text-primary placeholder:text-text-muted outline-none rounded-[18px] border border-border pl-10 pr-4 py-3 focus:border-ink focus:shadow-[0_0_0_3px_rgba(17,17,17,0.06)] transition-all resize-y min-h-[80px]"
             />
           </div>
         </div>
@@ -171,7 +171,7 @@ export default function ComparePage() {
                 <button onClick={() => removeRow(index)}
                   className="flex h-8 w-8 items-center justify-center rounded-full hover:bg-surface-secondary transition-colors"
                 >
-                  <Trash2 className="h-3.5 w-3.5 text-text-muted hover:text-[#EF4444]" strokeWidth={1.5} />
+                  <Trash2 className="h-3.5 w-3.5 text-text-muted hover:text-danger" strokeWidth={1.5} />
                 </button>
               )}
             </div>
@@ -183,7 +183,7 @@ export default function ComparePage() {
             <Plus className="mr-1.5 h-3.5 w-3.5" />
             Add Candidate
           </Button>
-          <Button onClick={handleCompare} disabled={loading || !allSelected} size="sm" className="ml-auto bg-[#111111] text-white hover:bg-[#2A2A2A]">
+          <Button onClick={handleCompare} disabled={loading || !allSelected} size="sm" className="ml-auto bg-primary-solid text-white hover:bg-primary-solid-hover">
             {loading ? (
               <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />
             ) : (
@@ -194,8 +194,8 @@ export default function ComparePage() {
         </div>
 
         {error && (
-          <p className="text-xs text-[#EF4444] flex items-center gap-1.5">
-            <span className="inline-block h-1 w-1 rounded-full bg-[#EF4444]" />
+          <p className="text-xs text-danger flex items-center gap-1.5">
+            <span className="inline-block h-1 w-1 rounded-full bg-danger" />
             {error}
           </p>
         )}

@@ -8,7 +8,10 @@ const SWR_OPTIONS = {
   revalidateOnFocus: false,
   revalidateOnReconnect: false,
   dedupingInterval: 30_000,
-  refreshInterval: 30_000,
+  refreshInterval: () =>
+    typeof document !== "undefined" && document.visibilityState === "visible"
+      ? 30_000
+      : 0,
   errorRetryCount: 2,
   keepPreviousData: true,
 }

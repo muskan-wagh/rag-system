@@ -57,7 +57,7 @@ export function RecentActivity({ items }: { items: RecentActivityItem[] }) {
       {items.length === 0 ? (
         <div className="bg-surface border border-border rounded-xl px-6 flex items-center justify-center min-h-[180px]">
           <div className="flex flex-col items-center text-center">
-            <div className="h-9 w-9 rounded-[10px] bg-[#F3F4F6] flex items-center justify-center mb-2.5">
+            <div className="h-9 w-9 rounded-[10px] bg-surface-secondary flex items-center justify-center mb-2.5">
               <History className="h-4 w-4 text-info/40" strokeWidth={1.5} />
             </div>
             <p className="text-[13px] font-medium text-ink" style={{ fontFamily: "var(--font-inter)" }}>No activity yet</p>
@@ -72,9 +72,9 @@ export function RecentActivity({ items }: { items: RecentActivityItem[] }) {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ delay: i * 0.03, duration: 0.3 }}
-              className="flex items-center gap-3 px-5 py-3 hover:bg-[#F9FAFB] transition-colors duration-120"
+              className="flex items-center gap-3 px-5 py-3 hover:bg-hover-tone transition-colors duration-120"
             >
-              <div className="size-7 rounded-full bg-[#F3F4F6] flex items-center justify-center shrink-0 text-muted">
+              <div className="size-7 rounded-full bg-surface-secondary flex items-center justify-center shrink-0 text-muted">
                 {getActivityIcon(item.type)}
               </div>
               <div className="flex-1 min-w-0">

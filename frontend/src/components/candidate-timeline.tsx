@@ -97,7 +97,7 @@ export function CandidateTimeline({ candidateId }: CandidateTimelineProps) {
         <div className="space-y-4">
           {timeline.map((entry, i) => (
             <div key={entry.id || i} className="flex items-start gap-3 relative">
-              <div className="relative z-10 bg-white shrink-0 mt-0.5">
+              <div className="relative z-10 bg-surface shrink-0 mt-0.5">
                 {getStatusIcon(entry.status)}
               </div>
               <div className="flex-1 min-w-0">

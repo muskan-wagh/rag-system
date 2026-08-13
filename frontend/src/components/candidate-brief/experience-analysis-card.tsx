@@ -11,9 +11,9 @@ interface ExperienceAnalysisCardProps {
 
 export function ExperienceAnalysisCard({ totalYears, currentTitle, currentCompany, weaknesses }: ExperienceAnalysisCardProps) {
   return (
-    <div className="bg-white rounded-xl border border-border p-5">
+    <div className="bg-surface rounded-xl border border-border p-5">
       <div className="flex items-center gap-2 mb-3">
-        <Briefcase className="h-4 w-4 text-[#1F4770]" />
+        <Briefcase className="h-4 w-4 text-brand" />
         <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Experience</h3>
       </div>
 

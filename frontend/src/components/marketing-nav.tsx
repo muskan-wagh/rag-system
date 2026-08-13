@@ -5,6 +5,7 @@ import { useState, useEffect } from "react"
 import { Menu, X, Sparkles } from "lucide-react"
 import { useUser, UserButton } from "@clerk/nextjs"
 import { motion, AnimatePresence } from "framer-motion"
+import { ThemeToggle } from "@/components/theme-toggle"
 
 const navItems = [
   { href: "/#features", label: "Features" },
@@ -50,7 +51,7 @@ export function MarketingNav() {
               <Link
                 key={item.href}
                 href={item.href}
-                className="px-3 py-2 text-sm text-muted hover:text-ink transition-colors rounded-[6px] hover:bg-[#F9FAFB]"
+                className="px-3 py-2 text-sm text-muted hover:text-ink transition-colors rounded-[6px] hover:bg-hover-tone"
                 style={{ fontFamily: "var(--font-inter)" }}
               >
                 {item.label}
@@ -59,11 +60,12 @@ export function MarketingNav() {
           </nav>
 
           <div className="hidden md:flex items-center gap-3">
+            <ThemeToggle />
             {isSignedIn ? (
               <>
                 <Link
                   href="/dashboard"
-                  className="inline-flex items-center justify-center rounded-[8px] border border-border bg-surface px-4 py-2 text-sm font-medium text-ink hover:bg-[#F3F4F6] transition-all"
+                  className="inline-flex items-center justify-center rounded-[8px] border border-border bg-surface px-4 py-2 text-sm font-medium text-ink hover:bg-surface-secondary transition-all"
                   style={{ fontFamily: "var(--font-inter)" }}
                 >
                   Dashboard
@@ -81,7 +83,7 @@ export function MarketingNav() {
                 </Link>
                 <Link
                   href="/sign-up"
-                  className="inline-flex items-center justify-center rounded-[8px] bg-ink px-5 py-2 text-sm font-medium text-white hover:bg-ink-hover transition-all duration-120"
+                  className="inline-flex items-center justify-center rounded-[8px] bg-primary-solid px-5 py-2 text-sm font-medium text-white hover:bg-primary-solid-hover transition-all duration-120"
                   style={{ fontFamily: "var(--font-inter)" }}
                 >
                   Get Started
@@ -92,7 +94,7 @@ export function MarketingNav() {
 
           <button
             onClick={() => setMenuOpen(!menuOpen)}
-            className="md:hidden flex h-9 w-9 items-center justify-center rounded-[6px] hover:bg-[#F9FAFB] transition-colors"
+            className="md:hidden flex h-9 w-9 items-center justify-center rounded-[6px] hover:bg-hover-tone transition-colors"
           >
             {menuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
           </button>
@@ -114,19 +116,22 @@ export function MarketingNav() {
                   key={item.href}
                   href={item.href}
                   onClick={() => setMenuOpen(false)}
-                  className="block px-3 py-2.5 text-sm text-muted hover:text-ink rounded-[6px] hover:bg-[#F9FAFB] transition-colors"
+                  className="block px-3 py-2.5 text-sm text-muted hover:text-ink rounded-[6px] hover:bg-hover-tone transition-colors"
                   style={{ fontFamily: "var(--font-inter)" }}
                 >
                   {item.label}
                 </Link>
               ))}
               <hr className="my-3 border-border" />
+              <div className="flex justify-center pb-1">
+                <ThemeToggle />
+              </div>
               {isSignedIn ? (
                 <>
                   <Link
                     href="/dashboard"
                     onClick={() => setMenuOpen(false)}
-                    className="block px-3 py-2.5 text-sm font-medium text-center rounded-[8px] border border-border bg-surface hover:bg-[#F3F4F6] transition-all"
+                    className="block px-3 py-2.5 text-sm font-medium text-center rounded-[8px] border border-border bg-surface hover:bg-surface-secondary transition-all"
                     style={{ fontFamily: "var(--font-inter)" }}
                   >
                     Dashboard
@@ -140,7 +145,7 @@ export function MarketingNav() {
                   <Link
                     href="/sign-in"
                     onClick={() => setMenuOpen(false)}
-                    className="block px-3 py-2.5 text-sm font-medium text-center rounded-[8px] hover:bg-[#F9FAFB] transition-colors"
+                    className="block px-3 py-2.5 text-sm font-medium text-center rounded-[8px] hover:bg-hover-tone transition-colors"
                     style={{ fontFamily: "var(--font-inter)" }}
                   >
                     Sign In
@@ -148,7 +153,7 @@ export function MarketingNav() {
                   <Link
                     href="/sign-up"
                     onClick={() => setMenuOpen(false)}
-                    className="block px-3 py-2.5 text-sm font-medium text-center rounded-[8px] bg-ink text-white hover:bg-ink-hover transition-all duration-120"
+                    className="block px-3 py-2.5 text-sm font-medium text-center rounded-[8px] bg-primary-solid text-white hover:bg-primary-solid-hover transition-all duration-120"
                     style={{ fontFamily: "var(--font-inter)" }}
                   >
                     Get Started

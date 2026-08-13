@@ -37,8 +37,8 @@ export function QuickActions({ items, onAction }: { items: QuickAction[]; onActi
               onClick={() => onAction(action.action)}
               className={
                 isPrimary
-                  ? "inline-flex items-center gap-2 px-4 py-2 bg-ink text-white rounded-[10px] text-[13px] font-medium transition-all duration-120 hover:bg-ink-hover active:scale-[0.98]"
-                  : "inline-flex items-center gap-2 px-4 py-2 bg-transparent text-ink border border-border rounded-[10px] text-[13px] font-medium transition-all duration-120 hover:bg-[#F3F4F6] active:scale-[0.98]"
+                  ? "inline-flex items-center gap-2 px-4 py-2 bg-primary-solid text-white rounded-[10px] text-[13px] font-medium transition-all duration-120 hover:bg-primary-solid-hover active:scale-[0.98]"
+                  : "inline-flex items-center gap-2 px-4 py-2 bg-transparent text-ink border border-strong rounded-[10px] text-[13px] font-medium transition-all duration-120 hover:bg-surface-secondary active:scale-[0.98]"
               }
               style={{ fontFamily: "var(--font-inter)" }}
             >

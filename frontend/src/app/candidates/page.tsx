@@ -162,17 +162,17 @@ function CandidatesContent() {
           </p>
         </div>
         <div className="flex items-center gap-3">
-          <div className="flex items-center gap-4 px-4 py-2 rounded-full bg-white border border-border">
+          <div className="flex items-center gap-4 px-4 py-2 rounded-full bg-surface border border-border">
             <div className="text-center">
               <p className="text-sm font-medium text-text-primary tabular-nums">{candidatesData?.total ?? 0}</p>
               <p className="text-[10px] text-text-muted">Total</p>
             </div>
-            <div className="w-px h-6 bg-[#ECECEC]" />
+            <div className="w-px h-6 bg-soft" />
             <div className="text-center">
               <p className="text-sm font-medium text-text-primary tabular-nums">{avgMatchScore}%</p>
               <p className="text-[10px] text-text-muted">Avg Match</p>
             </div>
-            <div className="w-px h-6 bg-[#ECECEC]" />
+            <div className="w-px h-6 bg-soft" />
             <div className="text-center">
               <p className="text-sm font-medium text-text-secondary tabular-nums">{pendingInterviews}</p>
               <p className="text-[10px] text-text-muted">Interviews</p>
@@ -182,7 +182,7 @@ function CandidatesContent() {
             <Download className="h-3.5 w-3.5 mr-1.5" />
             Export
           </Button>
-          <Button size="sm" className="bg-primary text-white hover:bg-[#2A2A2A]">
+          <Button size="sm" className="bg-primary-solid text-white hover:bg-primary-solid-hover">
             <Plus className="h-4 w-4 mr-1.5" />
             Add Candidate
           </Button>
@@ -196,8 +196,8 @@ function CandidatesContent() {
             onClick={() => handleSelectSession(null)}
             className={`shrink-0 flex items-center gap-2 px-4 py-2 rounded-full text-xs font-medium transition-all border ${
               selectedSessionId === null
-                ? "bg-primary text-white border-[#111111]"
-                : "bg-white border-border text-text-secondary hover:text-text-primary hover:border-[#D4D4D4]"
+                ? "bg-primary-solid text-white border-ink"
+                : "bg-surface border-border text-text-secondary hover:text-text-primary hover:border-strong"
             }`}
           >
             <Users className="h-3.5 w-3.5" strokeWidth={1.5} />
@@ -214,8 +214,8 @@ function CandidatesContent() {
                 onClick={() => handleSelectSession(session.id)}
                 className={`shrink-0 flex items-center gap-2 px-4 py-2 rounded-full text-xs font-medium transition-all border whitespace-nowrap ${
                   selectedSessionId === session.id
-                    ? "bg-primary text-white border-[#111111]"
-                    : "bg-white border-border text-text-secondary hover:text-text-primary hover:border-[#D4D4D4]"
+                    ? "bg-primary-solid text-white border-ink"
+                    : "bg-surface border-border text-text-secondary hover:text-text-primary hover:border-strong"
                 }`}
               >
                 <Briefcase className="h-3.5 w-3.5 shrink-0" strokeWidth={1.5} />
@@ -243,7 +243,7 @@ function CandidatesContent() {
                 key={tab.label}
                 onClick={() => handleStatusTabClick(tab.value)}
                 className={`px-4 py-1.5 text-xs font-medium rounded-full transition-all ${
-                  isActive ? "bg-white text-text-primary shadow-sm" : "text-text-secondary hover:text-text-primary"
+                  isActive ? "bg-surface text-text-primary shadow-sm" : "text-text-secondary hover:text-text-primary"
                 }`}
               >
                 {tab.label}
@@ -258,7 +258,7 @@ function CandidatesContent() {
             value={searchQuery}
             onChange={(e) => handleSearch(e.target.value)}
             placeholder="Search candidates..."
-            className="w-64 h-9 rounded-full border border-border bg-white pl-9 pr-4 text-sm text-text-primary placeholder:text-text-muted outline-none focus:border-[#111111] focus:shadow-[0_0_0_3px_rgba(17,17,17,0.06)] transition-all"
+            className="w-64 h-9 rounded-full border border-border bg-surface pl-9 pr-4 text-sm text-text-primary placeholder:text-text-muted outline-none focus:border-ink focus:shadow-[0_0_0_3px_rgba(17,17,17,0.06)] transition-all"
           />
         </div>
       </motion.div>
@@ -267,7 +267,7 @@ function CandidatesContent() {
       {candidatesLoading ? (
         <div className="grid grid-cols-2 gap-4">
           {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="bg-white rounded-[10px] border border-border p-6">
+            <div key={i} className="bg-surface rounded-[10px] border border-border p-6">
               <div className="flex items-center gap-4">
                 <Skeleton className="h-14 w-14 rounded-full" />
                 <div className="flex-1 space-y-2">
@@ -287,7 +287,7 @@ function CandidatesContent() {
           ))}
         </div>
       ) : candidatesData?.candidates.length === 0 ? (
-        <div className="bg-white rounded-[10px] border border-border shadow-none p-20">
+        <div className="bg-surface rounded-[10px] border border-border shadow-none p-20">
           <div className="flex flex-col items-center text-center max-w-sm mx-auto">
             <div className="h-16 w-16 rounded-[10px] bg-surface-secondary flex items-center justify-center mb-5">
               <Users className="h-7 w-7 text-text-muted" strokeWidth={1.5} />
@@ -299,7 +299,7 @@ function CandidatesContent() {
               {searchQuery ? "Try a different search term or clear filters" : "Upload resumes or create an application link to start building your candidate database."}
             </p>
             <div className="flex gap-3">
-              <Button size="sm" className="bg-primary text-white hover:bg-[#2A2A2A]">
+              <Button size="sm" className="bg-primary-solid text-white hover:bg-primary-solid-hover">
                 <Plus className="h-4 w-4 mr-1.5" />
                 Upload Resume
               </Button>
@@ -318,7 +318,7 @@ function CandidatesContent() {
                 key={candidate.id}
                 variants={itemVariants}
                 transition={{ delay: i * 0.02 }}
-                className="group bg-white rounded-[10px] border border-border shadow-none hover:border-border-strong transition-all duration-120 cursor-pointer overflow-hidden"
+                className="group bg-surface rounded-[10px] border border-border shadow-none hover:border-border-strong transition-all duration-120 cursor-pointer overflow-hidden"
                 onClick={() => handleViewCandidate(candidate)}
               >
                 <div className="p-6">
@@ -330,7 +330,7 @@ function CandidatesContent() {
                         </AvatarFallback>
                       </Avatar>
                       {candidate.match_score !== undefined && candidate.match_score >= 85 && (
-                        <div className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-white shadow-sm border border-border flex items-center justify-center">
+                        <div className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-surface shadow-sm border border-border flex items-center justify-center">
                           <Sparkles className="h-3 w-3 text-text-primary" />
                         </div>
                       )}
@@ -398,7 +398,7 @@ function CandidatesContent() {
                         </p>
                         <p className="text-[10px] text-text-muted">{getScoreLabel(candidate.match_score)}</p>
                       </div>
-                      <div className="w-12 h-1.5 bg-[#ECECEC] rounded-full overflow-hidden">
+                      <div className="w-12 h-1.5 bg-soft rounded-full overflow-hidden">
                         <div
                           className="h-full rounded-full transition-all"
                           style={{ width: `${Math.round(candidate.match_score ?? 0)}%`, backgroundColor: getScoreColor(candidate.match_score) }}
@@ -418,7 +418,7 @@ function CandidatesContent() {
                     )}
                     {candidate.current_status === "Offered" && (
                       <button onClick={(e) => { e.stopPropagation(); handleHireClick(candidate) }}
-                        className="flex h-7 w-7 items-center justify-center rounded-full text-[#16A34A] hover:bg-[#16A34A]/10 transition-all"
+                        className="flex h-7 w-7 items-center justify-center rounded-full text-success hover:bg-success/10 transition-all"
                       >
                         <BadgeCheck className="h-3 w-3" strokeWidth={1.5} />
                       </button>
@@ -442,7 +442,7 @@ function CandidatesContent() {
               </p>
               <div className="flex items-center gap-1">
                 <button disabled={page <= 1} onClick={() => setPage(p => Math.max(1, p - 1))}
-                  className="flex h-8 w-8 items-center justify-center rounded-full border border-border bg-white text-text-secondary hover:text-text-primary hover:bg-surface-secondary transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+                  className="flex h-8 w-8 items-center justify-center rounded-full border border-border bg-surface text-text-secondary hover:text-text-primary hover:bg-surface-secondary transition-all disabled:opacity-30 disabled:cursor-not-allowed"
                 >
                   <ChevronLeft className="h-3.5 w-3.5" strokeWidth={1.5} />
                 </button>
@@ -456,8 +456,8 @@ function CandidatesContent() {
                     <button key={pageNum} onClick={() => setPage(pageNum)}
                       className={`flex h-8 w-8 items-center justify-center rounded-full text-xs font-medium transition-all ${
                         pageNum === page
-                          ? "bg-primary text-white"
-                          : "border border-border bg-white text-text-secondary hover:text-text-primary hover:bg-surface-secondary"
+                          ? "bg-primary-solid text-white"
+                          : "border border-border bg-surface text-text-secondary hover:text-text-primary hover:bg-surface-secondary"
                       }`}
                     >
                       {pageNum}
@@ -465,7 +465,7 @@ function CandidatesContent() {
                   )
                 })}
                 <button disabled={page >= totalPages} onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-                  className="flex h-8 w-8 items-center justify-center rounded-full border border-border bg-white text-text-secondary hover:text-text-primary hover:bg-surface-secondary transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+                  className="flex h-8 w-8 items-center justify-center rounded-full border border-border bg-surface text-text-secondary hover:text-text-primary hover:bg-surface-secondary transition-all disabled:opacity-30 disabled:cursor-not-allowed"
                 >
                   <ChevronRight className="h-3.5 w-3.5" strokeWidth={1.5} />
                 </button>
@@ -479,7 +479,7 @@ function CandidatesContent() {
       <Dialog open={showHireConfirm} onOpenChange={(o) => { if (!o) { setShowHireConfirm(false); setHireCandidate(null) } }}>
         <DialogContent className="sm:max-w-md">
           <div className="px-6 pt-6 pb-2">
-            <div className="flex items-center gap-2 text-[#16A34A] mb-3">
+            <div className="flex items-center gap-2 text-success mb-3">
               <BadgeCheck className="h-5 w-5" />
               <h2 className="text-base font-medium text-text-primary">Mark as Hired</h2>
             </div>
@@ -491,7 +491,7 @@ function CandidatesContent() {
             <Button variant="outline" size="sm" onClick={() => { setShowHireConfirm(false); setHireCandidate(null) }} disabled={hireLoading}>
               Cancel
             </Button>
-            <Button size="sm" className="bg-primary text-white hover:bg-[#2A2A2A]" onClick={confirmHire} disabled={hireLoading}>
+            <Button size="sm" className="bg-primary-solid text-white hover:bg-primary-solid-hover" onClick={confirmHire} disabled={hireLoading}>
               {hireLoading && <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />}
               Confirm Hired
             </Button>

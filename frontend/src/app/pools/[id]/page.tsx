@@ -41,7 +41,7 @@ export default function PoolDetailPage() {
         <Link href="/pools" className="inline-flex items-center text-xs text-muted-foreground hover:text-foreground mb-4">
           <ArrowLeft className="mr-1.5 h-3.5 w-3.5" /> Back to Pools
         </Link>
-        <div className="bg-white rounded-xl p-10 text-center border border-border">
+        <div className="bg-surface rounded-xl p-10 text-center border border-border">
           <p className="text-sm text-muted-foreground">Pool not found</p>
         </div>
       </div>
@@ -56,10 +56,10 @@ export default function PoolDetailPage() {
         <ArrowLeft className="mr-1.5 h-3.5 w-3.5" /> Back to Pools
       </Link>
 
-      <div className="bg-white rounded-xl border border-border p-5 mb-6">
+      <div className="bg-surface rounded-xl border border-border p-5 mb-6">
         <div className="flex items-center gap-3 mb-4">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#1F4770]/10">
-            <Users className="h-5 w-5 text-[#1F4770]" />
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-brand/10">
+            <Users className="h-5 w-5 text-brand" />
           </div>
           <div>
             <h1 className="text-lg font-semibold text-foreground">{pool.name}</h1>
@@ -88,7 +88,7 @@ export default function PoolDetailPage() {
       </div>
 
       {candidates && candidates.length > 0 ? (
-        <div className="bg-white rounded-xl border border-border">
+        <div className="bg-surface rounded-xl border border-border">
           <div className="p-4 border-b border-border">
             <h2 className="text-sm font-medium text-foreground">Pool Candidates</h2>
           </div>
@@ -103,7 +103,7 @@ export default function PoolDetailPage() {
                 </div>
                 <div className="flex items-center gap-3">
                   {pc.match_score > 0 && (
-                    <span className="text-sm font-medium text-[#1F4770]">{(pc.match_score * 100).toFixed(0)}%</span>
+                    <span className="text-sm font-medium text-brand">{(pc.match_score * 100).toFixed(0)}%</span>
                   )}
                   <button
                     onClick={() => handleRemove(pc.candidate_id)}
@@ -117,7 +117,7 @@ export default function PoolDetailPage() {
           </div>
         </div>
       ) : (
-        <div className="bg-white rounded-xl p-10 text-center border border-border">
+        <div className="bg-surface rounded-xl p-10 text-center border border-border">
           <BarChart3 className="h-8 w-8 text-muted-foreground mx-auto mb-3" />
           <p className="text-sm text-muted-foreground">No candidates in this pool yet.</p>
         </div>

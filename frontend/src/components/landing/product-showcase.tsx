@@ -23,7 +23,7 @@ export function ProductShowcase() {
             className="relative z-10 max-w-5xl mx-auto"
           >
             <div className="rounded-xl overflow-hidden border border-border bg-surface">
-              <div className="flex items-center gap-1.5 bg-[#FAFAFA] border-b border-border px-4 py-3">
+              <div className="flex items-center gap-1.5 bg-canvas border-b border-border px-4 py-3">
                 <div className="flex gap-1.5">
                   <div className="w-3 h-3 rounded-full bg-border" />
                   <div className="w-3 h-3 rounded-full bg-border" />
@@ -38,23 +38,23 @@ export function ProductShowcase() {
               </div>
               <div className="p-6 md:p-8">
                 <div className="grid md:grid-cols-3 gap-4 mb-4">
-                  <div className="rounded-lg bg-[#FAFAFA] border border-border p-4">
+                  <div className="rounded-lg bg-canvas border border-border p-4">
                     <p className="text-xs text-faint mb-1" style={{ fontFamily: "var(--font-inter)" }}>Total Candidates</p>
                     <p className="font-data text-2xl font-medium text-ink">1,247</p>
                     <p className="font-data text-xs text-ink mt-1">+12% this week</p>
                   </div>
-                  <div className="rounded-lg bg-[#FAFAFA] border border-border p-4">
+                  <div className="rounded-lg bg-canvas border border-border p-4">
                     <p className="text-xs text-faint mb-1" style={{ fontFamily: "var(--font-inter)" }}>Avg. Match Score</p>
                     <p className="font-data text-2xl font-medium text-ink">86%</p>
                     <p className="font-data text-xs text-ink mt-1">+5% improvement</p>
                   </div>
-                  <div className="rounded-lg bg-[#FAFAFA] border border-border p-4">
+                  <div className="rounded-lg bg-canvas border border-border p-4">
                     <p className="text-xs text-faint mb-1" style={{ fontFamily: "var(--font-inter)" }}>Open Positions</p>
                     <p className="font-data text-2xl font-medium text-ink">24</p>
                     <p className="font-data text-xs text-ink mt-1">8 urgent</p>
                   </div>
                 </div>
-                <div className="rounded-lg bg-[#FAFAFA] border border-border p-4">
+                <div className="rounded-lg bg-canvas border border-border p-4">
                   <p className="text-xs font-medium text-muted mb-3" style={{ fontFamily: "var(--font-inter)" }}>Top Candidates · Senior Frontend Engineer</p>
                   <div className="space-y-2">
                     {[
@@ -64,7 +64,7 @@ export function ProductShowcase() {
                       { name: "David Park", score: 85, skills: "Angular · Go · 7yr" },
                     ].map((c) => (
                       <div key={c.name} className="flex items-center gap-3 py-1.5">
-                        <div className="w-7 h-7 rounded-full bg-[#E5E7EB] flex items-center justify-center text-xs font-medium text-muted" style={{ fontFamily: "var(--font-inter)" }}>
+                        <div className="w-7 h-7 rounded-full bg-soft flex items-center justify-center text-xs font-medium text-muted" style={{ fontFamily: "var(--font-inter)" }}>
                           {c.name.split(" ").map(n => n[0]).join("")}
                         </div>
                         <div className="flex-1 min-w-0">

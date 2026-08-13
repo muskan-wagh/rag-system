@@ -42,7 +42,7 @@ export function AiRecommendations({ items }: { items: AiRecommendation[] }) {
               <div className="bg-surface border border-border rounded-xl hover:border-border-hover transition-all duration-120 p-5">
                 <div className="flex items-center gap-3 mb-3">
                   <Avatar className="size-9 shrink-0">
-                    <AvatarFallback className="text-[12px] font-medium bg-[#E5E7EB] text-muted" style={{ fontFamily: "var(--font-inter)" }}>
+                    <AvatarFallback className="text-[12px] font-medium bg-soft text-muted" style={{ fontFamily: "var(--font-inter)" }}>
                       {getInitials(item.full_name ?? undefined)}
                     </AvatarFallback>
                   </Avatar>
@@ -58,7 +58,7 @@ export function AiRecommendations({ items }: { items: AiRecommendation[] }) {
                 {item.skills.length > 0 && (
                   <div className="flex flex-wrap gap-1.5">
                     {item.skills.slice(0, 3).map((skill, j) => (
-                      <span key={j} className="inline-flex items-center px-[8px] py-[2px] rounded-[6px] text-[11px] font-normal bg-[#F3F4F6] text-muted" style={{ fontFamily: "var(--font-inter)" }}>
+                      <span key={j} className="inline-flex items-center px-[8px] py-[2px] rounded-[6px] text-[11px] font-normal bg-surface-secondary text-muted" style={{ fontFamily: "var(--font-inter)" }}>
                         {skill}
                       </span>
                     ))}

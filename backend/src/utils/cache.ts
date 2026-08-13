@@ -22,3 +22,17 @@ export async function setCache<T>(key: string, value: T, ttlMs: number = 300000)
     logger.warn('Cache set failed', { error: err });
   }
 }
+
+export async function invalidateCacheByPattern(pattern: string): Promise<void> {
+  const client = getRedisClient();
+  if (!client) return;
+  try {
+    const keys = await client.keys(pattern);
+    if (keys.length) {
+      await client.del(...keys);
+      logger.info(`Cache invalidation: removed ${keys.length} key(s) matching ${pattern}`);
+    }
+  } catch (err) {
+    logger.warn('Cache invalidation failed', { pattern, error: err });
+  }
+}

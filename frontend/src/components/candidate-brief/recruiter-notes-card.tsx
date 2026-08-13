@@ -26,9 +26,9 @@ export function RecruiterNotesCard({ notes, onAddNote }: RecruiterNotesCardProps
   }
 
   return (
-    <div className="bg-white rounded-xl border border-border p-5">
+    <div className="bg-surface rounded-xl border border-border p-5">
       <div className="flex items-center gap-2 mb-3">
-        <StickyNote className="h-4 w-4 text-[#1F4770]" />
+        <StickyNote className="h-4 w-4 text-brand" />
         <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Notes</h3>
         <span className="text-xs text-muted-foreground ml-auto">{notes.length} notes</span>
       </div>
@@ -39,12 +39,12 @@ export function RecruiterNotesCard({ notes, onAddNote }: RecruiterNotesCardProps
           value={newNote}
           onChange={(e) => setNewNote(e.target.value)}
           placeholder="Add a note..."
-          className="flex-1 text-sm px-3 py-2 rounded-lg border border-border bg-muted/30 focus:outline-none focus:ring-2 focus:ring-[#1F4770]/20 focus:border-[#1F4770]"
+          className="flex-1 text-sm px-3 py-2 rounded-lg border border-border bg-muted/30 focus:outline-none focus:ring-2 focus:ring-brand/20 focus:border-brand"
         />
         <button
           type="submit"
           disabled={!newNote.trim() || adding}
-          className="flex items-center gap-1 text-sm px-3 py-2 bg-[#1F4770] text-white rounded-lg hover:bg-[#1F4770]/90 disabled:opacity-50"
+          className="flex items-center gap-1 text-sm px-3 py-2 bg-primary-solid text-white rounded-lg hover:bg-primary-solid/90 disabled:opacity-50"
         >
           {adding ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />}
         </button>

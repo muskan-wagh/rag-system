@@ -12,7 +12,7 @@ export function TalentPoolCard({ pool }: TalentPoolCardProps) {
   return (
     <Link
       href={`/pools/${pool.id}`}
-      className="block bg-white rounded-xl border border-border p-5 hover:border-[#1F4770]/20 hover:shadow-sm transition-all"
+      className="block bg-surface rounded-xl border border-border p-5 hover:border-brand/20 hover:shadow-sm transition-all"
     >
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-sm font-medium text-foreground">{pool.name}</h3>

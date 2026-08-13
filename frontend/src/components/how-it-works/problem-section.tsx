@@ -42,7 +42,7 @@ export function ProblemSection() {
             initial={{ opacity: 0, x: -20 }}
             whileInView={{ opacity: 1, x: 0 }}
             viewport={{ once: true, margin: "-40px" }}
-            className="bg-white rounded-2xl border border-border p-6 md:p-8"
+            className="bg-surface rounded-2xl border border-border p-6 md:p-8"
           >
             <div className="flex items-center gap-3 mb-6">
               <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-destructive/10">
@@ -101,7 +101,7 @@ export function ProblemSection() {
             initial={{ opacity: 0, x: 20 }}
             whileInView={{ opacity: 1, x: 0 }}
             viewport={{ once: true, margin: "-40px" }}
-            className="bg-white rounded-2xl border border-primary/10 shadow-sm p-6 md:p-8"
+            className="bg-surface rounded-2xl border border-primary/10 shadow-sm p-6 md:p-8"
           >
             <div className="flex items-center gap-3 mb-6">
               <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary shadow-sm">

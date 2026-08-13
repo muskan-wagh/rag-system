@@ -42,7 +42,7 @@ function BriefSkeleton() {
       <div className="grid gap-6 md:grid-cols-3">
         <div className="md:col-span-2 space-y-4">
           {[1, 2, 3].map((i) => (
-            <div key={i} className="h-32 bg-white rounded-xl border border-border animate-pulse p-5">
+            <div key={i} className="h-32 bg-surface rounded-xl border border-border animate-pulse p-5">
               <div className="h-3 w-24 bg-muted rounded mb-3" />
               <div className="space-y-2">
                 <div className="h-3 bg-muted rounded w-full" />
@@ -53,7 +53,7 @@ function BriefSkeleton() {
         </div>
         <div className="space-y-4">
           {[1, 2].map((i) => (
-            <div key={i} className="h-40 bg-white rounded-xl border border-border animate-pulse p-5">
+            <div key={i} className="h-40 bg-surface rounded-xl border border-border animate-pulse p-5">
               <div className="h-3 w-24 bg-muted rounded mb-3" />
               <div className="space-y-2">
                 <div className="h-3 bg-muted rounded w-full" />
@@ -100,7 +100,7 @@ export default function CandidateDetailPage() {
             <ArrowLeft className="mr-1.5 h-3.5 w-3.5" /> Back to Search
           </span>
         </Link>
-        <div className="bg-white rounded-xl p-10 text-center border border-border">
+        <div className="bg-surface rounded-xl p-10 text-center border border-border">
           <p className="text-sm text-muted-foreground">{briefErr || "Candidate not found"}</p>
         </div>
       </div>
@@ -122,9 +122,9 @@ export default function CandidateDetailPage() {
         </span>
       </Link>
 
-      <div className="bg-white rounded-xl border border-border p-5 md:p-6 mb-6">
+      <div className="bg-surface rounded-xl border border-border p-5 md:p-6 mb-6">
         <div className="flex flex-col md:flex-row gap-4 items-start">
-          <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-[#1F4770]/10 ring-1 ring-border">
+          <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-brand/10 ring-1 ring-border">
             <span className="text-lg font-semibold text-foreground/70">
               {candidate.name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2)}
             </span>
@@ -158,7 +158,7 @@ export default function CandidateDetailPage() {
                 </span>
               )}
               {record.currentStatus && (
-                <span className="flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-lg bg-[#1F4770]/5 text-[#1F4770] border border-[#1F4770]/10">
+                <span className="flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-lg bg-brand/5 text-brand border border-brand/10">
                   {record.currentStatus}
                 </span>
               )}
@@ -174,7 +174,7 @@ export default function CandidateDetailPage() {
             onClick={() => setActiveTab(tab.id)}
             className={`shrink-0 text-xs font-medium px-3 py-2.5 border-b-2 transition-colors ${
               activeTab === tab.id
-                ? "border-[#1F4770] text-[#1F4770]"
+                ? "border-brand text-brand"
                 : "border-transparent text-muted-foreground hover:text-foreground"
             }`}
           >
@@ -254,12 +254,12 @@ export default function CandidateDetailPage() {
             strengths={strengths}
             missingSkills={missingSkills}
           />
-          <div className="bg-white rounded-xl border border-border p-5">
+          <div className="bg-surface rounded-xl border border-border p-5">
             <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">All Skills</h3>
             {candidate.skills.length > 0 ? (
               <div className="flex flex-wrap gap-1.5">
                 {candidate.skills.map((skill) => (
-                  <span key={skill} className="text-xs px-2.5 py-1.5 bg-[#1F4770]/5 text-[#1F4770] rounded-lg border border-[#1F4770]/10">
+                  <span key={skill} className="text-xs px-2.5 py-1.5 bg-brand/5 text-brand rounded-lg border border-brand/10">
                     {skill}
                   </span>
                 ))}
@@ -279,7 +279,7 @@ export default function CandidateDetailPage() {
             currentCompany={record.currentCompany}
             weaknesses={weaknesses}
           />
-          <div className="bg-white rounded-xl border border-border p-5">
+          <div className="bg-surface rounded-xl border border-border p-5">
             <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">Work History</h3>
             {workHistory && workHistory.length > 0 ? (
               <div className="space-y-3">
@@ -301,7 +301,7 @@ export default function CandidateDetailPage() {
       )}
 
       {activeTab === "projects" && (
-        <div className="bg-white rounded-xl border border-border p-5">
+        <div className="bg-surface rounded-xl border border-border p-5">
           <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">Projects</h3>
           {projects && projects.length > 0 ? (
             <div className="grid gap-4 md:grid-cols-2">
@@ -328,7 +328,7 @@ export default function CandidateDetailPage() {
       )}
 
       {activeTab === "timeline" && (
-        <div className="bg-white rounded-xl border border-border p-5">
+        <div className="bg-surface rounded-xl border border-border p-5">
           <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">Status Timeline</h3>
           <CandidateTimeline candidateId={candidateId} />
         </div>
@@ -339,7 +339,7 @@ export default function CandidateDetailPage() {
       )}
 
       {activeTab === "activity" && (
-        <div className="bg-white rounded-xl border border-border p-5">
+        <div className="bg-surface rounded-xl border border-border p-5">
           <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">Activity</h3>
           {brief.timeline.length > 0 ? (
             <div className="space-y-2">
@@ -377,7 +377,7 @@ export default function CandidateDetailPage() {
       )}
 
       {activeTab === "parsed" && (
-        <div className="bg-white rounded-xl border border-border p-5">
+        <div className="bg-surface rounded-xl border border-border p-5">
           <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">Parsed Resume Data</h3>
           {parsedResume ? (
             <pre className="text-xs text-muted-foreground leading-relaxed overflow-x-auto bg-muted/30 rounded-lg p-4 max-h-96 overflow-y-auto">

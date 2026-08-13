@@ -42,7 +42,7 @@ export default function TalentPoolsPage() {
         </div>
         <button
           onClick={() => setShowCreate(!showCreate)}
-          className="flex items-center gap-1.5 text-sm px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary-hover transition-colors duration-120"
+          className="flex items-center gap-1.5 text-sm px-4 py-2 bg-primary-solid text-white rounded-lg hover:bg-primary-solid-hover transition-colors duration-120"
         >
           <Plus className="h-4 w-4" />
           New Pool
@@ -50,29 +50,29 @@ export default function TalentPoolsPage() {
       </div>
 
       {showCreate && (
-        <form onSubmit={handleCreate} className="bg-white rounded-xl border border-border p-4 mb-6 space-y-3">
+        <form onSubmit={handleCreate} className="bg-surface rounded-xl border border-border p-4 mb-6 space-y-3">
           <input
             type="text"
             value={newName}
             onChange={(e) => setNewName(e.target.value)}
             placeholder="Pool name (e.g. Frontend Engineers)"
-            className="w-full text-sm px-[14px] py-[10px] rounded-lg border border-input bg-white text-text-primary placeholder:text-text-muted focus:outline-none focus:border-ring transition-all duration-120"
+            className="w-full text-sm px-[14px] py-[10px] rounded-lg border border-input bg-surface text-text-primary placeholder:text-text-muted focus:outline-none focus:border-ring transition-all duration-120"
           />
           <input
             type="text"
             value={newSearchId}
             onChange={(e) => setNewSearchId(e.target.value)}
             placeholder="Saved search ID (optional)"
-            className="w-full text-sm px-[14px] py-[10px] rounded-lg border border-input bg-white text-text-primary placeholder:text-text-muted focus:outline-none focus:border-ring transition-all duration-120"
+            className="w-full text-sm px-[14px] py-[10px] rounded-lg border border-input bg-surface text-text-primary placeholder:text-text-muted focus:outline-none focus:border-ring transition-all duration-120"
           />
           <div className="flex gap-2">
             <button type="submit" disabled={!newName.trim()}
-              className="text-sm px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary-hover disabled:opacity-50 transition-all duration-120"
+              className="text-sm px-4 py-2 bg-primary-solid text-white rounded-lg hover:bg-primary-solid-hover disabled:opacity-50 transition-all duration-120"
             >
               Create Pool
             </button>
             <button type="button" onClick={() => setShowCreate(false)}
-              className="text-sm px-4 py-2 bg-surface-secondary text-text-secondary rounded-lg hover:bg-[#F3F4F6] transition-all duration-120"
+              className="text-sm px-4 py-2 bg-surface-secondary text-text-secondary rounded-lg hover:bg-surface-secondary transition-all duration-120"
             >
               Cancel
             </button>

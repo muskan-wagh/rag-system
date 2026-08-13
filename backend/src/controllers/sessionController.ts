@@ -9,11 +9,11 @@ import {
   CandidateRecord,
   NewSessionStats,
 } from '@/services/supabase/database';
-import { memoryCache } from '@/utils/memory-cache';
 import { logger } from '@/utils/logger';
 import { AppError } from '@/middleware/errorHandler';
 import { ErrorCodes } from '@/middleware/errorCodes';
 import { AGGREGATION_STATUS_GROUPS } from '@/constants/candidateStatus';
+import { invalidateDashboardCache } from '@/controllers/dashboardController';
 
 function computeStats(candidates: CandidateRecord[]): NewSessionStats {
   const stats: NewSessionStats = { open: 0, applied: 0, screening: 0, interview: 0, interviewsToday: 0, offered: 0, hired: 0, rejected: 0 };
@@ -39,7 +39,7 @@ export const generateLinkHandler = asyncHandler(async (req: Request, res: Respon
   const session = await createUploadSession(jdText, recruiterId);
 
   if (recruiterId) {
-    memoryCache.delete(`dashboard:recruiter:${recruiterId}`);
+    await invalidateDashboardCache(recruiterId);
   }
 
   res.status(201).json({

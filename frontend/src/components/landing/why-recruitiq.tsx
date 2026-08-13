@@ -89,8 +89,8 @@ export function WhyRecruitIQ() {
                         ].map((item) => (
                           <div key={item.label} className="flex items-center gap-3">
                             <span className="text-xs font-medium text-muted w-20 shrink-0" style={{ fontFamily: "var(--font-inter)" }}>{item.label}</span>
-                            <div className="h-2 flex-1 bg-[#FAFAFA] rounded-full overflow-hidden">
-                              <div className="h-full w-full bg-[#F3F4F6] rounded-full" />
+                            <div className="h-2 flex-1 bg-canvas rounded-full overflow-hidden">
+                              <div className="h-full w-full bg-surface-secondary rounded-full" />
                             </div>
                             <span className="text-xs font-medium text-ink" style={{ fontFamily: "var(--font-inter)" }}>{item.value}</span>
                           </div>
@@ -104,7 +104,7 @@ export function WhyRecruitIQ() {
                           { query: "Frontend engineer who knows TypeScript and GraphQL", match: "88%" },
                           { query: "Engineering manager with agile background", match: "85%" },
                         ].map((item, i) => (
-                          <div key={i} className="bg-[#FAFAFA] rounded-lg p-3 border border-border">
+                          <div key={i} className="bg-canvas rounded-lg p-3 border border-border">
                             <p className="text-xs text-ink mb-1 line-clamp-1" style={{ fontFamily: "var(--font-inter)" }}>{item.query}</p>
                             <div className="flex items-center gap-2">
                               <div className="flex-1 h-1 bg-border rounded-full overflow-hidden">
@@ -129,7 +129,7 @@ export function WhyRecruitIQ() {
                               <span className="text-xs text-muted" style={{ fontFamily: "var(--font-inter)" }}>{item.label}</span>
                               <span className="font-data text-xs font-medium text-ink">{item.value}%</span>
                             </div>
-                            <div className="h-1.5 bg-[#FAFAFA] rounded-full overflow-hidden">
+                            <div className="h-1.5 bg-canvas rounded-full overflow-hidden">
                               <div className="h-full bg-info rounded-full" style={{ width: `${item.value}%` }} />
                             </div>
                           </div>

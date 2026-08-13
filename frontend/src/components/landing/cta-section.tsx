@@ -15,7 +15,7 @@ export function CTASection() {
           viewport={{ once: true }}
           transition={{ duration: 0.5 }}
         >
-          <div className="inline-flex items-center gap-1.5 rounded-[6px] bg-[#F3F4F6] px-3 py-1 text-xs font-medium text-muted mb-6" style={{ fontFamily: "var(--font-inter)" }}>
+          <div className="inline-flex items-center gap-1.5 rounded-[6px] bg-surface-secondary px-3 py-1 text-xs font-medium text-muted mb-6" style={{ fontFamily: "var(--font-inter)" }}>
             <Sparkles className="h-3 w-3 text-ink" />
             Start hiring smarter today
           </div>

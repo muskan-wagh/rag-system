@@ -57,7 +57,7 @@ export function FAQSection() {
             >
               <button
                 onClick={() => setOpenIndex(openIndex === i ? null : i)}
-                className="w-full flex items-center justify-between px-6 py-4 text-sm font-medium text-ink hover:bg-[#F9FAFB] transition-colors text-left"
+                className="w-full flex items-center justify-between px-6 py-4 text-sm font-medium text-ink hover:bg-hover-tone transition-colors text-left"
                 style={{ fontFamily: "var(--font-inter)" }}
               >
                 {faq.question}

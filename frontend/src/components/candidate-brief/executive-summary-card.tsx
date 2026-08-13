@@ -12,7 +12,7 @@ interface ExecutiveSummaryCardProps {
 export function ExecutiveSummaryCard({ summary, recommendation, confidenceScore, isLoading }: ExecutiveSummaryCardProps) {
   if (isLoading) {
     return (
-      <div className="bg-white rounded-xl border border-border p-5 animate-pulse">
+      <div className="bg-surface rounded-xl border border-border p-5 animate-pulse">
         <div className="h-3 w-24 bg-muted rounded mb-3" />
         <div className="space-y-2">
           <div className="h-3 bg-muted rounded w-full" />
@@ -24,9 +24,9 @@ export function ExecutiveSummaryCard({ summary, recommendation, confidenceScore,
 
   if (!summary) {
     return (
-      <div className="bg-white rounded-xl border border-border p-5">
+      <div className="bg-surface rounded-xl border border-border p-5">
         <div className="flex items-center gap-2 mb-2">
-          <Sparkles className="h-4 w-4 text-[#1F4770]" />
+          <Sparkles className="h-4 w-4 text-brand" />
           <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">AI Executive Summary</h3>
         </div>
         <p className="text-sm text-muted-foreground">Generate an AI hiring brief to see the executive summary.</p>
@@ -46,10 +46,10 @@ export function ExecutiveSummaryCard({ summary, recommendation, confidenceScore,
   }
 
   return (
-    <div className="bg-white rounded-xl border border-border p-5">
+    <div className="bg-surface rounded-xl border border-border p-5">
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
-          <Sparkles className="h-4 w-4 text-[#1F4770]" />
+          <Sparkles className="h-4 w-4 text-brand" />
           <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">AI Executive Summary</h3>
         </div>
         {recommendation && (

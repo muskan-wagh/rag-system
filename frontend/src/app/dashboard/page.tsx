@@ -129,7 +129,7 @@ const CandidateCard = memo(function CandidateCard({
       <div className="p-5">
         <div className="flex items-center gap-3">
           <Avatar className="size-9 shrink-0">
-            <AvatarFallback className="text-[12px] font-medium bg-[#E5E7EB] text-muted" style={{ fontFamily: "var(--font-inter)" }}>
+            <AvatarFallback className="text-[12px] font-medium bg-soft text-muted" style={{ fontFamily: "var(--font-inter)" }}>
               {getInitials(candidate.full_name)}
             </AvatarFallback>
           </Avatar>
@@ -147,7 +147,7 @@ const CandidateCard = memo(function CandidateCard({
 
             <div className="flex flex-wrap items-center gap-1.5 mt-2">
               {(candidate.skills || []).slice(0, 3).map((skill, j) => (
-                <span key={j} className="inline-flex items-center px-[8px] py-[2px] rounded-[6px] text-[11px] font-normal bg-[#F3F4F6] text-muted" style={{ fontFamily: "var(--font-inter)" }}>
+                <span key={j} className="inline-flex items-center px-[8px] py-[2px] rounded-[6px] text-[11px] font-normal bg-surface-secondary text-muted" style={{ fontFamily: "var(--font-inter)" }}>
                   {skill}
                 </span>
               ))}
@@ -172,7 +172,7 @@ const CandidateCard = memo(function CandidateCard({
 
           <div className="flex flex-col items-end gap-2 shrink-0">
             <div className="flex items-center gap-2">
-              <div className="w-14 h-1 bg-[#E2E2E0] rounded-full overflow-hidden">
+              <div className="w-14 h-1 bg-track rounded-full overflow-hidden">
                 <div
                   className="h-full bg-info rounded-full"
                   style={{ width: `${Math.round(candidate.match_score ?? 0)}%` }}
@@ -586,7 +586,7 @@ export default function DashboardPage() {
           ) : candidates.length === 0 ? (
             <div className="bg-surface border border-border rounded-xl p-10">
               <div className="flex flex-col items-center text-center max-w-sm mx-auto">
-                <div className="h-10 w-10 rounded-[10px] bg-[#F3F4F6] flex items-center justify-center mb-4">
+                <div className="h-10 w-10 rounded-[10px] bg-surface-secondary flex items-center justify-center mb-4">
                   <Users className="h-5 w-5 text-info/40" strokeWidth={1.5} />
                 </div>
                 <h3 className="text-[14px] font-medium text-ink mb-1" style={{ fontFamily: "var(--font-inter)" }}>No candidates yet</h3>

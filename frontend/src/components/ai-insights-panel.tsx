@@ -32,7 +32,7 @@ export function AiInsightsPanel({ results, jdText }: AiInsightsPanelProps) {
       transition={{ duration: 0.4 }}
       className="space-y-4"
     >
-      <div className="bg-white rounded-2xl p-5 border border-border">
+      <div className="bg-surface rounded-2xl p-5 border border-border">
         <div className="flex items-center gap-2 mb-4">
           <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary/10">
             <Lightbulb className="h-3.5 w-3.5 text-primary" />
@@ -62,7 +62,7 @@ export function AiInsightsPanel({ results, jdText }: AiInsightsPanelProps) {
         </div>
       </div>
 
-      <div className="bg-white rounded-2xl p-5 border border-border">
+      <div className="bg-surface rounded-2xl p-5 border border-border">
         <div className="flex items-center gap-2 mb-4">
           <Brain className="h-4 w-4 text-primary" />
           <h3 className="text-sm font-medium text-foreground">Top Skills</h3>
@@ -87,7 +87,7 @@ export function AiInsightsPanel({ results, jdText }: AiInsightsPanelProps) {
         </div>
       </div>
 
-      <div className="bg-white rounded-2xl p-5 border border-border">
+      <div className="bg-surface rounded-2xl p-5 border border-border">
         <h3 className="text-sm font-medium text-foreground mb-4">Score Distribution</h3>
         <div className="space-y-3">
           {[
@@ -115,7 +115,7 @@ export function AiInsightsPanel({ results, jdText }: AiInsightsPanelProps) {
         </div>
       </div>
 
-      <div className="bg-white rounded-2xl p-5 border border-border">
+      <div className="bg-surface rounded-2xl p-5 border border-border">
         <h3 className="text-sm font-medium text-foreground mb-3">Summary</h3>
         <div className="space-y-2 text-xs text-muted-foreground">
           {[

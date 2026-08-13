@@ -68,7 +68,7 @@ export function ActivityItem({ entry, index }: { entry: HistoryEntry; index: num
       animate={{ opacity: 1, x: 0 }}
       transition={{ delay: index * 0.03, duration: 0.3, ease: [0.25, 0.1, 0.25, 1] }}
     >
-      <div className="flex items-start gap-4 px-6 py-4 hover:bg-[#F9FAFB] transition-colors">
+      <div className="flex items-start gap-4 px-6 py-4 hover:bg-hover-tone transition-colors">
         <div className={`h-9 w-9 rounded-full flex items-center justify-center shrink-0 mt-0.5 ${getActivityColor(entry.action_type)}`}>
           {getActivityIcon(entry.action_type)}
         </div>

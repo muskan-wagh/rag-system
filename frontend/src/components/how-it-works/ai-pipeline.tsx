@@ -40,7 +40,7 @@ export function AiPipeline() {
                     whileHover={{ y: -6 }}
                     onClick={() => setSelectedStep(step.id)}
                     className={cn(
-                      "group flex flex-col items-center gap-3 p-5 rounded-2xl bg-white border border-border card-hover cursor-pointer text-left",
+                      "group flex flex-col items-center gap-3 p-5 rounded-2xl bg-surface border border-border card-hover cursor-pointer text-left",
                       "hover:border-primary/20 hover:shadow-lg"
                     )}
                   >
@@ -85,7 +85,7 @@ export function AiPipeline() {
                 >
                   <button
                     onClick={() => setSelectedStep(step.id)}
-                    className="w-full flex items-center gap-4 p-4 rounded-xl bg-white border border-border card-hover hover:border-primary/20 hover:shadow-md text-left"
+                    className="w-full flex items-center gap-4 p-4 rounded-xl bg-surface border border-border card-hover hover:border-primary/20 hover:shadow-md text-left"
                   >
                     <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10">
                       <Icon className="h-5 w-5 text-primary" />

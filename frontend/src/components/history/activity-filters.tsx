@@ -31,21 +31,21 @@ export function ActivityFilters({
   return (
     <div className="flex items-center gap-4 mb-8">
       <div className="relative flex-1 max-w-sm">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#A3A3A3]" strokeWidth={1.5} />
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-faint" strokeWidth={1.5} />
         <input
           type="text"
           placeholder="Search activity..."
           value={searchQuery}
           onChange={(e) => onSearchChange(e.target.value)}
-          className="w-full h-10 pl-9 pr-4 rounded-[12px] border border-[#ECECEC] bg-white text-sm text-[#111111] placeholder:text-[#A3A3A3] focus:outline-none focus:border-[#111111] transition-colors"
+          className="w-full h-10 pl-9 pr-4 rounded-[12px] border border-soft bg-surface text-sm text-ink placeholder:text-faint focus:outline-none focus:border-ink transition-colors"
         />
       </div>
       <div className="relative">
-        <Filter className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#A3A3A3]" strokeWidth={1.5} />
+        <Filter className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-faint" strokeWidth={1.5} />
         <select
           value={actionType}
           onChange={(e) => onActionTypeChange(e.target.value)}
-          className="h-10 pl-9 pr-8 rounded-[12px] border border-[#ECECEC] bg-white text-sm text-[#111111] appearance-none focus:outline-none focus:border-[#111111] transition-colors cursor-pointer"
+          className="h-10 pl-9 pr-8 rounded-[12px] border border-soft bg-surface text-sm text-ink appearance-none focus:outline-none focus:border-ink transition-colors cursor-pointer"
         >
           {ACTION_TYPES.map((t) => (
             <option key={t.value} value={t.value}>{t.label}</option>

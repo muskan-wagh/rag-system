@@ -62,7 +62,7 @@ export function RejectModal({ open, onClose, candidateId, onSuccess }: RejectMod
             <select
               value={reason}
               onChange={(e) => setReason(e.target.value)}
-              className="w-full h-9 px-3 text-sm rounded-lg border border-border bg-white focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500"
+              className="w-full h-9 px-3 text-sm rounded-lg border border-border bg-surface focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500"
             >
               {REJECT_REASONS.map((r) => (
                 <option key={r.value} value={r.value}>{r.label}</option>
@@ -78,7 +78,7 @@ export function RejectModal({ open, onClose, candidateId, onSuccess }: RejectMod
               onChange={(e) => setNotes(e.target.value)}
               placeholder="Add any additional context..."
               rows={3}
-              className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-white focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 resize-none"
+              className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-surface focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 resize-none"
             />
           </div>
           <div className="flex justify-end gap-2 pt-2">

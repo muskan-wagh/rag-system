@@ -19,8 +19,8 @@ function scoreLabel(score: number) {
 }
 
 function scoreColor(score: number) {
-  if (score >= 0.8) return "bg-ink"
-  return "bg-ink-hover"
+  if (score >= 0.8) return "bg-primary-solid"
+  return "bg-primary-solid-hover"
 }
 
 interface CandidateCardProps {
@@ -153,12 +153,12 @@ export const CandidateCard = memo(function CandidateCard({
       <div className="group bg-surface border border-border rounded-xl hover:border-border-hover transition-all duration-120 p-6">
         <div className="flex items-start gap-4">
           <div className="relative shrink-0">
-            <div className="flex size-11 items-center justify-center rounded-full bg-[#E5E7EB]">
+            <div className="flex size-11 items-center justify-center rounded-full bg-soft">
               <span className="text-sm font-medium text-muted">
                 {getInitials(candidate.name)}
               </span>
             </div>
-            <div className="absolute -top-1 -right-1 flex h-[18px] w-[18px] items-center justify-center rounded-full bg-ink text-[9px] font-medium text-white">
+            <div className="absolute -top-1 -right-1 flex h-[18px] w-[18px] items-center justify-center rounded-full bg-primary-solid text-[9px] font-medium text-white">
               {index + 1}
             </div>
           </div>
@@ -217,14 +217,14 @@ export const CandidateCard = memo(function CandidateCard({
           </p>
           <div className="flex items-center gap-1">
             <Link href={ROUTES.candidateDetail(candidate.id)}>
-              <button className="flex h-7 w-7 items-center justify-center rounded-md hover:bg-[#F3F4F6] transition-colors duration-120 text-faint hover:text-ink">
+              <button className="flex h-7 w-7 items-center justify-center rounded-md hover:bg-surface-secondary transition-colors duration-120 text-faint hover:text-ink">
                 <Eye className="size-[14px]" strokeWidth={1.5} />
               </button>
             </Link>
-            <button className="flex h-7 w-7 items-center justify-center rounded-md hover:bg-[#F3F4F6] transition-colors duration-120 text-faint hover:text-ink">
+            <button className="flex h-7 w-7 items-center justify-center rounded-md hover:bg-surface-secondary transition-colors duration-120 text-faint hover:text-ink">
               <GitCompare className="size-[14px]" strokeWidth={1.5} />
             </button>
-            <button className="flex h-7 w-7 items-center justify-center rounded-md hover:bg-[#F3F4F6] transition-colors duration-120 text-faint hover:text-ink">
+            <button className="flex h-7 w-7 items-center justify-center rounded-md hover:bg-surface-secondary transition-colors duration-120 text-faint hover:text-ink">
               <Bookmark className="size-[14px]" strokeWidth={1.5} />
             </button>
           </div>

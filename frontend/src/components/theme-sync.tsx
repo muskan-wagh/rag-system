@@ -1,0 +1,18 @@
+"use client"
+
+import { useEffect } from "react"
+
+export function ThemeSync() {
+  useEffect(() => {
+    const hasCookie = document.cookie
+      .split(";")
+      .some((c) => c.trim().startsWith("recruitiq-theme="))
+    if (!hasCookie && window.matchMedia("(prefers-color-scheme: dark)").matches) {
+      document.documentElement.classList.add("dark")
+      document.cookie =
+        "recruitiq-theme=dark; path=/; max-age=31536000; samesite=lax"
+    }
+  }, [])
+
+  return null
+}

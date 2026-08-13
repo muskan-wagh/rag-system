@@ -63,7 +63,7 @@ export function Testimonials() {
                 </p>
               </div>
               <div className="flex items-center gap-3 pt-4 border-t border-border">
-                <div className="w-9 h-9 rounded-full bg-[#E5E7EB] flex items-center justify-center text-xs font-medium text-muted shrink-0" style={{ fontFamily: "var(--font-inter)" }}>
+                <div className="w-9 h-9 rounded-full bg-soft flex items-center justify-center text-xs font-medium text-muted shrink-0" style={{ fontFamily: "var(--font-inter)" }}>
                   {testimonial.initials}
                 </div>
                 <div>

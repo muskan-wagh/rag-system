@@ -14,7 +14,7 @@ const links = [
 
 export function FooterSection() {
   return (
-    <footer className="w-full border-t border-border bg-white">
+    <footer className="w-full border-t border-border bg-surface">
       <div className="mx-auto max-w-6xl px-4 md:px-6 py-10 md:py-14">
         <div className="flex flex-col md:flex-row items-center md:items-start justify-between gap-6">
           <motion.div

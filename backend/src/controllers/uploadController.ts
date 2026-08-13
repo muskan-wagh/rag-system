@@ -8,6 +8,7 @@ import { AppError } from '@/middleware/errorHandler';
 import { ErrorCodes } from '@/middleware/errorCodes';
 import { broadcast } from '@/services/websocket';
 import { logActivity } from '@/services/activity';
+import { invalidateDashboardCache } from '@/controllers/dashboardController';
 
 export const uploadResumeHandler = asyncHandler(async (req: Request, res: Response) => {
   const uuid = req.params.id as string;
@@ -69,6 +70,11 @@ export const uploadResumeHandler = asyncHandler(async (req: Request, res: Respon
       });
     }
     throw new AppError('Failed to create candidate record', 500, ErrorCodes.DATABASE_ERROR);
+  }
+
+  // Invalidate the recruiter's dashboard cache so new uploads show up promptly
+  if (session.recruiter_id) {
+    await invalidateDashboardCache(session.recruiter_id);
   }
 
   // Step 6: Enqueue BullMQ job for background processing

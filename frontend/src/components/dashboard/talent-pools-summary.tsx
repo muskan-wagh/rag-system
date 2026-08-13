@@ -39,7 +39,7 @@ export function TalentPoolsSummary({ items }: { items: TopTalentPool[] }) {
             <Link href={`/pools/${pool.id}`}>
               <div className="bg-surface border border-border rounded-xl hover:border-border-hover transition-all duration-120 p-5">
                 <div className="flex items-center gap-3 mb-3">
-                  <div className="size-8 rounded-[10px] bg-[#F3F4F6] flex items-center justify-center">
+                  <div className="size-8 rounded-[10px] bg-surface-secondary flex items-center justify-center">
                     <Users className="size-4 text-muted" strokeWidth={1.5} />
                   </div>
                   <div className="flex-1 min-w-0">
@@ -53,7 +53,7 @@ export function TalentPoolsSummary({ items }: { items: TopTalentPool[] }) {
                   <TrendingUp className="size-3.5 text-success" strokeWidth={1.5} />
                   <span className="font-data text-[13px] font-medium text-ink">{pool.average_score}%</span>
                 </div>
-                <div className="mt-2 h-[3px] bg-[#E2E2E0] rounded-full overflow-hidden">
+                <div className="mt-2 h-[3px] bg-track rounded-full overflow-hidden">
                   <div className="h-full bg-info rounded-full transition-all duration-500" style={{ width: `${pool.average_score}%` }} />
                 </div>
               </div>

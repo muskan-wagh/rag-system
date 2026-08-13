@@ -10,7 +10,7 @@ function Input({ className, type, ...props }: React.ComponentProps<"input">) {
         "placeholder:text-sm placeholder:text-faint outline-none",
         "focus:border-ink focus:shadow-[0_0_0_3px_rgba(10,10,10,0.05)]",
         "transition-all duration-120",
-        "disabled:cursor-not-allowed disabled:opacity-50 disabled:bg-[#FAFAFA] disabled:text-faint",
+        "disabled:cursor-not-allowed disabled:opacity-50 disabled:bg-canvas disabled:text-faint",
         className
       )}
       {...props}

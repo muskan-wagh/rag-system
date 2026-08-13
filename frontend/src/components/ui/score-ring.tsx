@@ -55,12 +55,12 @@ export function ScoreRing({
             transition={{ duration: 1, delay, ease: "easeOut" }}
           />
         </svg>
-        <span className="absolute text-sm font-medium text-[#111111] tabular-nums">
+        <span className="absolute text-sm font-medium text-ink tabular-nums">
           {Math.round(value * 100)}%
         </span>
       </div>
       {label && (
-        <span className="text-[10px] text-[#6B7280]">{label}</span>
+        <span className="text-[10px] text-muted">{label}</span>
       )}
     </div>
   )

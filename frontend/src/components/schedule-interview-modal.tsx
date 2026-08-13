@@ -82,7 +82,7 @@ export function ScheduleInterviewModal({
                 type="date"
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
-                className="w-full h-9 px-3 text-sm rounded-lg border border-border bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                className="w-full h-9 px-3 text-sm rounded-lg border border-border bg-surface focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
               />
             </div>
             <div>
@@ -91,7 +91,7 @@ export function ScheduleInterviewModal({
                 type="time"
                 value={time}
                 onChange={(e) => setTime(e.target.value)}
-                className="w-full h-9 px-3 text-sm rounded-lg border border-border bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                className="w-full h-9 px-3 text-sm rounded-lg border border-border bg-surface focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
               />
             </div>
           </div>
@@ -100,7 +100,7 @@ export function ScheduleInterviewModal({
             <select
               value={type}
               onChange={(e) => setType(e.target.value)}
-              className="w-full h-9 px-3 text-sm rounded-lg border border-border bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+              className="w-full h-9 px-3 text-sm rounded-lg border border-border bg-surface focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
             >
               {INTERVIEW_TYPES.map((t) => (
                 <option key={t.value} value={t.value}>{t.label}</option>
@@ -114,7 +114,7 @@ export function ScheduleInterviewModal({
               value={interviewer}
               onChange={(e) => setInterviewer(e.target.value)}
               placeholder="e.g. Sarah Johnson"
-              className="w-full h-9 px-3 text-sm rounded-lg border border-border bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+              className="w-full h-9 px-3 text-sm rounded-lg border border-border bg-surface focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
             />
           </div>
           <div>
@@ -124,7 +124,7 @@ export function ScheduleInterviewModal({
               onChange={(e) => setNotes(e.target.value)}
               placeholder="Any additional notes..."
               rows={3}
-              className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary resize-none"
+              className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-surface focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary resize-none"
             />
           </div>
           <div className="flex justify-end gap-2 pt-2">

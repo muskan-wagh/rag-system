@@ -13,7 +13,7 @@ interface SavedSearchCardProps {
 
 export function SavedSearchCard({ search, onRun, onToggleFavorite, onDelete }: SavedSearchCardProps) {
   return (
-    <div className="bg-white rounded-xl border border-border p-4 hover:border-[#1F4770]/20 transition-colors group">
+    <div className="bg-surface rounded-xl border border-border p-4 hover:border-brand/20 transition-colors group">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
@@ -42,7 +42,7 @@ export function SavedSearchCard({ search, onRun, onToggleFavorite, onDelete }: S
         <div className="flex items-center gap-1 shrink-0">
           <button
             onClick={() => onRun(search.id)}
-            className="p-1.5 rounded-lg hover:bg-[#1F4770]/10 text-muted-foreground hover:text-[#1F4770] transition-colors"
+            className="p-1.5 rounded-lg hover:bg-brand/10 text-muted-foreground hover:text-brand transition-colors"
             title="Run search"
           >
             <Search className="h-3.5 w-3.5" />

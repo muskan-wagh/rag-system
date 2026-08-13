@@ -12,7 +12,7 @@ export function SkillCoverageCard({ skills, strengths = [], missingSkills = [] }
   const hasHighlights = strengths.length > 0 || missingSkills.length > 0
 
   return (
-    <div className="bg-white rounded-xl border border-border p-5">
+    <div className="bg-surface rounded-xl border border-border p-5">
       <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">Skill Coverage</h3>
 
       {skills.length > 0 && (
@@ -20,7 +20,7 @@ export function SkillCoverageCard({ skills, strengths = [], missingSkills = [] }
           <p className="text-xs text-muted-foreground mb-2">{skills.length} skills identified</p>
           <div className="flex flex-wrap gap-1.5">
             {skills.map((skill) => (
-              <span key={skill} className="inline-flex items-center gap-1 text-xs px-2 py-1 bg-[#1F4770]/5 text-[#1F4770] rounded-md border border-[#1F4770]/10">
+              <span key={skill} className="inline-flex items-center gap-1 text-xs px-2 py-1 bg-brand/5 text-brand rounded-md border border-brand/10">
                 <CheckCircle2 className="h-3 w-3" />
                 {skill}
               </span>

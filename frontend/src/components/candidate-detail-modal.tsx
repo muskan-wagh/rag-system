@@ -839,7 +839,7 @@ export function CandidateDetailModal({ open, onClose, candidate, onStatusChange 
         </Tabs>
 
         {/* Pipeline Action Footer */}
-        <div className="sticky bottom-0 flex flex-col gap-3 p-4 border-t bg-white shrink-0">
+        <div className="sticky bottom-0 flex flex-col gap-3 p-4 border-t bg-surface shrink-0">
           <div className="flex items-center justify-between gap-2">
             <span className="text-xs font-medium text-muted-foreground">Next Step</span>
             <div className="flex items-center gap-2">

@@ -81,7 +81,7 @@ export function SearchSidebar({ className }: SearchSidebarProps) {
                 placeholder="Min"
                 value={filterFormValues.minExp}
                 onChange={(e) => setFilterFormValues({ ...filterFormValues, minExp: e.target.value })}
-                className="w-full bg-white rounded-lg border border-border px-3 py-1.5 text-xs text-foreground placeholder-muted-foreground/50 outline-none focus:border-primary/30 transition-colors"
+                className="w-full bg-surface rounded-lg border border-border px-3 py-1.5 text-xs text-foreground placeholder-muted-foreground/50 outline-none focus:border-primary/30 transition-colors"
               />
               <span className="text-xs text-muted-foreground">to</span>
               <input
@@ -89,7 +89,7 @@ export function SearchSidebar({ className }: SearchSidebarProps) {
                 placeholder="Max"
                 value={filterFormValues.maxExp}
                 onChange={(e) => setFilterFormValues({ ...filterFormValues, maxExp: e.target.value })}
-                className="w-full bg-white rounded-lg border border-border px-3 py-1.5 text-xs text-foreground placeholder-muted-foreground/50 outline-none focus:border-primary/30 transition-colors"
+                className="w-full bg-surface rounded-lg border border-border px-3 py-1.5 text-xs text-foreground placeholder-muted-foreground/50 outline-none focus:border-primary/30 transition-colors"
               />
             </div>
           </div>
@@ -99,7 +99,7 @@ export function SearchSidebar({ className }: SearchSidebarProps) {
             <select
               value={filterFormValues.education}
               onChange={(e) => setFilterFormValues({ ...filterFormValues, education: e.target.value })}
-              className="w-full bg-white rounded-lg border border-border px-3 py-1.5 text-xs text-foreground outline-none focus:border-primary/30 transition-colors"
+              className="w-full bg-surface rounded-lg border border-border px-3 py-1.5 text-xs text-foreground outline-none focus:border-primary/30 transition-colors"
             >
               <option value="">Any</option>
               <option value="bachelor">Bachelor</option>
@@ -114,7 +114,7 @@ export function SearchSidebar({ className }: SearchSidebarProps) {
               placeholder="React, TypeScript, AWS..."
               value={filterFormValues.skills}
               onChange={(e) => setFilterFormValues({ ...filterFormValues, skills: e.target.value })}
-              className="w-full bg-white rounded-lg border border-border px-3 py-1.5 text-xs text-foreground placeholder-muted-foreground/50 outline-none focus:border-primary/30 transition-colors"
+              className="w-full bg-surface rounded-lg border border-border px-3 py-1.5 text-xs text-foreground placeholder-muted-foreground/50 outline-none focus:border-primary/30 transition-colors"
             />
             <p className="text-[10px] text-muted-foreground mt-1">Comma-separated list</p>
           </div>
@@ -123,7 +123,7 @@ export function SearchSidebar({ className }: SearchSidebarProps) {
             <Button
               onClick={applyFilters}
               size="sm"
-              className="flex-1 bg-primary text-primary-foreground hover:bg-primary/90 text-xs"
+              className="flex-1 bg-primary-solid text-white hover:bg-primary-solid/90 text-xs"
             >
               <Search className="h-3 w-3 mr-1" />
               Search

@@ -35,7 +35,7 @@ export function SemanticVsKeyword() {
           initial={{ opacity: 0, y: 16 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
-          className="bg-white rounded-2xl border border-border p-6 md:p-8 shadow-sm mb-8"
+          className="bg-surface rounded-2xl border border-border p-6 md:p-8 shadow-sm mb-8"
         >
           <div className="flex items-center gap-3 mb-6">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10">
@@ -58,7 +58,7 @@ export function SemanticVsKeyword() {
             initial={{ opacity: 0, x: -20 }}
             whileInView={{ opacity: 1, x: 0 }}
             viewport={{ once: true }}
-            className="bg-white rounded-2xl border border-border p-6"
+            className="bg-surface rounded-2xl border border-border p-6"
           >
             <div className="flex items-center gap-2 mb-4">
               <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-destructive/10">
@@ -92,7 +92,7 @@ export function SemanticVsKeyword() {
             initial={{ opacity: 0, x: 20 }}
             whileInView={{ opacity: 1, x: 0 }}
             viewport={{ once: true }}
-            className="bg-white rounded-2xl border border-primary/10 p-6 shadow-sm"
+            className="bg-surface rounded-2xl border border-primary/10 p-6 shadow-sm"
           >
             <div className="flex items-center gap-2 mb-4">
               <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary/10">
@@ -131,7 +131,7 @@ export function SemanticVsKeyword() {
           initial={{ opacity: 0, y: 12 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
-          className="mt-8 bg-white rounded-2xl border border-border p-5 md:p-6"
+          className="mt-8 bg-surface rounded-2xl border border-border p-5 md:p-6"
         >
           <h4 className="text-sm font-semibold text-foreground mb-2">Why semantic search is more accurate</h4>
           <p className="text-sm text-muted-foreground leading-relaxed">

@@ -38,7 +38,7 @@ export function RankingBreakdown() {
           initial={{ opacity: 0, y: 16 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
-          className="bg-white rounded-2xl border border-border p-6 md:p-8 shadow-sm"
+          className="bg-surface rounded-2xl border border-border p-6 md:p-8 shadow-sm"
         >
           <div className="flex items-center justify-between mb-8">
             <div>

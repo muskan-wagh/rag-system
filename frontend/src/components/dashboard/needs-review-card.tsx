@@ -34,7 +34,7 @@ export function NeedsReviewCard({ items }: { items: NeedsReviewItem[] }) {
       {items.length === 0 ? (
         <div className="bg-surface border border-border rounded-xl px-6 flex items-center justify-center min-h-[180px]">
           <div className="flex flex-col items-center text-center">
-            <div className="h-9 w-9 rounded-[10px] bg-[#F3F4F6] flex items-center justify-center mb-2.5">
+            <div className="h-9 w-9 rounded-[10px] bg-surface-secondary flex items-center justify-center mb-2.5">
               <Clock className="h-4 w-4 text-muted" strokeWidth={1.5} />
             </div>
             <p className="text-[13px] font-medium text-ink" style={{ fontFamily: "var(--font-inter)" }}>All caught up!</p>
@@ -51,9 +51,9 @@ export function NeedsReviewCard({ items }: { items: NeedsReviewItem[] }) {
               transition={{ delay: i * 0.04, duration: 0.35, ease: [0.25, 0.1, 0.25, 1] }}
             >
               <Link href={`${ROUTES.candidates}/${item.id}`}>
-                <div className="flex items-center gap-3 px-1 py-2 rounded-[8px] hover:bg-[#F9FAFB] transition-all duration-120">
+                <div className="flex items-center gap-3 px-1 py-2 rounded-[8px] hover:bg-hover-tone transition-all duration-120">
                   <Avatar className="size-9 shrink-0">
-                    <AvatarFallback className="text-[12px] font-medium bg-[#E5E7EB] text-muted" style={{ fontFamily: "var(--font-inter)" }}>
+                    <AvatarFallback className="text-[12px] font-medium bg-soft text-muted" style={{ fontFamily: "var(--font-inter)" }}>
                       {getInitials(item.full_name ?? undefined)}
                     </AvatarFallback>
                   </Avatar>

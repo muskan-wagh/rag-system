@@ -112,7 +112,7 @@ export default function InterviewPage() {
           <h1 className="text-xl font-medium text-text-primary tracking-tight">Interviews</h1>
           <p className="text-sm text-text-secondary mt-1">Manage your interview pipeline</p>
         </div>
-        <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-white border border-border">
+        <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-surface border border-border">
           <div className="text-center">
             <p className="text-sm font-medium text-text-primary tabular-nums">{filteredCandidates.length}</p>
             <p className="text-[10px] text-text-muted">Candidates</p>
@@ -128,7 +128,7 @@ export default function InterviewPage() {
         />
       </motion.div>
 
-      <motion.div variants={itemVariants} className="bg-white rounded-[24px] border border-border shadow-[0_10px_40px_rgba(0,0,0,0.05)] overflow-hidden">
+      <motion.div variants={itemVariants} className="bg-surface rounded-[24px] border border-border shadow-[0_10px_40px_rgba(0,0,0,0.05)] overflow-hidden">
         {loading ? (
           <div className="p-6 space-y-4">
             {Array.from({ length: 4 }).map((_, i) => (
@@ -198,11 +198,11 @@ export default function InterviewPage() {
                           <Mail className="h-3.5 w-3.5 mr-1" strokeWidth={1.5} />
                           Email
                         </Button>
-                        <Button variant="ghost" size="sm" onClick={() => handleOffer(candidate)} className="h-8 px-2.5 text-xs text-[#16A34A] hover:text-[#16A34A] hover:bg-[#16A34A]/10">
+                        <Button variant="ghost" size="sm" onClick={() => handleOffer(candidate)} className="h-8 px-2.5 text-xs text-success hover:text-success hover:bg-success/10">
                           <BadgeCheck className="h-3.5 w-3.5 mr-1" strokeWidth={1.5} />
                           Offer
                         </Button>
-                        <Button variant="ghost" size="sm" onClick={() => handleReject(candidate)} className="h-8 px-2.5 text-xs text-[#EF4444] hover:text-[#EF4444] hover:bg-[#EF4444]/10">
+                        <Button variant="ghost" size="sm" onClick={() => handleReject(candidate)} className="h-8 px-2.5 text-xs text-danger hover:text-danger hover:bg-danger/10">
                           <XCircle className="h-3.5 w-3.5 mr-1" strokeWidth={1.5} />
                           Reject
                         </Button>
@@ -238,7 +238,7 @@ export default function InterviewPage() {
       <Dialog open={showOfferConfirm} onOpenChange={(o) => { if (!o) { setShowOfferConfirm(false); setSelectedCandidate(null) } }}>
         <DialogContent className="sm:max-w-md">
           <div className="px-6 pt-6 pb-2">
-            <div className="flex items-center gap-2 text-[#16A34A] mb-3">
+            <div className="flex items-center gap-2 text-success mb-3">
               <BadgeCheck className="h-5 w-5" />
               <h2 className="text-base font-medium text-text-primary">Move to Offer</h2>
             </div>
@@ -250,7 +250,7 @@ export default function InterviewPage() {
             <Button variant="outline" size="sm" onClick={() => { setShowOfferConfirm(false); setSelectedCandidate(null) }} disabled={offerLoading}>
               Cancel
             </Button>
-            <Button size="sm" className="bg-[#111111] text-white hover:bg-[#2A2A2A]" onClick={confirmOffer} disabled={offerLoading}>
+            <Button size="sm" className="bg-primary-solid text-white hover:bg-primary-solid-hover" onClick={confirmOffer} disabled={offerLoading}>
               {offerLoading && <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />}
               Confirm Offer
             </Button>

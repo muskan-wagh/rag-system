@@ -31,7 +31,7 @@ export function WhyBetterTable() {
           </p>
         </motion.div>
 
-        <div className="bg-white rounded-2xl border border-border overflow-hidden shadow-sm">
+        <div className="bg-surface rounded-2xl border border-border overflow-hidden shadow-sm">
           <div className="grid grid-cols-3 gap-0">
             <div className="px-5 py-4 bg-muted/50 border-r border-border">
               <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Feature</span>

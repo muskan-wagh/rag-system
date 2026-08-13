@@ -28,9 +28,9 @@ export function ResumeDrawer({ candidate, onClose }: ResumeDrawerProps) {
             animate={{ x: 0 }}
             exit={{ x: "100%" }}
             transition={{ type: "spring", damping: 25, stiffness: 200 }}
-            className="fixed right-0 top-0 bottom-0 w-full max-w-lg z-50 bg-white border-l border-border overflow-y-auto shadow-xl"
+            className="fixed right-0 top-0 bottom-0 w-full max-w-lg z-50 bg-surface border-l border-border overflow-y-auto shadow-xl"
           >
-            <div className="sticky top-0 bg-white/90 backdrop-blur-xl border-b border-border px-6 py-4 flex items-center justify-between z-10">
+            <div className="sticky top-0 bg-surface/90 backdrop-blur-xl border-b border-border px-6 py-4 flex items-center justify-between z-10">
               <h2 className="text-sm font-medium text-foreground">Candidate Profile</h2>
               <button
                 onClick={onClose}
@@ -122,7 +122,7 @@ export function ResumeDrawer({ candidate, onClose }: ResumeDrawerProps) {
               </div>
 
               <div className="flex gap-2 pt-2">
-                <Button size="sm" className="flex-1 bg-primary text-white hover:bg-primary/90 text-xs">
+                <Button size="sm" className="flex-1 bg-primary-solid text-white hover:bg-primary-solid/90 text-xs">
                   View Full Profile
                 </Button>
               </div>

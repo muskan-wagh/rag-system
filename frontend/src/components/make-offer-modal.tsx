@@ -66,7 +66,7 @@ export function MakeOfferModal({ open, onClose, candidateId, onSuccess }: MakeOf
                   value={salary}
                   onChange={(e) => setSalary(e.target.value)}
                   placeholder="0"
-                  className="w-full h-9 pl-7 pr-3 text-sm rounded-lg border border-border bg-white focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500"
+                  className="w-full h-9 pl-7 pr-3 text-sm rounded-lg border border-border bg-surface focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500"
                 />
               </div>
             </div>
@@ -78,7 +78,7 @@ export function MakeOfferModal({ open, onClose, candidateId, onSuccess }: MakeOf
                 type="date"
                 value={joiningDate}
                 onChange={(e) => setJoiningDate(e.target.value)}
-                className="w-full h-9 px-3 text-sm rounded-lg border border-border bg-white focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500"
+                className="w-full h-9 px-3 text-sm rounded-lg border border-border bg-surface focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500"
               />
             </div>
           </div>
@@ -91,7 +91,7 @@ export function MakeOfferModal({ open, onClose, candidateId, onSuccess }: MakeOf
               onChange={(e) => setNotes(e.target.value)}
               placeholder="Offer details, terms, or additional notes..."
               rows={3}
-              className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-white focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 resize-none"
+              className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-surface focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 resize-none"
             />
           </div>
           <div className="flex justify-end gap-2 pt-2">

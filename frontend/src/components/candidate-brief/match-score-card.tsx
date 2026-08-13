@@ -9,7 +9,7 @@ interface MatchScoreCardProps {
 export function MatchScoreCard({ scores }: MatchScoreCardProps) {
   if (!scores) {
     return (
-      <div className="bg-white rounded-xl border border-border p-5">
+      <div className="bg-surface rounded-xl border border-border p-5">
         <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">Match Score</h3>
         <p className="text-sm text-muted-foreground">Run a search with a JD to see match scores.</p>
       </div>
@@ -18,17 +18,17 @@ export function MatchScoreCard({ scores }: MatchScoreCardProps) {
 
   const overallPct = Math.round(scores.overall * 100)
   const bars = [
-    { label: "Semantic", value: scores.skill, color: "bg-[#1F4770]" },
+    { label: "Semantic", value: scores.skill, color: "bg-brand" },
     { label: "Skills", value: scores.skill, color: "bg-emerald-500" },
     { label: "Experience", value: scores.experience, color: "bg-amber-500" },
     { label: "Education", value: scores.education, color: "bg-violet-500" },
   ]
 
   return (
-    <div className="bg-white rounded-xl border border-border p-5">
+    <div className="bg-surface rounded-xl border border-border p-5">
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Match Score</h3>
-        <span className="text-2xl font-bold text-[#1F4770]">{overallPct}%</span>
+        <span className="text-2xl font-bold text-brand">{overallPct}%</span>
       </div>
       <div className="space-y-2.5">
         {bars.map((bar) => (

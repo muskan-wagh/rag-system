@@ -43,7 +43,7 @@ export function TechStack() {
               className="group card-hover"
             >
               <div className={cn(
-                "relative bg-white rounded-2xl border border-border p-5 h-full overflow-hidden",
+                "relative bg-surface rounded-2xl border border-border p-5 h-full overflow-hidden",
               )}>
                 <div className={cn(
                   "absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 bg-gradient-to-br",
@@ -51,7 +51,7 @@ export function TechStack() {
                 )} />
                 <div className="relative">
                   <div className={cn(
-                    "flex h-10 w-10 items-center justify-center rounded-xl bg-muted mb-3 group-hover:bg-white/50 transition-colors",
+                    "flex h-10 w-10 items-center justify-center rounded-xl bg-muted mb-3 group-hover:bg-surface/50 transition-colors",
                   )}>
                     <tech.icon className={cn("h-5 w-5", tech.iconColor)} />
                   </div>

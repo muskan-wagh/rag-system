@@ -19,7 +19,7 @@ export function SectionHeader({ label, title, highlight, description, className 
       className={className}
     >
       {label && (
-        <div className="inline-flex items-center gap-1.5 rounded-[6px] bg-[#F3F4F6] px-3 py-1 text-xs font-medium text-muted mb-5" style={{ fontFamily: "var(--font-inter)" }}>
+        <div className="inline-flex items-center gap-1.5 rounded-[6px] bg-surface-secondary px-3 py-1 text-xs font-medium text-muted mb-5" style={{ fontFamily: "var(--font-inter)" }}>
           <span className="flex h-1.5 w-1.5 rounded-full bg-info" />
           {label}
         </div>

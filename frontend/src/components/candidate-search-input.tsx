@@ -121,7 +121,7 @@ export function CandidateSearchInput({ index, selected, onSelect }: CandidateSea
       )}
 
       {isOpen && results.length > 0 && (
-        <div className="absolute z-50 mt-1 w-full bg-white rounded-xl border border-border shadow-lg overflow-hidden">
+        <div className="absolute z-50 mt-1 w-full bg-surface rounded-xl border border-border shadow-lg overflow-hidden">
           {results.map((candidate) => (
             <button
               key={candidate.id}
@@ -154,7 +154,7 @@ export function CandidateSearchInput({ index, selected, onSelect }: CandidateSea
       )}
 
       {isOpen && query.trim() && !searching && results.length === 0 && (
-        <div className="absolute z-50 mt-1 w-full bg-white rounded-xl border border-border shadow-lg p-3">
+        <div className="absolute z-50 mt-1 w-full bg-surface rounded-xl border border-border shadow-lg p-3">
           <p className="text-xs text-muted-foreground text-center">No candidates found</p>
         </div>
       )}

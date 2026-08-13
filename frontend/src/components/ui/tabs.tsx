@@ -28,7 +28,7 @@ function TabsTab({ className, ...props }: TabsPrimitive.Tab.Props) {
       className={cn(
         "inline-flex items-center justify-center px-4 py-1.5 text-xs font-medium transition-all rounded-full cursor-pointer",
         "text-muted hover:text-ink",
-        "data-selected:bg-white data-selected:text-ink data-selected:shadow-[0_1px_2px_rgba(10,10,10,0.04)]",
+        "data-selected:bg-surface data-selected:text-ink data-selected:shadow-[0_1px_2px_rgba(10,10,10,0.04)]",
         className
       )}
       {...props}

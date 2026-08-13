@@ -5,10 +5,10 @@ import { AppError } from '@/middleware/errorHandler';
 import { ErrorCodes } from '@/middleware/errorCodes';
 import { RecruiterRecord } from '@/services/supabase/database';
 import { logger } from '@/utils/logger';
-import { getCached, setCache } from '@/utils/cache';
+import { getCached, setCache, invalidateCacheByPattern } from '@/utils/cache';
 
-const DASHBOARD_CACHE_TTL = 30_000;
-const STALE_TTL = 60_000;
+const DASHBOARD_CACHE_TTL = 60_000;
+const STALE_TTL = 10 * 60_000;
 const DEFAULT_LIMIT = 50;
 
 interface DashboardStats {
@@ -95,6 +95,14 @@ interface DashboardData {
   quickActions: QuickAction[];
 }
 
+export function dashboardCacheKey(recruiterId: string, page: number, limit: number): string {
+  return `dashboard:recruiter:${recruiterId}:${page}:${limit}`;
+}
+
+export async function invalidateDashboardCache(recruiterId: string): Promise<void> {
+  await invalidateCacheByPattern(`dashboard:recruiter:${recruiterId}:*`);
+}
+
 async function fetchNeedsReview(supabase: ReturnType<typeof getSupabaseClient>, recruiterId: string): Promise<NeedsReviewItem[]> {
   const fortyEightHoursAgo = new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString();
 
@@ -168,7 +176,8 @@ async function fetchUpcomingInterviews(supabase: ReturnType<typeof getSupabaseCl
 
   const { data, error } = await supabase
     .from('interviews')
-    .select('id, candidate_id, interview_type, scheduled_date, scheduled_time, status, meeting_link')
+    .select('id, candidate_id, interview_type, scheduled_date, scheduled_time, status, meeting_link, candidates!inner(recruiter_id)')
+    .eq('candidates.recruiter_id', recruiterId)
     .eq('status', 'scheduled')
     .gte('scheduled_date', todayStr)
     .order('scheduled_date', { ascending: true })
@@ -213,7 +222,8 @@ async function fetchRecentActivity(supabase: ReturnType<typeof getSupabaseClient
 
   const { data: statusLogs } = await supabase
     .from('candidate_status_log')
-    .select('id, candidate_id, status, details, changed_at')
+    .select('id, candidate_id, status, details, changed_at, candidates!inner(recruiter_id)')
+    .eq('candidates.recruiter_id', recruiterId)
     .order('changed_at', { ascending: false })
     .limit(5);
 
@@ -264,6 +274,27 @@ async function fetchRecentActivity(supabase: ReturnType<typeof getSupabaseClient
 }
 
 async function fetchTopTalentPools(supabase: ReturnType<typeof getSupabaseClient>, recruiterId: string): Promise<TopTalentPool[]> {
+  // Preferred: server-side aggregate view (see migration 20260811_dashboard_perf.sql).
+  // This avoids transferring every talent_pool_candidates row and computing in JS.
+  const { data: viewData, error: viewError } = await supabase
+    .from('talent_pool_summary')
+    .select('*')
+    .eq('recruiter_id', recruiterId)
+    .order('updated_at', { ascending: false })
+    .limit(5);
+
+  if (!viewError && viewData) {
+    return (viewData as Array<Record<string, unknown>>).map((p) => ({
+      id: p.id as string,
+      name: p.name as string,
+      candidate_count: Number(p.candidate_count ?? 0),
+      average_score: Number(p.average_score ?? 0),
+      new_count: Number(p.new_count ?? 0),
+      updated_at: p.updated_at as string,
+    }));
+  }
+
+  // Fallback until the view is applied: bounded per-pool join (previous behavior).
   const { data, error } = await supabase
     .from('talent_pools')
     .select(`
@@ -352,16 +383,16 @@ async function fetchDashboardData(recruiterId: string, page: number, limit: numb
   const supabase = getSupabaseClient();
   const offset = (page - 1) * limit;
 
-  const [needsReview, aiRecommendations, upcomingInterviews, recentActivity, topTalentPools] = await Promise.all([
+  const [needsReview, aiRecommendations, upcomingInterviews, recentActivity, topTalentPools, statsResult] = await Promise.all([
     fetchNeedsReview(supabase, recruiterId),
     fetchAiRecommendations(supabase, recruiterId),
     fetchUpcomingInterviews(supabase, recruiterId),
     fetchRecentActivity(supabase, recruiterId),
     fetchTopTalentPools(supabase, recruiterId),
+    supabase.rpc('get_recruiter_stats', { p_recruiter_id: recruiterId }),
   ]);
 
-  const { data: rpcData, error: rpcError } = await supabase
-    .rpc('get_recruiter_stats', { p_recruiter_id: recruiterId });
+  const { data: rpcData, error: rpcError } = statsResult;
 
   if (!rpcError && rpcData) {
     const r = rpcData as Record<string, number>;
@@ -377,7 +408,8 @@ async function fetchDashboardData(recruiterId: string, page: number, limit: numb
         .from('upload_sessions')
         .select('id, job_description_text, created_at')
         .eq('recruiter_id', recruiterId)
-        .order('created_at', { ascending: false }),
+        .order('created_at', { ascending: false })
+        .limit(DEFAULT_LIMIT),
     ]);
 
     if (recentResult.error) {
@@ -433,7 +465,8 @@ async function fetchDashboardData(recruiterId: string, page: number, limit: numb
       .from('upload_sessions')
       .select('id, job_description_text, created_at')
       .eq('recruiter_id', recruiterId)
-      .order('created_at', { ascending: false }),
+      .order('created_at', { ascending: false })
+      .limit(DEFAULT_LIMIT),
   ]);
 
   if (candidatesResult.error) {
@@ -517,7 +550,7 @@ export const getDashboardHandler = asyncHandler(async (req: Request, res: Respon
   const recruiterId = recruiter.id;
   const page = Math.max(1, parseInt(req.query.page as string) || 1);
   const limit = Math.min(100, Math.max(1, parseInt(req.query.limit as string) || DEFAULT_LIMIT));
-  const cacheKey = `dashboard:recruiter:${recruiterId}:${page}:${limit}`;
+  const cacheKey = dashboardCacheKey(recruiterId, page, limit);
   const staleKey = `${cacheKey}:stale`;
 
   const [freshData, staleData] = await Promise.all([

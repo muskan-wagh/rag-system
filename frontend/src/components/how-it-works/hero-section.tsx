@@ -15,7 +15,7 @@ export function HeroSection() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
         >
-          <div className="inline-flex items-center gap-1.5 rounded-full border border-border bg-white px-3 py-1 text-xs text-muted-foreground shadow-sm mb-6">
+          <div className="inline-flex items-center gap-1.5 rounded-full border border-border bg-surface px-3 py-1 text-xs text-muted-foreground shadow-sm mb-6">
             <span className="flex h-1.5 w-1.5 rounded-full bg-primary animate-pulse-subtle" />
             AI-Powered Recruitment Intelligence
           </div>

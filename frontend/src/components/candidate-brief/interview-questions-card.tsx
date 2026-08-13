@@ -13,9 +13,9 @@ export function InterviewQuestionsCard({ technical = [], behavioral = [], follow
 
   if (!hasContent) {
     return (
-      <div className="bg-white rounded-xl border border-border p-5">
+      <div className="bg-surface rounded-xl border border-border p-5">
         <div className="flex items-center gap-2 mb-2">
-          <MessageSquare className="h-4 w-4 text-[#1F4770]" />
+          <MessageSquare className="h-4 w-4 text-brand" />
           <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Interview Questions</h3>
         </div>
         <p className="text-sm text-muted-foreground">Generate an AI hiring brief for suggested questions.</p>
@@ -24,9 +24,9 @@ export function InterviewQuestionsCard({ technical = [], behavioral = [], follow
   }
 
   return (
-    <div className="bg-white rounded-xl border border-border p-5">
+    <div className="bg-surface rounded-xl border border-border p-5">
       <div className="flex items-center gap-2 mb-3">
-        <MessageSquare className="h-4 w-4 text-[#1F4770]" />
+        <MessageSquare className="h-4 w-4 text-brand" />
         <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Interview Questions</h3>
       </div>
 
@@ -34,12 +34,12 @@ export function InterviewQuestionsCard({ technical = [], behavioral = [], follow
         {technical.length > 0 && (
           <div>
             <div className="flex items-center gap-1.5 text-sm font-medium text-foreground mb-2">
-              <Beaker className="h-3.5 w-3.5 text-[#1F4770]" />
+              <Beaker className="h-3.5 w-3.5 text-brand" />
               Technical
             </div>
             <ul className="space-y-1.5">
               {technical.map((q, i) => (
-                <li key={i} className="text-xs text-muted-foreground pl-5 border-l-2 border-[#1F4770]/20">
+                <li key={i} className="text-xs text-muted-foreground pl-5 border-l-2 border-brand/20">
                   {q}
                 </li>
               ))}

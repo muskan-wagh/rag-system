@@ -33,7 +33,7 @@ export function ArchitectureSection() {
         </motion.div>
 
         <div className="hidden md:block">
-          <div className="relative bg-white rounded-2xl border border-border p-8 md:p-10 shadow-sm overflow-hidden">
+          <div className="relative bg-surface rounded-2xl border border-border p-8 md:p-10 shadow-sm overflow-hidden">
             <div className="absolute top-0 left-1/4 right-1/4 h-px bg-gradient-to-r from-transparent via-primary/10 to-transparent" />
 
             <div className="flex flex-col items-center gap-0">
@@ -45,7 +45,7 @@ export function ArchitectureSection() {
                     viewport={{ once: true }}
                     transition={{ delay: i * 0.08 }}
                     className={cn(
-                      "flex items-center gap-4 w-full max-w-sm p-4 rounded-xl border bg-white card-hover",
+                      "flex items-center gap-4 w-full max-w-sm p-4 rounded-xl border bg-surface card-hover",
                       "hover:border-primary/20 hover:shadow-md"
                     )}
                   >
@@ -84,7 +84,7 @@ export function ArchitectureSection() {
               whileInView={{ opacity: 1, x: 0 }}
               viewport={{ once: true }}
               transition={{ delay: i * 0.06 }}
-              className="flex items-center gap-3 p-3.5 bg-white rounded-xl border border-border"
+              className="flex items-center gap-3 p-3.5 bg-surface rounded-xl border border-border"
             >
               <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10">
                 <layer.icon className="h-4.5 w-4.5 text-primary" />

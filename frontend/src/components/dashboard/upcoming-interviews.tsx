@@ -63,7 +63,7 @@ export function UpcomingInterviews({ items }: { items: UpcomingInterview[] }) {
       {items.length === 0 ? (
         <div className="bg-surface border border-border rounded-xl px-6 flex items-center justify-center min-h-[180px]">
           <div className="flex flex-col items-center text-center">
-            <div className="h-9 w-9 rounded-[10px] bg-[#F3F4F6] flex items-center justify-center mb-2.5">
+            <div className="h-9 w-9 rounded-[10px] bg-surface-secondary flex items-center justify-center mb-2.5">
               <Calendar className="h-4 w-4 text-info/40" strokeWidth={1.5} />
             </div>
             <p className="text-[13px] font-medium text-ink" style={{ fontFamily: "var(--font-inter)" }}>No interviews scheduled</p>
@@ -81,8 +81,8 @@ export function UpcomingInterviews({ items }: { items: UpcomingInterview[] }) {
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: i * 0.05, duration: 0.35, ease: [0.25, 0.1, 0.25, 1] }}
               >
-                <div className={`px-1 py-2 rounded-[8px] flex items-center gap-3 transition-all duration-120 hover:bg-[#F9FAFB] ${isToday ? "border-l-2 border-info -ml-0.5 pl-2.5" : ""}`}>
-                  <div className={`size-9 rounded-full flex items-center justify-center shrink-0 ${isToday ? "bg-info text-white" : "bg-[#F3F4F6] text-muted"}`}>
+                <div className={`px-1 py-2 rounded-[8px] flex items-center gap-3 transition-all duration-120 hover:bg-hover-tone ${isToday ? "border-l-2 border-info -ml-0.5 pl-2.5" : ""}`}>
+                  <div className={`size-9 rounded-full flex items-center justify-center shrink-0 ${isToday ? "bg-info text-white" : "bg-surface-secondary text-muted"}`}>
                     {getInterviewIcon(item.interview_type)}
                   </div>
                   <div className="flex-1 min-w-0">
@@ -115,7 +115,7 @@ export function UpcomingInterviews({ items }: { items: UpcomingInterview[] }) {
                       href={item.meeting_link}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="size-8 rounded-full bg-[#F3F4F6] flex items-center justify-center hover:bg-ink hover:text-white transition-all duration-120 shrink-0"
+                      className="size-8 rounded-full bg-surface-secondary flex items-center justify-center hover:bg-primary-solid hover:text-white transition-all duration-120 shrink-0"
                     >
                       <Video className="size-3.5" strokeWidth={1.5} />
                     </a>

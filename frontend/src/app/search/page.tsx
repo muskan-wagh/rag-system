@@ -68,7 +68,7 @@ export default function SavedSearchesPage() {
         </div>
         <button
           onClick={() => setShowNewForm(!showNewForm)}
-          className="flex items-center gap-1.5 text-sm px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary-hover transition-colors duration-120"
+          className="flex items-center gap-1.5 text-sm px-4 py-2 bg-primary-solid text-white rounded-lg hover:bg-primary-solid-hover transition-colors duration-120"
         >
           <Plus className="h-4 w-4" />
           New Search
@@ -82,23 +82,23 @@ export default function SavedSearchesPage() {
             value={newName}
             onChange={(e) => setNewName(e.target.value)}
             placeholder="Search name (e.g. Senior React Dev)"
-            className="w-full text-sm px-[14px] py-[10px] rounded-lg border border-input bg-white text-text-primary placeholder:text-text-muted focus:outline-none focus:border-ring transition-all duration-120"
+            className="w-full text-sm px-[14px] py-[10px] rounded-lg border border-input bg-surface text-text-primary placeholder:text-text-muted focus:outline-none focus:border-ring transition-all duration-120"
           />
           <textarea
             value={newJdText}
             onChange={(e) => setNewJdText(e.target.value)}
             placeholder="Paste job description..."
             rows={4}
-            className="w-full text-sm px-[14px] py-[10px] rounded-lg border border-input bg-white text-text-primary placeholder:text-text-muted focus:outline-none focus:border-ring transition-all duration-120 resize-y"
+            className="w-full text-sm px-[14px] py-[10px] rounded-lg border border-input bg-surface text-text-primary placeholder:text-text-muted focus:outline-none focus:border-ring transition-all duration-120 resize-y"
           />
           <div className="flex gap-2">
             <button type="submit" disabled={!newName.trim() || !newJdText.trim()}
-              className="text-sm px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary-hover disabled:opacity-50 transition-all duration-120"
+              className="text-sm px-4 py-2 bg-primary-solid text-white rounded-lg hover:bg-primary-solid-hover disabled:opacity-50 transition-all duration-120"
             >
               Save
             </button>
             <button type="button" onClick={() => setShowNewForm(false)}
-              className="text-sm px-4 py-2 bg-surface-secondary text-text-secondary rounded-lg hover:bg-[#F3F4F6] transition-all duration-120"
+              className="text-sm px-4 py-2 bg-surface-secondary text-text-secondary rounded-lg hover:bg-surface-secondary transition-all duration-120"
             >
               Cancel
             </button>

@@ -32,12 +32,17 @@ import { AppError } from '@/middleware/errorHandler';
 import { ErrorCodes } from '@/middleware/errorCodes';
 import { CANDIDATE_STATUS } from '@/constants/candidateStatus';
 import { getCached, setCache } from '@/utils/cache';
-import { memoryCache } from '@/utils/memory-cache';
+import { invalidateDashboardCache } from '@/controllers/dashboardController';
 import { generateExplanations } from '@/services/llm/explainability';
 import { generateInterviewEmail } from '@/services/llm/emailTemplate';
 import { broadcast } from '@/services/websocket';
 import { logActivity } from '@/services/activity';
 import { enqueueEmail } from '@/services/queue/emailQueue';
+
+async function invalidateDashboard(req: Request): Promise<void> {
+  const recruiterId = req.recruiter?.id;
+  if (recruiterId) await invalidateDashboardCache(recruiterId);
+}
 import { buildRejectionEmail, buildOfferEmail, buildInterviewEmailHtml } from '@/services/email';
 
 export const searchCandidatesHandler = asyncHandler(async (req: Request, res: Response) => {
@@ -342,7 +347,7 @@ export const updateCandidateStatusHandler = asyncHandler(async (req: Request, re
     }
   }
 
-  memoryCache.delete('dashboard:overview:v2');
+  await invalidateDashboard(req);
   broadcast('candidate:status_changed', { candidateId: id, status });
   const r = req.recruiter;
   if (r) {
@@ -395,7 +400,7 @@ export const scheduleInterviewHandler = asyncHandler(async (req: Request, res: R
     });
   }
 
-  memoryCache.delete('dashboard:overview:v2');
+  await invalidateDashboard(req);
   broadcast('candidate:status_changed', { candidateId: id, status: CANDIDATE_STATUS.INTERVIEW_SCHEDULED });
   broadcast('interview:scheduled', { candidateId: id, interviewId: interview.id });
   const r1 = req.recruiter;
@@ -426,7 +431,7 @@ export const updateInterviewHandler = asyncHandler(async (req: Request, res: Res
   if (updateData.status === 'completed') {
     const candidateId = req.params.id as string;
     await updateCandidateStatusExtended(candidateId, CANDIDATE_STATUS.INTERVIEW_COMPLETED, '', { interview_id: interviewId });
-    memoryCache.delete('dashboard:overview:v2');
+    await invalidateDashboard(req);
     broadcast('candidate:status_changed', { candidateId, status: CANDIDATE_STATUS.INTERVIEW_COMPLETED });
   }
 
@@ -448,7 +453,7 @@ export const makeOfferHandler = asyncHandler(async (req: Request, res: Response)
   const emailBody = `Dear Candidate,\n\nCongratulations! We are pleased to offer you the position.\n${salary ? `Salary: $${salary}\n` : ''}${joiningDate ? `Joining Date: ${joiningDate}\n` : ''}\n\nBest regards,\nRecruitIQ Team`;
   await logEmail(id, 'offer_sent', 'Offer Letter', emailBody);
 
-  memoryCache.delete('dashboard:overview:v2');
+  await invalidateDashboard(req);
   broadcast('candidate:status_changed', { candidateId: id, status: CANDIDATE_STATUS.OFFERED });
   const r2 = req.recruiter;
   if (r2) {
@@ -468,7 +473,7 @@ export const acceptOfferHandler = asyncHandler(async (req: Request, res: Respons
   await acceptOffer(id);
   await updateCandidateStatusExtended(id, CANDIDATE_STATUS.HIRED, '', { accepted_offer: true });
 
-  memoryCache.delete('dashboard:overview:v2');
+  await invalidateDashboard(req);
   broadcast('candidate:status_changed', { candidateId: id, status: CANDIDATE_STATUS.HIRED });
   res.status(200).json({ success: true, data: { message: 'Candidate marked as hired' } });
 });
@@ -479,7 +484,7 @@ export const rejectCandidateHandler = asyncHandler(async (req: Request, res: Res
 
   await rejectCandidateWithReason(id, reason, notes, changedBy);
 
-  memoryCache.delete('dashboard:overview:v2');
+  await invalidateDashboard(req);
   broadcast('candidate:status_changed', { candidateId: id, status: CANDIDATE_STATUS.REJECTED });
   const r3 = req.recruiter;
   if (r3) {

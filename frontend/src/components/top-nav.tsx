@@ -9,7 +9,7 @@ export function TopNav() {
   const router = useRouter()
 
   return (
-    <div className="flex items-center justify-between h-14 px-6 border-b border-border bg-[#FAFAFA]">
+    <div className="flex items-center justify-between h-14 px-6 border-b border-border bg-canvas">
       <div>
         <p className="text-[13px] text-muted" style={{ fontFamily: "var(--font-inter)" }}>
           Welcome back
@@ -34,7 +34,7 @@ export function TopNav() {
           <span className="absolute top-[6px] right-[6px] size-[5px] rounded-full bg-danger" />
         </button>
 
-        <div className="size-8 rounded-full bg-[#E5E7EB] flex items-center justify-center text-sm font-medium text-muted shrink-0" style={{ fontFamily: "var(--font-inter)" }}>
+        <div className="size-8 rounded-full bg-soft flex items-center justify-center text-sm font-medium text-muted shrink-0" style={{ fontFamily: "var(--font-inter)" }}>
           {(user?.firstName?.[0] || user?.primaryEmailAddress?.emailAddress?.[0] || "U").toUpperCase()}
         </div>
       </div>
