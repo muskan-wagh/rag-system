@@ -62,11 +62,11 @@ export function SearchSidebar({ className }: SearchSidebarProps) {
       <div className="sticky top-20 space-y-5">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <SlidersHorizontal className="h-4 w-4 text-muted-foreground" />
-            <h3 className="text-sm font-medium text-foreground">Filters</h3>
+            <SlidersHorizontal className="h-4 w-4 text-muted" />
+            <h3 className="text-sm font-medium text-ink">Filters</h3>
           </div>
           {hasFilters && (
-            <button onClick={clearFilters} className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1">
+            <button onClick={clearFilters} className="text-xs text-muted hover:text-ink flex items-center gap-1">
               <X className="h-3 w-3" /> Clear
             </button>
           )}
@@ -74,32 +74,32 @@ export function SearchSidebar({ className }: SearchSidebarProps) {
 
         <div className="space-y-4">
           <div>
-            <label className="text-xs font-medium text-muted-foreground block mb-1.5">Experience Range</label>
+            <label className="text-xs font-medium text-muted block mb-1.5">Experience Range</label>
             <div className="flex items-center gap-2">
               <input
                 type="number"
                 placeholder="Min"
                 value={filterFormValues.minExp}
                 onChange={(e) => setFilterFormValues({ ...filterFormValues, minExp: e.target.value })}
-                className="w-full bg-surface rounded-lg border border-border px-3 py-1.5 text-xs text-foreground placeholder-muted-foreground/50 outline-none focus:border-primary/30 transition-colors"
+                className="w-full bg-surface rounded-lg border border-border px-3 py-1.5 text-xs text-ink placeholder:text-faint outline-none focus:border-border-hover transition-colors"
               />
-              <span className="text-xs text-muted-foreground">to</span>
+              <span className="text-xs text-muted">to</span>
               <input
                 type="number"
                 placeholder="Max"
                 value={filterFormValues.maxExp}
                 onChange={(e) => setFilterFormValues({ ...filterFormValues, maxExp: e.target.value })}
-                className="w-full bg-surface rounded-lg border border-border px-3 py-1.5 text-xs text-foreground placeholder-muted-foreground/50 outline-none focus:border-primary/30 transition-colors"
+                className="w-full bg-surface rounded-lg border border-border px-3 py-1.5 text-xs text-ink placeholder:text-faint outline-none focus:border-border-hover transition-colors"
               />
             </div>
           </div>
 
           <div>
-            <label className="text-xs font-medium text-muted-foreground block mb-1.5">Education Level</label>
+            <label className="text-xs font-medium text-muted block mb-1.5">Education Level</label>
             <select
               value={filterFormValues.education}
               onChange={(e) => setFilterFormValues({ ...filterFormValues, education: e.target.value })}
-              className="w-full bg-surface rounded-lg border border-border px-3 py-1.5 text-xs text-foreground outline-none focus:border-primary/30 transition-colors"
+              className="w-full bg-surface rounded-lg border border-border px-3 py-1.5 text-xs text-ink outline-none focus:border-border-hover transition-colors"
             >
               <option value="">Any</option>
               <option value="bachelor">Bachelor</option>
@@ -109,21 +109,21 @@ export function SearchSidebar({ className }: SearchSidebarProps) {
           </div>
 
           <div>
-            <label className="text-xs font-medium text-muted-foreground block mb-1.5">Required Skills</label>
+            <label className="text-xs font-medium text-muted block mb-1.5">Required Skills</label>
             <input
               placeholder="React, TypeScript, AWS..."
               value={filterFormValues.skills}
               onChange={(e) => setFilterFormValues({ ...filterFormValues, skills: e.target.value })}
-              className="w-full bg-surface rounded-lg border border-border px-3 py-1.5 text-xs text-foreground placeholder-muted-foreground/50 outline-none focus:border-primary/30 transition-colors"
+              className="w-full bg-surface rounded-lg border border-border px-3 py-1.5 text-xs text-ink placeholder:text-faint outline-none focus:border-border-hover transition-colors"
             />
-            <p className="text-[10px] text-muted-foreground mt-1">Comma-separated list</p>
+            <p className="text-[10px] text-muted mt-1">Comma-separated list</p>
           </div>
 
           <div className="flex gap-2">
             <Button
               onClick={applyFilters}
               size="sm"
-              className="flex-1 bg-primary-solid text-white hover:bg-primary-solid/90 text-xs"
+              className="flex-1 bg-ink text-canvas hover:bg-ink/90 text-xs"
             >
               <Search className="h-3 w-3 mr-1" />
               Search

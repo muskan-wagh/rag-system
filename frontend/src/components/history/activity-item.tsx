@@ -31,7 +31,7 @@ function getActivityIcon(actionType: string) {
 function getActivityColor(actionType: string) {
   switch (actionType) {
     case "status_changed": return "bg-warning/10 text-warning"
-    case "search_executed": return "bg-muted/10 text-muted"
+    case "search_executed": return "bg-surface-secondary text-muted"
     case "candidate_viewed": return "bg-ink/5 text-ink"
     case "candidate_compared": return "bg-ink/5 text-ink"
     case "interview_scheduled": return "bg-ink/10 text-ink"

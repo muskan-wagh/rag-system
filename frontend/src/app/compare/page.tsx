@@ -10,6 +10,7 @@ import { EmptyState } from "@/components/ui/empty-state"
 import { CandidateSearchInput } from "@/components/candidate-search-input"
 import { ScheduleInterviewModal } from "@/components/schedule-interview-modal"
 import { RejectModal } from "@/components/reject-modal"
+import { PageHeader } from "@/components/ui/page-header"
 import { GitCompare, Loader2, Plus, Trash2, Brain, Sparkles } from "lucide-react"
 import { useApi } from "@/hooks/use-api"
 import type { CompareResult } from "@/lib/api"
@@ -77,8 +78,12 @@ export default function ComparePage() {
       } else {
         setError(compareRes.error || "Comparison failed")
       }
-    } catch {
-      setError("Failed to connect to server")
+    } catch (err) {
+      if (err instanceof Error && err.name === "AbortError") {
+        setError("Comparison timed out. Please try again.")
+      } else {
+        setError("Failed to connect to server. Please try again.")
+      }
     } finally {
       setLoading(false)
     }
@@ -136,22 +141,22 @@ export default function ComparePage() {
       animate="visible"
       className="pt-6 space-y-8"
     >
-      <motion.div variants={itemVariants}>
-        <h1 className="text-xl font-medium text-text-primary tracking-tight">Compare Candidates</h1>
-        <p className="text-sm text-text-secondary mt-1">Side-by-side AI-powered candidate comparison</p>
-      </motion.div>
+      <PageHeader
+        title="Compare Candidates"
+        description="Side-by-side AI-powered candidate comparison"
+      />
 
-      <motion.div variants={itemVariants} className="bg-surface rounded-[10px] border border-border shadow-none p-6 space-y-5">
+      <motion.div variants={itemVariants} className="bg-surface rounded-lg border border-border shadow-none p-6 space-y-5">
         <div>
-          <label className="text-xs font-medium text-text-secondary mb-2 block">Job Description</label>
+          <label className="text-xs font-medium text-muted mb-2 block">Job Description</label>
           <div className="relative">
-            <Brain className="absolute left-4 top-3.5 h-4 w-4 text-text-muted" strokeWidth={1.5} />
+            <Brain className="absolute left-4 top-3.5 h-4 w-4 text-faint" strokeWidth={1.5} />
             <textarea
               placeholder="Paste job description for comparison context..."
               value={jdText}
               onChange={(e) => setJdText(e.target.value)}
               rows={3}
-              className="w-full bg-surface text-sm text-text-primary placeholder:text-text-muted outline-none rounded-[18px] border border-border pl-10 pr-4 py-3 focus:border-ink focus:shadow-[0_0_0_3px_rgba(17,17,17,0.06)] transition-all resize-y min-h-[80px]"
+              className="w-full bg-surface text-sm text-ink placeholder:text-faint outline-none rounded-lg border border-border pl-10 pr-4 py-3 focus:border-border-hover transition-all resize-y min-h-[80px]"
             />
           </div>
         </div>
@@ -159,7 +164,7 @@ export default function ComparePage() {
         <div className="space-y-3">
           {selectedCandidates.map((selected, index) => (
             <div key={index} className="flex items-center gap-3">
-              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-surface-secondary text-xs font-medium text-text-secondary">
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-surface-secondary text-xs font-medium text-muted">
                 {index + 1}
               </div>
               <CandidateSearchInput
@@ -171,7 +176,7 @@ export default function ComparePage() {
                 <button onClick={() => removeRow(index)}
                   className="flex h-8 w-8 items-center justify-center rounded-full hover:bg-surface-secondary transition-colors"
                 >
-                  <Trash2 className="h-3.5 w-3.5 text-text-muted hover:text-danger" strokeWidth={1.5} />
+                  <Trash2 className="h-3.5 w-3.5 text-faint hover:text-danger" strokeWidth={1.5} />
                 </button>
               )}
             </div>
@@ -183,7 +188,7 @@ export default function ComparePage() {
             <Plus className="mr-1.5 h-3.5 w-3.5" />
             Add Candidate
           </Button>
-          <Button onClick={handleCompare} disabled={loading || !allSelected} size="sm" className="ml-auto bg-primary-solid text-white hover:bg-primary-solid-hover">
+          <Button onClick={handleCompare} disabled={loading || !allSelected} size="sm" className="ml-auto bg-ink text-canvas hover:bg-ink/90">
             {loading ? (
               <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />
             ) : (

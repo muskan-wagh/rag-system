@@ -15,13 +15,15 @@ import { useApi } from "@/hooks/use-api"
 import { useDashboard } from "@/hooks/use-dashboard"
 import { useWebSocket } from "@/lib/use-websocket"
 import { ROUTES, getInitials } from "@/lib/constants"
-import type { SessionStats } from "@/lib/api"
+import type { SessionStats } from "@/lib/types"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Skeleton } from "@/components/ui/skeleton"
 import { StatusDot } from "@/components/ui/status-dot"
+import { PageHeader } from "@/components/ui/page-header"
+import { PanelHeader } from "@/components/ui/panel-header"
 
 import { NeedsReviewCard } from "@/components/dashboard/needs-review-card"
 import { AiRecommendations } from "@/components/dashboard/ai-recommendations"
@@ -123,58 +125,63 @@ const CandidateCard = memo(function CandidateCard({
     <motion.div
       variants={itemVariants}
       transition={{ delay: index * 0.03 }}
-      className="bg-surface border border-border rounded-xl hover:border-border-hover transition-all duration-120 cursor-pointer overflow-hidden"
+      className="cursor-pointer overflow-hidden rounded-lg border border-border bg-surface transition-all duration-120 hover:border-border-hover"
       onClick={() => onSelect(candidate)}
     >
-      <div className="p-5">
-        <div className="flex items-center gap-3">
+      <div className="p-4">
+        <div className="flex items-start gap-3">
           <Avatar className="size-9 shrink-0">
-            <AvatarFallback className="text-[12px] font-medium bg-soft text-muted" style={{ fontFamily: "var(--font-inter)" }}>
+            <AvatarFallback className="text-[12px] font-medium">
               {getInitials(candidate.full_name)}
             </AvatarFallback>
           </Avatar>
 
-          <div className="flex-1 min-w-0">
-            <h3 className="text-[14px] font-medium text-ink" style={{ fontFamily: "var(--font-inter)" }}>
+          <div className="min-w-0 flex-1">
+            <h3 className="truncate text-[14px] font-medium text-ink">
               {candidate.full_name || "Unknown"}
             </h3>
 
-            <p className="text-[12px] text-muted mt-0.5" style={{ fontFamily: "var(--font-inter)" }}>
+            <p className="mt-0.5 truncate text-[12px] text-muted">
               {candidate.current_title || ""}
               {candidate.current_title && candidate.current_company ? " · " : ""}
               {candidate.current_company || ""}
             </p>
 
-            <div className="flex flex-wrap items-center gap-1.5 mt-2">
-              {(candidate.skills || []).slice(0, 3).map((skill, j) => (
-                <span key={j} className="inline-flex items-center px-[8px] py-[2px] rounded-[6px] text-[11px] font-normal bg-surface-secondary text-muted" style={{ fontFamily: "var(--font-inter)" }}>
-                  {skill}
-                </span>
-              ))}
-              {(candidate.skills?.length || 0) > 3 && (
-                <span className="text-[11px] text-faint font-normal" style={{ fontFamily: "var(--font-inter)" }}>
-                  +{(candidate.skills?.length || 0) - 3}
-                </span>
-              )}
-            </div>
+            {(candidate.skills || []).length > 0 && (
+              <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                {(candidate.skills || []).slice(0, 3).map((skill, j) => (
+                  <span
+                    key={j}
+                    className="rounded-md bg-surface-secondary px-2 py-0.5 text-[11px] text-muted"
+                  >
+                    {skill}
+                  </span>
+                ))}
+                {(candidate.skills?.length || 0) > 3 && (
+                  <span className="text-[11px] text-faint">
+                    +{(candidate.skills?.length || 0) - 3}
+                  </span>
+                )}
+              </div>
+            )}
 
-            <div className="flex items-center gap-3 mt-2">
+            <div className="mt-2 flex items-center gap-3">
               {candidate.total_experience_years != null && (
-                <span className="text-[11px] text-faint" style={{ fontFamily: "var(--font-inter)" }}>
+                <span className="text-[11px] text-faint">
                   <span className="font-data text-muted">{candidate.total_experience_years}y</span>
                 </span>
               )}
               {candidate.location && (
-                <span className="text-[11px] text-faint" style={{ fontFamily: "var(--font-inter)" }}>{candidate.location}</span>
+                <span className="truncate text-[11px] text-faint">{candidate.location}</span>
               )}
             </div>
           </div>
 
-          <div className="flex flex-col items-end gap-2 shrink-0">
+          <div className="flex shrink-0 flex-col items-end gap-2">
             <div className="flex items-center gap-2">
-              <div className="w-14 h-1 bg-track rounded-full overflow-hidden">
+              <div className="h-1 w-14 overflow-hidden rounded-full bg-track">
                 <div
-                  className="h-full bg-info rounded-full"
+                  className="h-full rounded-full bg-info"
                   style={{ width: `${Math.round(candidate.match_score ?? 0)}%` }}
                 />
               </div>
@@ -184,7 +191,7 @@ const CandidateCard = memo(function CandidateCard({
             </div>
             <div className="flex items-center">
               <StatusDot status={candidate.current_status || candidate.status || "Applied"} />
-              <span className="text-[12px] text-muted" style={{ fontFamily: "var(--font-inter)" }}>
+              <span className="text-[12px] text-muted">
                 {candidate.current_status || candidate.status || "Applied"}
               </span>
             </div>
@@ -349,91 +356,101 @@ export default function DashboardPage() {
       variants={containerVariants}
       initial="hidden"
       animate="visible"
-      className="pt-5 space-y-6"
+      className="space-y-8"
     >
-      {/* Page Header */}
-      <div className="flex items-center justify-between">
-        <h1 className="text-[22px] font-semibold text-ink" style={{ fontFamily: "var(--font-inter)", letterSpacing: "-0.01em" }}>
-          AI Hiring Workspace
-        </h1>
-        {effectiveSession && (
-          <button
-            onClick={() => mutate()}
-            disabled={isValidating}
-            className="inline-flex items-center gap-1.5 text-[13px] text-muted hover:text-ink transition-all duration-120"
-            style={{ fontFamily: "var(--font-inter)" }}
-          >
-            <RefreshCw className={`size-3.5 ${isValidating ? "animate-spin" : ""}`} strokeWidth={1.5} />
-            Refresh
-          </button>
-        )}
-      </div>
+      <PageHeader
+        title="AI Hiring Workspace"
+        description="Generate application links, monitor your pipeline, and act on AI insights."
+        actions={
+          effectiveSession ? (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => mutate()}
+              disabled={isValidating}
+            >
+              <RefreshCw className={`size-3.5 ${isValidating ? "animate-spin" : ""}`} strokeWidth={1.5} />
+              Refresh
+            </Button>
+          ) : undefined
+        }
+      />
 
       {/* AI Hiring Workspace */}
       <motion.div variants={itemVariants}>
-        <div className="bg-surface border border-border rounded-xl p-6">
-          <div className="flex items-center gap-4 mb-4">
-            <div className="size-9 rounded-[10px] bg-info flex items-center justify-center shrink-0">
-              <Bot className="h-[18px] w-[18px] text-white" />
+        <div className="overflow-hidden rounded-lg border border-border bg-surface">
+          <div className="flex items-start justify-between gap-4 border-b border-border px-5 py-4">
+            <div className="flex items-center gap-3">
+              <div className="flex size-9 shrink-0 items-center justify-center rounded-md bg-soft text-muted">
+                <Bot className="size-[18px]" strokeWidth={1.5} />
+              </div>
+              <div>
+                <p className="text-[13px] font-medium text-ink">Create a hiring session</p>
+                <p className="text-[12px] text-muted mt-0.5">
+                  Paste a job description to generate an AI-powered application link
+                </p>
+              </div>
             </div>
-            <p className="text-[14px] text-muted" style={{ fontFamily: "var(--font-inter)" }}>
-              Paste a job description to generate an AI-powered hiring session
-            </p>
+            {quickActions.length > 0 && (
+              <QuickActions items={quickActions} onAction={handleQuickAction} />
+            )}
           </div>
 
-          <Textarea
-            value={jdText}
-            onChange={(e) => setJdText(e.target.value)}
-            placeholder="Paste the full job description here..."
-            className="w-full"
-          />
+          <div className="p-5">
+            <Textarea
+              value={jdText}
+              onChange={(e) => setJdText(e.target.value)}
+              placeholder="Paste the full job description here..."
+              className="w-full"
+            />
 
-          {error && (
-            <Alert variant="destructive" className="mt-4">
-              <AlertDescription className="text-[13px]">{error}</AlertDescription>
-            </Alert>
-          )}
+            {error && (
+              <Alert variant="destructive" className="mt-4">
+                <AlertDescription className="text-[13px]">{error}</AlertDescription>
+              </Alert>
+            )}
 
-          {biasResult && biasResult.has_bias && (
-            <Alert variant="warning" className="mt-4">
-              <ShieldAlert className="h-3.5 w-3.5" />
-              <AlertDescription>
-                <p className="text-[13px] font-medium mb-1.5">{biasResult.issues.length} bias issue(s) found</p>
-                {biasResult.issues.slice(0, 2).map((issue, i) => (
-                  <p key={i} className="text-[12px] mb-1">[{issue.category}] {issue.suggestion}</p>
-                ))}
-              </AlertDescription>
-            </Alert>
-          )}
+            {biasResult && biasResult.has_bias && (
+              <Alert variant="warning" className="mt-4">
+                <ShieldAlert className="h-3.5 w-3.5" />
+                <AlertDescription>
+                  <p className="text-[13px] font-medium mb-1.5">{biasResult.issues.length} bias issue(s) found</p>
+                  {biasResult.issues.slice(0, 2).map((issue, i) => (
+                    <p key={i} className="text-[12px] mb-1">[{issue.category}] {issue.suggestion}</p>
+                  ))}
+                </AlertDescription>
+              </Alert>
+            )}
 
-          {biasResult && !biasResult.has_bias && (
-            <Alert variant="success" className="mt-4">
-              <ShieldAlert className="h-3.5 w-3.5" />
-              <AlertDescription className="text-[13px] font-medium">
-                No bias detected — JD looks great!
-              </AlertDescription>
-            </Alert>
-          )}
+            {biasResult && !biasResult.has_bias && (
+              <Alert variant="success" className="mt-4">
+                <ShieldAlert className="h-3.5 w-3.5" />
+                <AlertDescription className="text-[13px] font-medium">
+                  No bias detected — JD looks great!
+                </AlertDescription>
+              </Alert>
+            )}
 
-          <div className="flex items-center justify-between mt-4">
-            <div />
-            <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm" onClick={handleBiasScan} disabled={scanningBias || !jdText.trim()}>
-                {scanningBias ? (
-                  <Loader2 className="size-3.5 animate-spin" />
-                ) : (
-                  <ShieldAlert className="size-3.5" />
-                )}
-                {scanningBias ? "Scanning..." : "Check Bias"}
-              </Button>
-              <Button size="sm" onClick={generateLink} disabled={generating || !jdText.trim()}>
-                {generating ? (
-                  <Loader2 className="size-3.5 animate-spin" />
-                ) : (
-                  <Sparkles className="size-3.5" />
-                )}
-                {generating ? "Generating..." : "Generate Link"}
-              </Button>
+            <div className="mt-4 flex items-center justify-between">
+              <div />
+              <div className="flex items-center gap-2">
+                <Button variant="outline" size="sm" onClick={handleBiasScan} disabled={scanningBias || !jdText.trim()}>
+                  {scanningBias ? (
+                    <Loader2 className="size-3.5 animate-spin" />
+                  ) : (
+                    <ShieldAlert className="size-3.5" />
+                  )}
+                  {scanningBias ? "Scanning..." : "Check Bias"}
+                </Button>
+                <Button size="sm" onClick={generateLink} disabled={generating || !jdText.trim()}>
+                  {generating ? (
+                    <Loader2 className="size-3.5 animate-spin" />
+                  ) : (
+                    <Sparkles className="size-3.5" />
+                  )}
+                  {generating ? "Generating..." : "Generate Link"}
+                </Button>
+              </div>
             </div>
           </div>
         </div>
@@ -471,57 +488,79 @@ export default function DashboardPage() {
               </Button>
             </div>
           </div>
+        <div className="rounded-lg border border-border bg-surface">
+            <div className="flex items-center justify-between gap-3 px-5 py-4">
+              <div className="flex items-center gap-3 min-w-0">
+                <Link2 className="size-4 shrink-0 text-info" strokeWidth={1.5} />
+                <div className="min-w-0">
+                  <p className="text-[11px] font-medium uppercase tracking-[0.05em] text-faint">
+                    Active Application Link
+                  </p>
+                  <p className="truncate font-data text-[13px] text-ink mt-0.5">
+                    {typeof window !== "undefined"
+                      ? `${window.location.origin}${effectiveSession.link}`
+                      : effectiveSession.link}
+                  </p>
+                </div>
+              </div>
+              <div className="flex shrink-0 items-center gap-2">
+                <button
+                  onClick={handleCopyLink}
+                  className="inline-flex items-center gap-1 text-[13px] font-medium text-muted hover:text-ink transition-all duration-120"
+                >
+                  <Copy className="size-3.5" strokeWidth={1.5} />
+                  {copied ? "Copied" : "Copy"}
+                </button>
+                <Button variant="outline" size="sm" onClick={handleNewSession}>
+                  <Plus className="size-3.5" />
+                  New Session
+                </Button>
+              </div>
+            </div>
+          </div>
         </motion.div>
       )}
 
-      {/* Quick Actions */}
-      {quickActions.length > 0 && (
-        <QuickActions items={quickActions} onAction={handleQuickAction} />
-      )}
-
       {/* Pipeline Metrics */}
-      <motion.div variants={itemVariants}>
-        <div className="flex items-end justify-between mb-4">
-          <h2 className="text-[18px] font-semibold text-ink" style={{ fontFamily: "var(--font-inter)", letterSpacing: "-0.01em" }}>
-            Pipeline Metrics
-          </h2>
-          <Link href={ROUTES.candidates} className="text-[13px] font-medium text-muted hover:text-ink transition-colors duration-120 inline-flex items-center gap-1" style={{ fontFamily: "var(--font-inter)" }}>
-            View all
-            <ChevronRight className="size-3.5" strokeWidth={1.5} />
-          </Link>
-        </div>
-        <div className="grid grid-cols-4 gap-4">
-          {statsList.map((card, i) => (
-            <motion.div
-              key={card.label}
-              variants={itemVariants}
-              transition={{ delay: i * 0.05 }}
+      <section id="pipeline-metrics">
+        <PanelHeader
+          title="Pipeline Metrics"
+          description="Candidate volume across your pipeline"
+          className="mb-3"
+          action={
+            <Link
+              href={ROUTES.candidates}
+              className="inline-flex items-center gap-1 text-[12px] font-medium text-muted transition-colors duration-120 hover:text-ink"
             >
+              View all
+              <ChevronRight className="size-3.5" strokeWidth={1.5} />
+            </Link>
+          }
+        />
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          {statsList.map((card, i) => (
+            <motion.div key={card.label} variants={itemVariants} transition={{ delay: i * 0.05 }}>
               <Link href={card.href}>
-                <div className="bg-surface border border-border rounded-xl p-6 hover:border-border-hover transition-all duration-120">
+                <div className="rounded-lg border border-border bg-surface p-5 transition-all duration-120 hover:border-border-hover">
                   <div className="flex items-center justify-between">
-                    <span className="text-[11px] font-medium text-faint uppercase" style={{ letterSpacing: "0.06em", fontFamily: "var(--font-inter)" }}>
+                    <span className="text-[11px] font-medium uppercase tracking-[0.06em] text-faint">
                       {card.label}
                     </span>
-                    <card.icon className="size-4 text-info/40" strokeWidth={1.5} />
+                    <card.icon className="size-4 text-faint" strokeWidth={1.5} />
                   </div>
-                  <p className="font-data text-[28px] font-medium text-ink leading-none mt-3">
+                  <p className="mt-3 font-data text-[28px] font-medium leading-none text-ink">
                     <DisplayNumber value={card.value} />
                   </p>
-                  {card.sub && (
-                    <p className="text-[11px] text-faint mt-2" style={{ fontFamily: "var(--font-inter)" }}>
-                      {card.sub}
-                    </p>
-                  )}
+                  {card.sub && <p className="mt-2 text-[11px] text-faint">{card.sub}</p>}
                 </div>
               </Link>
             </motion.div>
           ))}
         </div>
-      </motion.div>
+      </section>
 
       {/* Needs Review | Upcoming Interviews */}
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid gap-8 lg:grid-cols-2 lg:gap-4">
         <div id="needs-review-section">
           <NeedsReviewCard items={candidatesRequiringReview} />
         </div>
@@ -531,7 +570,7 @@ export default function DashboardPage() {
       </div>
 
       {/* AI Recommendations | Recent Activity */}
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid gap-8 lg:grid-cols-2 lg:gap-4">
         <AiRecommendations items={aiRecommendedCandidates} />
         <RecentActivity items={recentActivity} />
       </div>
@@ -542,31 +581,30 @@ export default function DashboardPage() {
       {/* Recent Uploads */}
       {candidates.length > 0 && (
         <motion.div variants={itemVariants}>
-          <div className="flex items-end justify-between mb-4">
-            <div>
-              <h2 className="text-[18px] font-semibold text-ink" style={{ fontFamily: "var(--font-inter)", letterSpacing: "-0.01em" }}>
-                Recent Uploads
-              </h2>
-              <p className="text-[13px] text-muted mt-0.5" style={{ fontFamily: "var(--font-inter)" }}>
-                {candidates.length > 0
-                  ? `${candidates.length} candidate${candidates.length === 1 ? '' : 's'} in your pipeline`
-                  : "Start receiving candidates"}
-              </p>
-            </div>
-            {candidates.length > 0 && (
-              <Link href={`${ROUTES.candidates}?session=${effectiveSession?.sessionId}`}>
-                <Button variant="outline" size="sm">
-                  View All
-                  <ArrowUpRight className="size-3.5" />
-                </Button>
-              </Link>
-            )}
-          </div>
+          <PanelHeader
+            title="Recent Uploads"
+            description={
+              candidates.length > 0
+                ? `${candidates.length} candidate${candidates.length === 1 ? "" : "s"} in your pipeline`
+                : "Start receiving candidates"
+            }
+            className="mb-3"
+            action={
+              candidates.length > 0 ? (
+                <Link href={`${ROUTES.candidates}?session=${effectiveSession?.sessionId}`}>
+                  <Button variant="outline" size="sm">
+                    View All
+                    <ArrowUpRight className="size-3.5" />
+                  </Button>
+                </Link>
+              ) : undefined
+            }
+          />
 
           {isValidating && !candidates.length ? (
             <div className="space-y-3">
               {Array.from({ length: 3 }).map((_, i) => (
-                <div key={i} className="bg-surface border border-border rounded-xl p-5">
+                <div key={i} className="rounded-lg border border-border bg-surface p-4">
                   <div className="flex items-center gap-3">
                     <Skeleton className="h-9 w-9 rounded-full" />
                     <div className="flex-1 space-y-2">
@@ -584,13 +622,13 @@ export default function DashboardPage() {
               ))}
             </div>
           ) : candidates.length === 0 ? (
-            <div className="bg-surface border border-border rounded-xl p-10">
-              <div className="flex flex-col items-center text-center max-w-sm mx-auto">
-                <div className="h-10 w-10 rounded-[10px] bg-surface-secondary flex items-center justify-center mb-4">
-                  <Users className="h-5 w-5 text-info/40" strokeWidth={1.5} />
+            <div className="rounded-lg border border-border bg-surface p-10">
+              <div className="mx-auto flex max-w-sm flex-col items-center text-center">
+                <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-md bg-surface-secondary">
+                  <Users className="h-5 w-5 text-faint" strokeWidth={1.5} />
                 </div>
-                <h3 className="text-[14px] font-medium text-ink mb-1" style={{ fontFamily: "var(--font-inter)" }}>No candidates yet</h3>
-                <p className="text-[13px] text-muted mb-5 leading-relaxed" style={{ fontFamily: "var(--font-inter)" }}>
+                <h3 className="mb-1 text-[14px] font-medium text-ink">No candidates yet</h3>
+                <p className="mb-5 text-[13px] leading-relaxed text-muted">
                   Upload a resume or create an application link above to start receiving candidates.
                 </p>
                 <div className="flex gap-2">

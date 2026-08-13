@@ -40,7 +40,7 @@ export function ActivityFeed({
     return (
       <div className="bg-surface border border-border rounded-xl p-16">
         <div className="flex flex-col items-center text-center max-w-sm mx-auto">
-          <div className="h-16 w-16 rounded-[10px] bg-surface-secondary flex items-center justify-center mb-5">
+          <div className="h-16 w-16 rounded-md bg-surface-secondary flex items-center justify-center mb-5">
             <History className="h-7 w-7 text-faint" strokeWidth={1.5} />
           </div>
           <h3 className="text-base font-medium text-ink mb-1">No activity found</h3>

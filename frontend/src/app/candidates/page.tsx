@@ -2,7 +2,6 @@
 
 import { Suspense, useState, useCallback, useRef } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
-import { motion } from "framer-motion"
 import useSWR from "swr"
 import {
   Users, FileText, ChevronLeft, ChevronRight,
@@ -21,28 +20,17 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Dialog, DialogContent } from "@/components/ui/dialog"
 import { StatusDot } from "@/components/ui/status-dot"
+import { PageHeader } from "@/components/ui/page-header"
+import { EmptyState } from "@/components/ui/empty-state"
+import { cn } from "@/lib/utils"
 
 const PAGE_SIZE = 20
 
-const containerVariants = {
-  hidden: { opacity: 0 },
-  visible: {
-    opacity: 1,
-    transition: { staggerChildren: 0.05 },
-  },
-}
-
-const itemVariants = {
-  hidden: { opacity: 0, y: 12 },
-  visible: { opacity: 1, y: 0, transition: { duration: 0.35, ease: [0.25, 0.1, 0.25, 1] as const } },
-}
-
-function getScoreColor(score?: number) {
-  if (!score) return "#9CA3AF"
-  if (score >= 80) return "#0A0A0A"
-  if (score >= 60) return "#6B6B6B"
-  if (score >= 40) return "#D97706"
-  return "#DC2626"
+function getScoreTone(score?: number) {
+  if (!score) return "text-faint"
+  if (score >= 80) return "text-success"
+  if (score >= 60) return "text-warning"
+  return "text-danger"
 }
 
 function getScoreLabel(score?: number) {
@@ -89,6 +77,7 @@ function CandidatesContent() {
 
   const candidatesData = candidatesRes?.data ?? null
   const sessions = candidatesData?.sessions ?? []
+  const candidates = candidatesData?.candidates ?? []
 
   useWebSocket("candidate:status_changed", useCallback(() => {
     if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current)
@@ -141,110 +130,117 @@ function CandidatesContent() {
   const totalPages = candidatesData?.totalPages || 0
   const startRow = candidatesData?.total ? (page - 1) * PAGE_SIZE + 1 : 0
   const endRow = Math.min(page * PAGE_SIZE, candidatesData?.total || 0)
-  const avgMatchScore = candidatesData?.candidates.length
-    ? Math.round(candidatesData.candidates.reduce((s, c) => s + (c.match_score ?? 0), 0) / candidatesData.candidates.length)
+  const avgMatchScore = candidates.length
+    ? Math.round(candidates.reduce((s, c) => s + (c.match_score ?? 0), 0) / candidates.length)
     : 0
-  const pendingInterviews = candidatesData?.candidates.filter(c => c.current_status?.toLowerCase() === "interview").length ?? 0
+  const pendingInterviews = candidates.filter(c => c.current_status?.toLowerCase() === "interview").length
+  const hiredCount = candidates.filter(c => c.current_status?.toLowerCase() === "hired").length
+
+  const statCards = [
+    { label: "Total", value: candidatesData?.total ?? 0, icon: Users },
+    { label: "Hired", value: hiredCount, icon: BadgeCheck },
+    { label: "Avg Match", value: `${avgMatchScore}%`, icon: Sparkles },
+    { label: "Interviews", value: pendingInterviews, icon: Briefcase },
+  ]
 
   return (
-    <motion.div
-      variants={containerVariants}
-      initial="hidden"
-      animate="visible"
-      className="pt-6 space-y-8"
-    >
-      {/* Header */}
-      <motion.div variants={itemVariants} className="flex items-end justify-between">
-        <div>
-          <h1 className="text-xl font-medium text-text-primary tracking-tight">Candidates</h1>
-          <p className="text-sm text-text-secondary mt-1">
-            {selectedSessionId ? "Filtered by hiring session" : "All candidates across all sessions"}
-          </p>
-        </div>
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-4 px-4 py-2 rounded-full bg-surface border border-border">
-            <div className="text-center">
-              <p className="text-sm font-medium text-text-primary tabular-nums">{candidatesData?.total ?? 0}</p>
-              <p className="text-[10px] text-text-muted">Total</p>
+    <div className="space-y-8">
+      <PageHeader
+        title="Candidates"
+        description={selectedSessionId ? "Filtered by hiring session" : "All candidates across all sessions"}
+        actions={
+          <>
+            <Button variant="outline" size="sm">
+              <Download className="size-3.5" strokeWidth={1.5} />
+              Export
+            </Button>
+            <Button size="sm">
+              <Plus className="size-3.5" strokeWidth={1.5} />
+              Add Candidate
+            </Button>
+          </>
+        }
+      />
+
+      {/* Stat strip */}
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        {statCards.map((card) => (
+          <div
+            key={card.label}
+            className="flex items-center gap-3 rounded-lg border border-border bg-surface px-4 py-3.5"
+          >
+            <div className="flex size-8 shrink-0 items-center justify-center rounded-md bg-surface-secondary text-muted">
+              <card.icon className="size-4" strokeWidth={1.5} />
             </div>
-            <div className="w-px h-6 bg-soft" />
-            <div className="text-center">
-              <p className="text-sm font-medium text-text-primary tabular-nums">{avgMatchScore}%</p>
-              <p className="text-[10px] text-text-muted">Avg Match</p>
-            </div>
-            <div className="w-px h-6 bg-soft" />
-            <div className="text-center">
-              <p className="text-sm font-medium text-text-secondary tabular-nums">{pendingInterviews}</p>
-              <p className="text-[10px] text-text-muted">Interviews</p>
+            <div className="min-w-0">
+              <p className="font-data text-[15px] font-medium leading-tight text-ink">{card.value}</p>
+              <p className="text-[10px] uppercase tracking-[0.05em] text-faint">{card.label}</p>
             </div>
           </div>
-          <Button variant="outline" size="sm">
-            <Download className="h-3.5 w-3.5 mr-1.5" />
-            Export
-          </Button>
-          <Button size="sm" className="bg-primary-solid text-white hover:bg-primary-solid-hover">
-            <Plus className="h-4 w-4 mr-1.5" />
-            Add Candidate
-          </Button>
-        </div>
-      </motion.div>
+        ))}
+      </div>
 
       {/* Sessions bar */}
-      <motion.div variants={itemVariants}>
-        <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
-          <button
-            onClick={() => handleSelectSession(null)}
-            className={`shrink-0 flex items-center gap-2 px-4 py-2 rounded-full text-xs font-medium transition-all border ${
-              selectedSessionId === null
-                ? "bg-primary-solid text-white border-ink"
-                : "bg-surface border-border text-text-secondary hover:text-text-primary hover:border-strong"
-            }`}
-          >
-            <Users className="h-3.5 w-3.5" strokeWidth={1.5} />
-            All Candidates
-          </button>
-          {candidatesLoading ? (
-            Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-8 w-32 rounded-full shrink-0" />)
-          ) : sessions.length === 0 ? (
-            <span className="text-xs text-text-muted px-2">No sessions yet</span>
-          ) : (
-            sessions.map((session) => (
-              <button
-                key={session.id}
-                onClick={() => handleSelectSession(session.id)}
-                className={`shrink-0 flex items-center gap-2 px-4 py-2 rounded-full text-xs font-medium transition-all border whitespace-nowrap ${
-                  selectedSessionId === session.id
-                    ? "bg-primary-solid text-white border-ink"
-                    : "bg-surface border-border text-text-secondary hover:text-text-primary hover:border-strong"
-                }`}
-              >
-                <Briefcase className="h-3.5 w-3.5 shrink-0" strokeWidth={1.5} />
-                <span className="truncate max-w-[150px]">
-                  {session.job_description_text
-                    ? session.job_description_text.length > 35
-                      ? session.job_description_text.slice(0, 35) + "..."
-                      : session.job_description_text
-                    : "Untitled"}
-                </span>
-                <span className="text-[10px] opacity-60 ml-1 tabular-nums">({session.candidate_count})</span>
-              </button>
-            ))
+      <div className="flex items-center gap-2 overflow-x-auto pb-1">
+        <button
+          onClick={() => handleSelectSession(null)}
+          className={cn(
+            "flex shrink-0 items-center gap-2 rounded-md border px-3 py-1.5 text-[12px] font-medium whitespace-nowrap transition-colors duration-120",
+            selectedSessionId === null
+              ? "border-transparent bg-ink text-canvas"
+              : "border-border bg-surface text-muted hover:border-border-hover hover:text-ink",
           )}
-        </div>
-      </motion.div>
+        >
+          <Users className="size-3.5" strokeWidth={1.5} />
+          All Candidates
+        </button>
+        {candidatesLoading ? (
+          Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-8 w-32 shrink-0 rounded-md" />)
+        ) : sessions.length === 0 ? (
+          <span className="px-2 text-[12px] text-muted">No sessions yet</span>
+        ) : (
+          sessions.map((session) => (
+            <button
+              key={session.id}
+              onClick={() => handleSelectSession(session.id)}
+              className={cn(
+                "flex shrink-0 items-center gap-2 rounded-md border px-3 py-1.5 text-[12px] font-medium whitespace-nowrap transition-colors duration-120",
+                selectedSessionId === session.id
+                  ? "border-transparent bg-ink text-canvas"
+                  : "border-border bg-surface text-muted hover:border-border-hover hover:text-ink",
+              )}
+            >
+              <Briefcase className="size-3.5 shrink-0" strokeWidth={1.5} />
+              <span className="max-w-[150px] truncate">
+                {session.job_description_text
+                  ? session.job_description_text.length > 35
+                    ? `${session.job_description_text.slice(0, 35)}…`
+                    : session.job_description_text
+                  : "Untitled"}
+              </span>
+              <span className="font-data text-[10px] text-faint">{session.candidate_count}</span>
+            </button>
+          ))
+        )}
+      </div>
 
       {/* Filters */}
-      <motion.div variants={itemVariants} className="flex items-center justify-between">
-        <div className="flex items-center gap-1.5 bg-surface-secondary rounded-full p-1">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-1.5 rounded-lg bg-surface-secondary p-1">
           {statusTabs.map((tab) => {
-            const isActive = tab.value === null ? !statusFilterParam : statusFilterParam === tab.value || statusFilterParam?.split(",").includes(tab.value || "")
+            const isActive = tab.value === null
+              ? !statusFilterParam
+              : statusFilterParam === tab.value || statusFilterParam?.split(",").includes(tab.value || "")
             return (
               <button
                 key={tab.label}
                 onClick={() => handleStatusTabClick(tab.value)}
-                className={`px-4 py-1.5 text-xs font-medium rounded-full transition-all ${
-                  isActive ? "bg-surface text-text-primary shadow-sm" : "text-text-secondary hover:text-text-primary"
-                }`}
+                className={cn(
+                  "rounded-md px-3.5 py-1.5 text-[12px] font-medium transition-colors duration-120",
+                  isActive
+                    ? "bg-surface text-ink shadow-sm"
+                    : "text-muted hover:text-ink",
+                )}
               >
                 {tab.label}
               </button>
@@ -252,32 +248,32 @@ function CandidatesContent() {
           })}
         </div>
         <div className="relative">
-          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-text-muted" strokeWidth={1.5} />
+          <Search className="absolute left-3.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-faint" strokeWidth={1.5} />
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => handleSearch(e.target.value)}
-            placeholder="Search candidates..."
-            className="w-64 h-9 rounded-full border border-border bg-surface pl-9 pr-4 text-sm text-text-primary placeholder:text-text-muted outline-none focus:border-ink focus:shadow-[0_0_0_3px_rgba(17,17,17,0.06)] transition-all"
+            placeholder="Search candidates…"
+            className="h-9 w-full rounded-md border border-border bg-surface pl-9 pr-3.5 text-[13px] text-ink outline-none transition-colors duration-120 placeholder:text-faint focus:border-border-hover sm:w-64"
           />
         </div>
-      </motion.div>
+      </div>
 
       {/* Candidate Grid */}
       {candidatesLoading ? (
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid gap-3 sm:grid-cols-2">
           {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="bg-surface rounded-[10px] border border-border p-6">
-              <div className="flex items-center gap-4">
-                <Skeleton className="h-14 w-14 rounded-full" />
+            <div key={i} className="rounded-lg border border-border bg-surface p-5">
+              <div className="flex items-center gap-3">
+                <Skeleton className="size-11 rounded-full" />
                 <div className="flex-1 space-y-2">
-                  <Skeleton className="h-4 w-36" />
+                  <Skeleton className="h-3.5 w-36" />
                   <Skeleton className="h-3 w-24" />
                 </div>
               </div>
               <div className="mt-4 flex gap-2">
-                <Skeleton className="h-6 w-16 rounded-full" />
-                <Skeleton className="h-6 w-20 rounded-full" />
+                <Skeleton className="h-5 w-16 rounded-md" />
+                <Skeleton className="h-5 w-20 rounded-md" />
               </div>
               <div className="mt-4 space-y-2">
                 <Skeleton className="h-2 w-full" />
@@ -286,85 +282,90 @@ function CandidatesContent() {
             </div>
           ))}
         </div>
-      ) : candidatesData?.candidates.length === 0 ? (
-        <div className="bg-surface rounded-[10px] border border-border shadow-none p-20">
-          <div className="flex flex-col items-center text-center max-w-sm mx-auto">
-            <div className="h-16 w-16 rounded-[10px] bg-surface-secondary flex items-center justify-center mb-5">
-              <Users className="h-7 w-7 text-text-muted" strokeWidth={1.5} />
-            </div>
-            <h3 className="text-base font-medium text-text-primary mb-1">
-              {searchQuery ? "No candidates found" : "No candidates yet"}
-            </h3>
-            <p className="text-sm text-text-secondary mb-6 leading-relaxed">
-              {searchQuery ? "Try a different search term or clear filters" : "Upload resumes or create an application link to start building your candidate database."}
-            </p>
-            <div className="flex gap-3">
-              <Button size="sm" className="bg-primary-solid text-white hover:bg-primary-solid-hover">
-                <Plus className="h-4 w-4 mr-1.5" />
-                Upload Resume
-              </Button>
-              <Button variant="outline" size="sm" onClick={() => router.push(ROUTES.dashboard)}>
-                <ArrowUpRight className="h-4 w-4 mr-1.5" />
-                Go to Dashboard
-              </Button>
-            </div>
-          </div>
+      ) : candidates.length === 0 ? (
+        <div className="rounded-lg border border-border bg-surface">
+          <EmptyState
+            icon={Users}
+            title={searchQuery || statusFilterParam ? "No candidates found" : "No candidates yet"}
+            description={
+              searchQuery || statusFilterParam
+                ? "Try a different search term or clear filters"
+                : "Upload resumes or create an application link to start building your candidate database."
+            }
+            action={
+              <div className="flex gap-2">
+                <Button size="sm">
+                  <Plus className="size-3.5" strokeWidth={1.5} />
+                  Upload Resume
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => router.push(ROUTES.dashboard)}>
+                  <ArrowUpRight className="size-3.5" strokeWidth={1.5} />
+                  Go to Dashboard
+                </Button>
+              </div>
+            }
+          />
         </div>
       ) : (
         <>
-          <div className="grid grid-cols-2 gap-4">
-            {candidatesData?.candidates.map((candidate, i) => (
-              <motion.div
+          <div className="grid gap-3 sm:grid-cols-2">
+            {candidates.map((candidate) => (
+              <div
                 key={candidate.id}
-                variants={itemVariants}
-                transition={{ delay: i * 0.02 }}
-                className="group bg-surface rounded-[10px] border border-border shadow-none hover:border-border-strong transition-all duration-120 cursor-pointer overflow-hidden"
+                className="group cursor-pointer overflow-hidden rounded-lg border border-border bg-surface transition-all duration-120 hover:border-border-hover"
                 onClick={() => handleViewCandidate(candidate)}
               >
-                <div className="p-6">
-                  <div className="flex items-start gap-4">
-                    <div className="relative">
-                      <Avatar className="h-14 w-14 ring-2 ring-white shadow-sm shrink-0">
-                        <AvatarFallback className="text-base font-medium bg-surface-secondary text-text-secondary">
+                <div className="p-5">
+                  <div className="flex items-start gap-3">
+                    <div className="relative shrink-0">
+                      <Avatar className="size-11">
+                        <AvatarFallback className="text-[13px] font-medium">
                           {getInitials(candidate.full_name)}
                         </AvatarFallback>
                       </Avatar>
                       {candidate.match_score !== undefined && candidate.match_score >= 85 && (
-                        <div className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-surface shadow-sm border border-border flex items-center justify-center">
-                          <Sparkles className="h-3 w-3 text-text-primary" />
+                        <div className="absolute -right-1 -top-1 flex size-5 items-center justify-center rounded-full border border-border bg-surface">
+                          <Sparkles className="size-3 text-warning" strokeWidth={1.5} />
                         </div>
                       )}
                     </div>
 
-                    <div className="flex-1 min-w-0">
-                      <h3 className="text-base font-medium text-text-primary">{candidate.full_name || "Unknown"}</h3>
-                      <p className="text-xs text-text-secondary mt-0.5">
+                    <div className="min-w-0 flex-1">
+                      <h3 className="truncate text-[14px] font-medium text-ink">
+                        {candidate.full_name || "Unknown"}
+                      </h3>
+                      <p className="mt-0.5 truncate text-[12px] text-muted">
                         {candidate.current_title || ""}
                         {candidate.current_title && candidate.current_company ? " · " : ""}
-                        {candidate.current_company && <span className="text-text-primary/60">{candidate.current_company}</span>}
+                        {candidate.current_company || ""}
                       </p>
 
-                      <div className="flex flex-wrap items-center gap-1.5 mt-3">
-                        {(candidate.skills || []).slice(0, 3).map((skill, j) => (
-                          <span key={j} className="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-medium bg-surface-secondary text-text-secondary">
-                            {skill}
-                          </span>
-                        ))}
-                        {(candidate.skills?.length || 0) > 3 && (
-                          <span className="text-[11px] text-text-muted font-medium">+{(candidate.skills?.length || 0) - 3}</span>
-                        )}
-                      </div>
+                      {(candidate.skills || []).length > 0 && (
+                        <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
+                          {(candidate.skills || []).slice(0, 3).map((skill, j) => (
+                            <span
+                              key={j}
+                              className="rounded-md bg-surface-secondary px-2 py-0.5 text-[11px] text-muted"
+                            >
+                              {skill}
+                            </span>
+                          ))}
+                          {(candidate.skills?.length || 0) > 3 && (
+                            <span className="text-[11px] text-faint">+{(candidate.skills?.length || 0) - 3}</span>
+                          )}
+                        </div>
+                      )}
 
-                      <div className="flex items-center gap-3 mt-3">
+                      <div className="mt-2.5 flex items-center gap-3">
                         {candidate.total_experience_years != null && (
-                          <span className="text-[11px] text-text-muted flex items-center gap-1">
-                            <Briefcase className="h-3 w-3" strokeWidth={1.5} />
+                          <span className="flex items-center gap-1 text-[11px] text-faint">
+                            <Briefcase className="size-3" strokeWidth={1.5} />
                             {candidate.total_experience_years}y exp
                           </span>
                         )}
                         {candidate.location && (
-                          <span className="text-[11px] text-text-muted flex items-center gap-1">
-                            <MapPin className="h-3 w-3" strokeWidth={1.5} />
+                          <span className="flex items-center gap-1 text-[11px] text-faint">
+                            <MapPin className="size-3" strokeWidth={1.5} />
                             {candidate.location}
                           </span>
                         )}
@@ -372,79 +373,92 @@ function CandidatesContent() {
                     </div>
                   </div>
 
-                  <div className="flex items-center justify-between mt-4 pt-4 border-t border-border">
-                    <div className="flex items-center gap-3">
+                  <div className="mt-4 flex items-center justify-between border-t border-border pt-3.5">
+                    <div className="flex min-w-0 items-center gap-2.5">
                       <StatusDot status={candidate.current_status} />
-                      <span className="text-[13px] text-text-secondary" style={{ fontFamily: "var(--font-inter)" }}>
+                      <span className="truncate text-[12px] text-muted">
                         {candidate.current_status || "Applied"}
                       </span>
                       {candidate.flight_risk && (
-                        <span className={`font-data text-xs ${
+                        <span className={cn(
+                          "shrink-0 font-data text-[11px]",
                           candidate.flight_risk === "High"
                             ? "text-danger"
                             : candidate.flight_risk === "Medium"
-                            ? "text-warning"
-                            : "text-success"
-                        }`}>
+                              ? "text-warning"
+                              : "text-success",
+                        )}>
                           {candidate.flight_risk} risk
                         </span>
                       )}
                     </div>
 
-                    <div className="flex items-center gap-3">
+                    <div className="flex shrink-0 items-center gap-2.5">
                       <div className="text-right">
-                        <p className="text-xs font-medium text-text-primary tabular-nums">
+                        <p className={cn("font-data text-[13px] font-medium", getScoreTone(candidate.match_score))}>
                           {candidate.match_score !== undefined ? `${Math.round(candidate.match_score)}%` : "—"}
                         </p>
-                        <p className="text-[10px] text-text-muted">{getScoreLabel(candidate.match_score)}</p>
+                        <p className="text-[10px] text-faint">{getScoreLabel(candidate.match_score)}</p>
                       </div>
-                      <div className="w-12 h-1.5 bg-soft rounded-full overflow-hidden">
+                      <div className="h-1 w-12 overflow-hidden rounded-full bg-track">
                         <div
-                          className="h-full rounded-full transition-all"
-                          style={{ width: `${Math.round(candidate.match_score ?? 0)}%`, backgroundColor: getScoreColor(candidate.match_score) }}
+                          className="h-full rounded-full bg-info"
+                          style={{ width: `${Math.round(candidate.match_score ?? 0)}%` }}
                         />
                       </div>
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-1 mt-3 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                  <div className="mt-3 flex items-center gap-1 opacity-0 transition-opacity duration-150 group-hover:opacity-100">
                     {candidate.resume_file_url && (
-                      <a href={candidate.resume_file_url} target="_blank" rel="noopener noreferrer"
+                      <a
+                        href={candidate.resume_file_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
                         onClick={(e) => e.stopPropagation()}
-                        className="flex h-7 w-7 items-center justify-center rounded-full text-text-muted hover:text-text-primary hover:bg-surface-secondary transition-all"
+                        className="flex size-7 items-center justify-center rounded-md text-muted transition-colors duration-120 hover:bg-surface-secondary hover:text-ink"
+                        aria-label="Open resume"
                       >
-                        <FileText className="h-3 w-3" strokeWidth={1.5} />
+                        <FileText className="size-3.5" strokeWidth={1.5} />
                       </a>
                     )}
                     {candidate.current_status === "Offered" && (
-                      <button onClick={(e) => { e.stopPropagation(); handleHireClick(candidate) }}
-                        className="flex h-7 w-7 items-center justify-center rounded-full text-success hover:bg-success/10 transition-all"
+                      <button
+                        onClick={(e) => { e.stopPropagation(); handleHireClick(candidate) }}
+                        className="flex size-7 items-center justify-center rounded-md text-success transition-colors duration-120 hover:bg-success/10"
+                        aria-label="Mark as hired"
                       >
-                        <BadgeCheck className="h-3 w-3" strokeWidth={1.5} />
+                        <BadgeCheck className="size-3.5" strokeWidth={1.5} />
                       </button>
                     )}
-                    <button onClick={(e) => { e.stopPropagation(); handleViewCandidate(candidate) }}
-                      className="flex h-7 w-7 items-center justify-center rounded-full text-text-muted hover:text-text-primary hover:bg-surface-secondary transition-all ml-auto"
+                    <button
+                      onClick={(e) => { e.stopPropagation(); handleViewCandidate(candidate) }}
+                      className="ml-auto flex size-7 items-center justify-center rounded-md text-muted transition-colors duration-120 hover:bg-surface-secondary hover:text-ink"
+                      aria-label="View details"
                     >
-                      <Eye className="h-3 w-3" strokeWidth={1.5} />
+                      <Eye className="size-3.5" strokeWidth={1.5} />
                     </button>
                   </div>
                 </div>
-              </motion.div>
+              </div>
             ))}
           </div>
 
           {/* Pagination */}
           {totalPages > 1 && (
-            <div className="flex items-center justify-between pt-2">
-              <p className="text-xs text-text-secondary">
-                Showing {startRow}–{endRow} of {candidatesData?.total} candidates
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <p className="text-[12px] text-muted">
+                Showing <span className="font-data">{startRow}–{endRow}</span> of{" "}
+                <span className="font-data">{candidatesData?.total}</span> candidates
               </p>
               <div className="flex items-center gap-1">
-                <button disabled={page <= 1} onClick={() => setPage(p => Math.max(1, p - 1))}
-                  className="flex h-8 w-8 items-center justify-center rounded-full border border-border bg-surface text-text-secondary hover:text-text-primary hover:bg-surface-secondary transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+                <button
+                  disabled={page <= 1}
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  className="flex size-8 items-center justify-center rounded-md border border-border bg-surface text-muted transition-colors duration-120 hover:bg-surface-secondary hover:text-ink disabled:cursor-not-allowed disabled:opacity-30"
+                  aria-label="Previous page"
                 >
-                  <ChevronLeft className="h-3.5 w-3.5" strokeWidth={1.5} />
+                  <ChevronLeft className="size-3.5" strokeWidth={1.5} />
                 </button>
                 {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
                   let pageNum: number
@@ -453,21 +467,27 @@ function CandidatesContent() {
                   else if (page >= totalPages - 2) pageNum = totalPages - 4 + i
                   else pageNum = page - 2 + i
                   return (
-                    <button key={pageNum} onClick={() => setPage(pageNum)}
-                      className={`flex h-8 w-8 items-center justify-center rounded-full text-xs font-medium transition-all ${
+                    <button
+                      key={pageNum}
+                      onClick={() => setPage(pageNum)}
+                      className={cn(
+                        "flex size-8 items-center justify-center rounded-md text-[12px] font-medium transition-colors duration-120",
                         pageNum === page
-                          ? "bg-primary-solid text-white"
-                          : "border border-border bg-surface text-text-secondary hover:text-text-primary hover:bg-surface-secondary"
-                      }`}
+                          ? "bg-ink text-canvas"
+                          : "border border-border bg-surface text-muted hover:bg-surface-secondary hover:text-ink",
+                      )}
                     >
                       {pageNum}
                     </button>
                   )
                 })}
-                <button disabled={page >= totalPages} onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-                  className="flex h-8 w-8 items-center justify-center rounded-full border border-border bg-surface text-text-secondary hover:text-text-primary hover:bg-surface-secondary transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+                <button
+                  disabled={page >= totalPages}
+                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                  className="flex size-8 items-center justify-center rounded-md border border-border bg-surface text-muted transition-colors duration-120 hover:bg-surface-secondary hover:text-ink disabled:cursor-not-allowed disabled:opacity-30"
+                  aria-label="Next page"
                 >
-                  <ChevronRight className="h-3.5 w-3.5" strokeWidth={1.5} />
+                  <ChevronRight className="size-3.5" strokeWidth={1.5} />
                 </button>
               </div>
             </div>
@@ -479,20 +499,20 @@ function CandidatesContent() {
       <Dialog open={showHireConfirm} onOpenChange={(o) => { if (!o) { setShowHireConfirm(false); setHireCandidate(null) } }}>
         <DialogContent className="sm:max-w-md">
           <div className="px-6 pt-6 pb-2">
-            <div className="flex items-center gap-2 text-success mb-3">
-              <BadgeCheck className="h-5 w-5" />
-              <h2 className="text-base font-medium text-text-primary">Mark as Hired</h2>
+            <div className="mb-3 flex items-center gap-2 text-success">
+              <BadgeCheck className="size-5" strokeWidth={1.5} />
+              <h2 className="text-[15px] font-medium text-ink">Mark as Hired</h2>
             </div>
-            <p className="text-sm text-text-secondary">
-              Confirm that <strong className="text-text-primary">{hireCandidate?.full_name || "this candidate"}</strong> has been hired.
+            <p className="text-[13px] text-muted">
+              Confirm that <strong className="text-ink">{hireCandidate?.full_name || "this candidate"}</strong> has been hired.
             </p>
           </div>
-          <div className="px-6 pb-6 flex justify-end gap-2">
+          <div className="flex justify-end gap-2 px-6 pb-6">
             <Button variant="outline" size="sm" onClick={() => { setShowHireConfirm(false); setHireCandidate(null) }} disabled={hireLoading}>
               Cancel
             </Button>
-            <Button size="sm" className="bg-primary-solid text-white hover:bg-primary-solid-hover" onClick={confirmHire} disabled={hireLoading}>
-              {hireLoading && <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />}
+            <Button size="sm" onClick={confirmHire} disabled={hireLoading}>
+              {hireLoading && <Loader2 className="size-3.5 animate-spin" />}
               Confirm Hired
             </Button>
           </div>
@@ -505,7 +525,7 @@ function CandidatesContent() {
         candidate={selectedCandidate || null}
         onStatusChange={() => mutateCandidates()}
       />
-    </motion.div>
+    </div>
   )
 }
 

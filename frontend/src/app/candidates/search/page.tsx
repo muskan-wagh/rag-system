@@ -192,18 +192,18 @@ function CandidatesContent() {
           className="mb-6"
         >
           <div className="flex items-center gap-3 mb-1">
-            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary-solid shadow-sm">
+            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-ink text-canvas shadow-sm">
               {resultViewMode === "results" ? (
-                <Brain className="h-3.5 w-3.5 text-white" />
+                <Brain className="h-3.5 w-3.5" />
               ) : (
-                <Search className="h-3.5 w-3.5 text-white" />
+                <Search className="h-3.5 w-3.5" />
               )}
             </div>
             <div>
-              <h1 className="text-base font-semibold text-foreground">
+              <h1 className="text-base font-semibold text-ink">
                 {resultViewMode === "results" ? "AI Candidate Search" : "Candidate Search"}
               </h1>
-              <p className="text-xs text-muted-foreground">
+              <p className="text-xs text-muted">
                 {resultViewMode === "results"
                   ? "AI-powered candidate matching — instant recommendations"
                   : "Full ATS workspace with filters, analytics, and insights"
@@ -218,18 +218,18 @@ function CandidatesContent() {
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.05 }}
-          className="bg-surface rounded-2xl p-4 border border-border mb-4 card-hover"
+          className="bg-surface rounded-lg p-4 border border-border mb-4 "
         >
           <div className="flex flex-col gap-3">
             <div className="relative">
-              <Sparkles className="absolute left-3 top-3 h-4 w-4 text-primary" />
+              <Sparkles className="absolute left-3 top-3 h-4 w-4 text-ink" />
               <textarea
                 value={jdText}
                 onChange={(e) => setJdText(e.target.value)}
                 onKeyDown={handleKeyDown}
                 placeholder="Paste a job description or describe your ideal candidate..."
                 rows={2}
-                className="w-full bg-transparent text-sm text-foreground placeholder-muted-foreground/60 outline-none resize-none pl-9 pt-2.5"
+                className="w-full bg-transparent text-sm text-ink placeholder:faint/60 outline-none resize-none pl-9 pt-2.5"
               />
             </div>
             <div className="flex items-center justify-between gap-2">
@@ -238,7 +238,7 @@ function CandidatesContent() {
                   <button
                     key={p}
                     onClick={() => { setJdText(p); performSearch(p) }}
-                    className="rounded-full border border-border bg-surface px-2.5 py-1 text-[11px] text-muted-foreground hover:text-foreground hover:border-primary/20 transition-all"
+                    className="rounded-full border border-border bg-surface px-2.5 py-1 text-[11px] text-muted hover:text-ink hover:border-border-hover transition-all"
                   >
                     {p}
                   </button>
@@ -247,7 +247,7 @@ function CandidatesContent() {
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => setShowMobileFilters(!showMobileFilters)}
-                  className="lg:hidden flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-all"
+                  className="lg:hidden flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs text-muted hover:text-ink hover:bg-surface-secondary transition-all"
                 >
                   <SlidersHorizontal className="h-3.5 w-3.5" />
                   Filters
@@ -255,7 +255,7 @@ function CandidatesContent() {
                 <Button
                   onClick={handleSearch}
                   disabled={loading || !jdText.trim()}
-                  className="bg-primary-solid text-white hover:bg-primary-solid/90 h-8 px-4 text-xs shadow-sm"
+                  className="bg-ink text-canvas hover:bg-ink/90 h-8 px-4 text-xs shadow-sm"
                 >
                   {loading ? (
                     <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />
@@ -267,7 +267,7 @@ function CandidatesContent() {
               </div>
             </div>
             {error && (
-              <p className="text-xs text-destructive flex items-center gap-1">
+              <p className="text-xs text-danger flex items-center gap-1">
                 <span className="inline-block h-1 w-1 rounded-full bg-destructive" />
                 {error}
               </p>
@@ -290,8 +290,8 @@ function CandidatesContent() {
                   className={cn(
                     "flex items-center gap-1.5 rounded-md px-3 py-1 text-xs font-medium transition-all",
                     resultViewMode === "results"
-                      ? "bg-surface text-foreground shadow-sm"
-                      : "text-muted-foreground hover:text-foreground"
+                      ? "bg-surface text-ink shadow-sm"
+                      : "text-muted hover:text-ink"
                   )}
                 >
                   <Brain className="h-3.5 w-3.5" />
@@ -302,8 +302,8 @@ function CandidatesContent() {
                   className={cn(
                     "flex items-center gap-1.5 rounded-md px-3 py-1 text-xs font-medium transition-all",
                     resultViewMode === "workspace"
-                      ? "bg-surface text-foreground shadow-sm"
-                      : "text-muted-foreground hover:text-foreground"
+                      ? "bg-surface text-ink shadow-sm"
+                      : "text-muted hover:text-ink"
                   )}
                 >
                   <FlaskConical className="h-3.5 w-3.5" />
@@ -316,12 +316,12 @@ function CandidatesContent() {
             {resultViewMode === "results" && (
               <div className="flex items-center gap-2">
                 {/* Sort */}
-                <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                <div className="flex items-center gap-1.5 text-xs text-muted">
                   <ArrowUpDown className="h-3 w-3" />
                   <select
                     value={sortKey}
                     onChange={(e) => setSortKey(e.target.value as SortKey)}
-                    className="bg-transparent border-0 text-xs text-foreground font-medium outline-none cursor-pointer"
+                    className="bg-transparent border-0 text-xs text-ink font-medium outline-none cursor-pointer"
                   >
                     {(["overall", "skill", "experience"] as SortKey[]).map(k => (
                       <option key={k} value={k}>{sortLabels[k]}</option>
@@ -329,7 +329,7 @@ function CandidatesContent() {
                   </select>
                 </div>
                 {/* Min score slider */}
-                <div className="hidden sm:flex items-center gap-1.5 text-xs text-muted-foreground">
+                <div className="hidden sm:flex items-center gap-1.5 text-xs text-muted">
                   <span className="text-faint">Min:</span>
                   <input
                     type="range"
@@ -342,7 +342,7 @@ function CandidatesContent() {
                   />
                   <span className="font-data text-ink text-[11px] w-6 text-right">{minScore}%</span>
                 </div>
-                <span className="text-xs text-muted-foreground border-l border-border pl-2 ml-1">
+                <span className="text-xs text-muted border-l border-border pl-2 ml-1">
                   {sortedResults.length} match{sortedResults.length !== 1 ? "es" : ""}
                 </span>
               </div>
@@ -350,7 +350,7 @@ function CandidatesContent() {
 
             {resultViewMode === "workspace" && (
               <div className="flex items-center gap-2">
-                <span className="text-xs text-muted-foreground">
+                <span className="text-xs text-muted">
                   AI analyzed {results.length} candidates
                 </span>
                 <div className="flex items-center gap-1 border-l border-border pl-2">
@@ -358,7 +358,7 @@ function CandidatesContent() {
                     onClick={() => setViewMode("list")}
                     className={cn(
                       "flex h-7 w-7 items-center justify-center rounded-lg transition-all",
-                      viewMode === "list" ? "bg-primary/5 text-primary" : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                      viewMode === "list" ? "bg-surface-secondary text-ink" : "text-muted hover:text-ink hover:bg-surface-secondary"
                     )}
                   >
                     <ListFilter className="h-3.5 w-3.5" />
@@ -367,7 +367,7 @@ function CandidatesContent() {
                     onClick={() => setViewMode("grid")}
                     className={cn(
                       "flex h-7 w-7 items-center justify-center rounded-lg transition-all",
-                      viewMode === "grid" ? "bg-primary/5 text-primary" : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                      viewMode === "grid" ? "bg-surface-secondary text-ink" : "text-muted hover:text-ink hover:bg-surface-secondary"
                     )}
                   >
                     <LayoutGrid className="h-3.5 w-3.5" />
@@ -389,7 +389,7 @@ function CandidatesContent() {
             {loading && (
               <div className={resultViewMode === "results" ? "grid grid-cols-1 md:grid-cols-2 gap-3" : "space-y-3"}>
                 {Array.from({ length: resultViewMode === "results" ? 4 : 3 }).map((_, i) => (
-                  <div key={i} className="bg-surface rounded-2xl p-5 border border-border">
+                  <div key={i} className="bg-surface rounded-lg p-5 border border-border">
                     <div className="flex gap-4">
                       <Skeleton className="h-12 w-12 rounded-xl shrink-0" />
                       <div className="flex-1 space-y-3">
@@ -412,8 +412,8 @@ function CandidatesContent() {
               <>
                 {/* Skill gaps alert */}
                 {hasResults && missingJdSkills.length > 0 && (
-                  <div className="mb-3 flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50/50 px-3 py-2">
-                    <span className="text-[11px] font-medium text-amber-700 whitespace-nowrap">Missing across all candidates:</span>
+                  <div className="mb-3 flex items-center gap-2 rounded-lg border border-warning bg-warning/10 px-3 py-2">
+                    <span className="text-[11px] font-medium text-warning whitespace-nowrap">Missing across all candidates:</span>
                     <div className="flex flex-wrap gap-1">
                       {missingJdSkills.map(s => (
                         <Badge key={s} variant="warning" className="text-[10px]">{s}</Badge>
@@ -445,8 +445,8 @@ function CandidatesContent() {
                 )}
 
                 {!loading && !error && sortedResults.length === 0 && results.length > 0 && (
-                  <div className="bg-surface rounded-2xl p-6 border border-border text-center">
-                    <p className="text-sm text-muted-foreground">All candidates filtered out. Try lowering the minimum score.</p>
+                  <div className="bg-surface rounded-lg p-6 border border-border text-center">
+                    <p className="text-sm text-muted">All candidates filtered out. Try lowering the minimum score.</p>
                   </div>
                 )}
 
@@ -485,13 +485,13 @@ function CandidatesContent() {
                           className={cn(
                             "flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-all",
                             activeTab === tab.key
-                              ? "bg-primary/5 text-primary"
-                              : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                              ? "bg-surface-secondary text-ink"
+                              : "text-muted hover:text-ink hover:bg-surface-secondary"
                           )}
                         >
                           {tab.label}
                           {tab.count !== undefined && (
-                            <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px]">{tab.count}</span>
+                            <span className="rounded-full bg-surface-secondary px-1.5 py-0.5 text-[10px]">{tab.count}</span>
                           )}
                         </button>
                       ))}
@@ -513,17 +513,17 @@ function CandidatesContent() {
 
                     {!loading && results.length > 0 && (
                       <div className="mt-6 flex items-center justify-between">
-                        <span className="text-xs text-muted-foreground">
+                        <span className="text-xs text-muted">
                           Showing 1-{results.length} of {results.length} candidates
                         </span>
                         <div className="flex items-center gap-1">
-                          <button className="flex h-8 w-8 items-center justify-center rounded-lg border border-border text-xs text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-all disabled:opacity-40" disabled>
+                          <button className="flex h-8 w-8 items-center justify-center rounded-lg border border-border text-xs text-muted hover:text-ink hover:bg-surface-secondary transition-all disabled:opacity-40" disabled>
                             Previous
                           </button>
-                          <button className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/5 text-primary text-xs font-medium">
+                          <button className="flex h-8 w-8 items-center justify-center rounded-lg bg-surface-secondary text-ink text-xs font-medium">
                             1
                           </button>
-                          <button className="flex h-8 w-8 items-center justify-center rounded-lg border border-border text-xs text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-all disabled:opacity-40" disabled>
+                          <button className="flex h-8 w-8 items-center justify-center rounded-lg border border-border text-xs text-muted hover:text-ink hover:bg-surface-secondary transition-all disabled:opacity-40" disabled>
                             Next
                           </button>
                         </div>
@@ -550,20 +550,20 @@ function CandidatesContent() {
 
                 {activeTab === "analytics" && results.length > 0 && (
                   <div className="space-y-4">
-                    <div className="bg-surface rounded-2xl p-5 border border-border">
-                      <h3 className="text-sm font-medium text-foreground mb-4">Analytics Overview</h3>
+                    <div className="bg-surface rounded-lg p-5 border border-border">
+                      <h3 className="text-sm font-medium text-ink mb-4">Analytics Overview</h3>
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                         {analyticsStats.map((stat) => (
-                          <div key={stat.label} className="bg-muted/50 rounded-xl p-4">
-                            <div className="text-2xl font-bold text-primary">{stat.value}</div>
-                            <div className="text-[11px] text-muted-foreground mt-1">{stat.label}</div>
+                          <div key={stat.label} className="bg-surface-secondary rounded-xl p-4">
+                            <div className="text-2xl font-bold text-ink">{stat.value}</div>
+                            <div className="text-[11px] text-muted mt-1">{stat.label}</div>
                           </div>
                         ))}
                       </div>
                     </div>
 
-                    <div className="bg-surface rounded-2xl p-5 border border-border">
-                      <h3 className="text-sm font-medium text-foreground mb-4">Score Breakdown</h3>
+                    <div className="bg-surface rounded-lg p-5 border border-border">
+                      <h3 className="text-sm font-medium text-ink mb-4">Score Breakdown</h3>
                       <div className="grid grid-cols-2 gap-6">
                         <div className="space-y-3">
                           {(["skill", "experience", "education"] as const).map((key) => {
@@ -573,14 +573,14 @@ function CandidatesContent() {
                                 key={key}
                                 value={avg * 100}
                                 label={key.charAt(0).toUpperCase() + key.slice(1)}
-                                color={key === "skill" ? "bg-primary" : key === "experience" ? "bg-accent" : "bg-chart-3"}
+                                color={key === "skill" ? "bg-info" : key === "experience" ? "bg-warning" : "bg-success"}
                               />
                             )
                           })}
                         </div>
-                        <div className="glass rounded-xl p-4">
-                          <p className="text-xs text-muted-foreground mb-2">AI Recommendation</p>
-                          <p className="text-xs text-foreground/80 leading-relaxed">
+                        <div className="rounded-xl bg-surface-secondary p-4">
+                          <p className="text-xs text-muted mb-2">AI Recommendation</p>
+                          <p className="text-xs text-ink/80 leading-relaxed">
                             Based on the current job description, the top candidates show strong alignment in required skills and experience level. Consider reviewing the top 3 candidates for initial interviews.
                           </p>
                         </div>
@@ -619,8 +619,8 @@ function CandidatesContent() {
               className="fixed left-0 top-0 bottom-0 w-72 z-50 bg-surface border-r border-border p-6 overflow-y-auto"
             >
               <div className="flex items-center justify-between mb-6">
-                <h3 className="text-sm font-medium text-foreground">Filters</h3>
-                <button onClick={() => setShowMobileFilters(false)} className="flex h-7 w-7 items-center justify-center rounded-lg hover:bg-muted transition-colors">
+                <h3 className="text-sm font-medium text-ink">Filters</h3>
+                <button onClick={() => setShowMobileFilters(false)} className="flex h-7 w-7 items-center justify-center rounded-lg hover:bg-surface-secondary transition-colors">
                   <X className="h-4 w-4" />
                 </button>
               </div>

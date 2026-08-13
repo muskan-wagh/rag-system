@@ -2,143 +2,151 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { useUser } from "@clerk/nextjs"
+import { useUser, useAuth } from "@clerk/nextjs"
 import { cn } from "@/lib/utils"
 import {
   LayoutDashboard,
   Users,
   Search,
   GitCompare,
+  Layers,
   Calendar,
+  Bookmark,
+  History,
   Settings,
-  BarChart3,
   LogOut,
 } from "lucide-react"
-import { useAuth } from "@clerk/nextjs"
 import { ThemeToggle } from "@/components/theme-toggle"
+import { BrandLogo } from "@/components/brand"
 
-const mainNav = [
-  { href: "/dashboard", label: "Overview", icon: LayoutDashboard },
-  { href: "/candidates", label: "Candidates", icon: Users },
-  { href: "/candidates/search", label: "AI Search", icon: Search },
-  { href: "/pools", label: "Pools", icon: BarChart3 },
-  { href: "/compare", label: "Compare", icon: GitCompare },
-  { href: "/interview", label: "Interviews", icon: Calendar },
-]
+const navSections = [
+  {
+    label: "Main",
+    items: [
+      { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+      { href: "/candidates", label: "Candidates", icon: Users },
+      { href: "/candidates/search", label: "Search", icon: Search },
+      { href: "/compare", label: "Compare", icon: GitCompare },
+      { href: "/pools", label: "Pools", icon: Layers },
+      { href: "/interview", label: "Interviews", icon: Calendar },
+    ],
+  },
+  {
+    label: "Workspace",
+    items: [
+      { href: "/search", label: "Saved Searches", icon: Bookmark },
+      { href: "/history", label: "History", icon: History },
+    ],
+  },
+  {
+    label: "System",
+    items: [{ href: "/settings", label: "Settings", icon: Settings }],
+  },
+] as const
 
-const generalNav = [
-  { href: "/search", label: "Saved Searches", icon: Search },
-  { href: "/history", label: "History", icon: BarChart3 },
-  { href: "/settings", label: "Settings", icon: Settings },
-]
+export function isNavActive(href: string, pathname: string): boolean {
+  if (href === "/dashboard") return pathname === "/dashboard"
+  if (href === "/candidates") return pathname === "/candidates" || /^\/candidates\/[^/]+$/.test(pathname)
+  if (href === "/candidates/search") return pathname.startsWith("/candidates/search")
+  return pathname === href || pathname.startsWith(`${href}/`)
+}
 
-export function AppSidebar() {
+function NavItems({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname()
+  return (
+    <nav className="flex-1 overflow-y-auto px-3 pb-4" aria-label="Main navigation">
+      {navSections.map((section) => (
+        <div key={section.label}>
+          <p className="px-2.5 pt-6 pb-1.5 text-[10px] font-medium uppercase tracking-[0.07em] text-faint">
+            {section.label}
+          </p>
+          <ul className="space-y-0.5">
+            {section.items.map((item) => {
+              const active = isNavActive(item.href, pathname)
+              return (
+                <li key={item.href}>
+                  <Link
+                    href={item.href}
+                    onClick={onNavigate}
+                    aria-current={active ? "page" : undefined}
+                    className={cn(
+                      "flex h-8 items-center gap-2.5 rounded-md px-2.5 text-[13px] transition-colors duration-120",
+                      active
+                        ? "bg-surface-secondary font-medium text-ink"
+                        : "font-normal text-muted hover:bg-hover-tone hover:text-ink",
+                    )}
+                  >
+                    <item.icon
+                      className="size-4 shrink-0"
+                      strokeWidth={active ? 2 : 1.5}
+                      aria-hidden
+                    />
+                    <span className="truncate">{item.label}</span>
+                  </Link>
+                </li>
+              )
+            })}
+          </ul>
+        </div>
+      ))}
+    </nav>
+  )
+}
+
+function SidebarFooter() {
   const { user } = useUser()
   const { signOut } = useAuth()
-
-  function isActive(href: string): boolean {
-    if (href === "/dashboard") return pathname === "/dashboard"
-    if (href === "/candidates/search") return pathname.startsWith("/candidates/search")
-    if (href === "/candidates") return pathname === "/candidates"
-    return pathname.startsWith(href)
-  }
+  const initials = (
+    user?.firstName?.[0] ||
+    user?.primaryEmailAddress?.emailAddress?.[0] ||
+    "U"
+  ).toUpperCase()
 
   return (
-    <aside className="fixed left-0 top-3 bottom-0 z-40 flex flex-col bg-surface border-r border-border" style={{ width: 240 }}>
-      <div className="px-4 pb-6 pt-5">
-        <span className="text-base font-medium text-ink" style={{ fontFamily: "var(--font-inter)", letterSpacing: "-0.01em" }}>
-          RecruitIQ
-        </span>
-      </div>
-
-      <nav className="flex-1 overflow-y-auto">
-        <div className="px-3 pb-1.5 pt-5">
-          <p className="px-3 text-[10px] font-medium text-faint uppercase" style={{ letterSpacing: "0.06em", fontFamily: "var(--font-inter)" }}>
-            Main
+    <div className="border-t border-border px-3 py-3">
+      <div className="flex items-center gap-2.5">
+        <div className="flex size-7 shrink-0 items-center justify-center rounded-full bg-soft text-[11px] font-medium text-muted">
+          {initials}
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-[12px] font-medium text-ink">
+            {user?.firstName || "Recruiter"}
+          </p>
+          <p className="truncate text-[10px] text-faint">
+            {user?.primaryEmailAddress?.emailAddress || ""}
           </p>
         </div>
-        <div className="space-y-0.5 px-3">
-          {mainNav.map((item) => {
-            const active = isActive(item.href)
-            return (
-              <Link key={item.href} href={item.href}>
-                <div
-                  className={cn(
-                    "flex items-center gap-3 rounded-[6px] transition-all duration-120 relative",
-                    "h-[34px] px-3",
-                    active
-                      ? "bg-surface-secondary text-ink font-medium shadow-[0_1px_2px_rgba(10,10,10,0.04)]"
-                      : "text-muted font-normal hover:bg-hover-tone"
-                  )}
-                  style={{ fontFamily: "var(--font-inter)" }}
-                >
-                  {active && <div className="absolute left-[-3px] top-1/2 -translate-y-1/2 w-[3px] h-4 rounded-full bg-info" />}
-                  <item.icon className="size-4" strokeWidth={active ? 2 : 1.5} style={{ color: active ? "var(--ink)" : "var(--faint)" }} />
-                  <span className="text-[13px]">{item.label}</span>
-                </div>
-              </Link>
-            )
-          })}
-        </div>
-
-        <div className="px-3 pb-1.5 pt-6">
-          <p className="px-3 text-[10px] font-medium text-faint uppercase" style={{ letterSpacing: "0.06em", fontFamily: "var(--font-inter)" }}>
-            General
-          </p>
-        </div>
-        <div className="space-y-0.5 px-3">
-          {generalNav.map((item) => {
-            const active = isActive(item.href)
-            return (
-              <Link key={item.href} href={item.href}>
-                <div
-                  className={cn(
-                    "flex items-center gap-3 rounded-[6px] transition-all duration-120 h-[34px] px-3 relative",
-                    active
-                      ? "bg-surface-secondary text-ink font-medium shadow-[0_1px_2px_rgba(10,10,10,0.04)]"
-                      : "text-muted font-normal hover:bg-hover-tone"
-                  )}
-                  style={{ fontFamily: "var(--font-inter)" }}
-                >
-                  {active && <div className="absolute left-[-3px] top-1/2 -translate-y-1/2 w-[3px] h-4 rounded-full bg-info" />}
-                  <item.icon className="size-4" strokeWidth={active ? 2 : 1.5} style={{ color: active ? "var(--ink)" : "var(--faint)" }} />
-                  <span className="text-[13px]">{item.label}</span>
-                </div>
-              </Link>
-            )
-          })}
-        </div>
-      </nav>
-
-      <div className="border-t border-border px-4 py-3">
-        <div className="flex items-center gap-3">
-          <div className="size-8 rounded-full bg-soft flex items-center justify-center shrink-0" style={{ fontFamily: "var(--font-inter)" }}>
-            <span className="text-[12px] font-medium text-muted">
-              {(user?.firstName?.[0] || user?.primaryEmailAddress?.emailAddress?.[0] || "U").toUpperCase()}
-            </span>
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-[13px] font-medium text-ink truncate" style={{ fontFamily: "var(--font-inter)" }}>
-              {user?.firstName || "User"}
-            </p>
-            <p className="text-[11px] text-faint truncate" style={{ fontFamily: "var(--font-inter)" }}>
-              {user?.primaryEmailAddress?.emailAddress || ""}
-            </p>
-          </div>
-        </div>
-        <div className="mt-2 flex items-center justify-between">
-          <button
-            onClick={() => signOut({ redirectUrl: "/" })}
-            className="flex items-center gap-2 rounded-[6px] px-2 py-1.5 text-[12px] font-normal text-muted hover:text-ink hover:bg-hover-tone transition-all duration-120"
-            style={{ fontFamily: "var(--font-inter)" }}
-          >
-            <LogOut className="size-[14px]" strokeWidth={1.5} />
-            Sign Out
-          </button>
-          <ThemeToggle className="h-7 w-7" />
-        </div>
       </div>
+      <div className="mt-2 flex items-center justify-between">
+        <button
+          onClick={() => signOut({ redirectUrl: "/" })}
+          className="flex items-center gap-1.5 rounded-md px-2 py-1.5 text-[11px] font-normal text-muted transition-colors duration-120 hover:bg-hover-tone hover:text-ink"
+        >
+          <LogOut className="size-3.5" strokeWidth={1.5} />
+          Sign out
+        </button>
+        <ThemeToggle className="h-7 w-7" />
+      </div>
+    </div>
+  )
+}
+
+export function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
+  return (
+    <div className="flex h-full flex-col">
+      <div className="flex items-center px-5 pb-2 pt-5">
+        <BrandLogo />
+      </div>
+      <NavItems onNavigate={onNavigate} />
+      <SidebarFooter />
+    </div>
+  )
+}
+
+export function AppSidebar() {
+  return (
+    <aside className="fixed bottom-0 left-0 top-0 z-30 hidden w-[232px] flex-col border-r border-border bg-surface lg:flex">
+      <SidebarContent />
     </aside>
   )
 }

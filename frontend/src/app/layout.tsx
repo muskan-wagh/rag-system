@@ -41,7 +41,7 @@ export default async function RootLayout({
       lang="en"
       className={`${inter.variable} ${jetbrainsMono.variable}${isDark ? " dark" : ""}`}
     >
-      <body className="min-h-screen flex flex-col antialiased bg-background pt-3">
+      <body className="min-h-screen flex flex-col antialiased bg-background">
         <ThemeSync />
         <ClerkProvider
           appearance={{

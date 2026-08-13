@@ -174,23 +174,30 @@ Compare these candidates for this role.`;
   let lastRawContent = '';
 
   for (let attempt = 0; attempt < 3; attempt++) {
-    const response = await chatCompletion([
-      { role: 'system', content: SYSTEM_PROMPT },
-      { role: 'user', content: prompt },
-    ], { temperature: attempt === 0 ? 0.1 : 0.3, maxTokens: 4096 });
+    try {
+      const response = await chatCompletion([
+        { role: 'system', content: SYSTEM_PROMPT },
+        { role: 'user', content: prompt },
+      ], { temperature: attempt === 0 ? 0.1 : 0.3, maxTokens: 4096 });
 
-    lastRawContent = response.content;
-    logger.debug('Raw LLM response captured', {
-      attempt: attempt + 1,
-      length: lastRawContent.length,
-    });
+      lastRawContent = response.content;
+      logger.debug('Raw LLM response captured', {
+        attempt: attempt + 1,
+        length: lastRawContent.length,
+      });
 
-    const parsed = extractCompareJson(lastRawContent);
-    if (parsed) {
-      result = buildCompareResult(parsed, candidates);
+      const parsed = extractCompareJson(lastRawContent);
+      if (parsed) {
+        result = buildCompareResult(parsed, candidates);
+        break;
+      }
+      logger.warn(`Compare parse attempt ${attempt + 1} failed validation, retrying`);
+    } catch (error) {
+      logger.warn(`Compare LLM attempt ${attempt + 1} failed, using fallback`, {
+        error: (error as Error).message,
+      });
       break;
     }
-    logger.warn(`Compare parse attempt ${attempt + 1} failed validation, retrying`);
   }
 
   if (!result) {

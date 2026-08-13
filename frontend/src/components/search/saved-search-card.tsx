@@ -13,20 +13,20 @@ interface SavedSearchCardProps {
 
 export function SavedSearchCard({ search, onRun, onToggleFavorite, onDelete }: SavedSearchCardProps) {
   return (
-    <div className="bg-surface rounded-xl border border-border p-4 hover:border-brand/20 transition-colors group">
+    <div className="bg-surface rounded-xl border border-border p-4 hover:border-border-hover/20 transition-colors group">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            <h3 className="text-sm font-medium text-foreground truncate">{search.name}</h3>
+            <h3 className="text-sm font-medium text-ink truncate">{search.name}</h3>
             <button
               onClick={(e) => { e.stopPropagation(); onToggleFavorite(search.id, !search.is_favorite) }}
-              className={`shrink-0 ${search.is_favorite ? 'text-amber-400' : 'text-muted-foreground opacity-0 group-hover:opacity-100'} transition-opacity`}
+              className={`shrink-0 ${search.is_favorite ? 'text-amber-400' : 'text-muted opacity-0 group-hover:opacity-100'} transition-opacity`}
             >
               <Star className="h-3.5 w-3.5" fill={search.is_favorite ? 'currentColor' : 'none'} />
             </button>
           </div>
-          <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{search.jd_text.slice(0, 150)}</p>
-          <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground">
+          <p className="text-xs text-muted mt-1 line-clamp-2">{search.jd_text.slice(0, 150)}</p>
+          <div className="flex items-center gap-3 mt-2 text-xs text-muted">
             <span className="flex items-center gap-1">
               <Search className="h-3 w-3" />
               {search.usage_count} runs
@@ -42,14 +42,14 @@ export function SavedSearchCard({ search, onRun, onToggleFavorite, onDelete }: S
         <div className="flex items-center gap-1 shrink-0">
           <button
             onClick={() => onRun(search.id)}
-            className="p-1.5 rounded-lg hover:bg-brand/10 text-muted-foreground hover:text-brand transition-colors"
+            className="p-1.5 rounded-lg hover:bg-brand/10 text-muted hover:text-brand transition-colors"
             title="Run search"
           >
             <Search className="h-3.5 w-3.5" />
           </button>
           <button
             onClick={() => onDelete(search.id)}
-            className="p-1.5 rounded-lg hover:bg-red-50 text-muted-foreground hover:text-red-500 transition-colors"
+            className="p-1.5 rounded-lg hover:bg-red-50 text-muted hover:text-red-500 transition-colors"
             title="Delete"
           >
             <Trash2 className="h-3.5 w-3.5" />

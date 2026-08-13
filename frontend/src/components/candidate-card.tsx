@@ -19,8 +19,8 @@ function scoreLabel(score: number) {
 }
 
 function scoreColor(score: number) {
-  if (score >= 0.8) return "bg-primary-solid"
-  return "bg-primary-solid-hover"
+  if (score >= 0.8) return "bg-ink"
+  return "bg-ink/70"
 }
 
 interface CandidateCardProps {
@@ -158,7 +158,7 @@ export const CandidateCard = memo(function CandidateCard({
                 {getInitials(candidate.name)}
               </span>
             </div>
-            <div className="absolute -top-1 -right-1 flex h-[18px] w-[18px] items-center justify-center rounded-full bg-primary-solid text-[9px] font-medium text-white">
+            <div className="absolute -top-1 -right-1 flex h-[18px] w-[18px] items-center justify-center rounded-full bg-ink text-[9px] font-medium text-canvas">
               {index + 1}
             </div>
           </div>
@@ -168,7 +168,7 @@ export const CandidateCard = memo(function CandidateCard({
               <Link href={ROUTES.candidateDetail(candidate.id)} className="hover:underline">
                 <h3 className="font-medium text-ink text-[15px]">{candidate.name}</h3>
               </Link>
-              <div className={`rounded-md px-2 py-0.5 text-[10px] font-medium text-white ${scoreColor(scores.overall)}`}>
+              <div className={`rounded-md px-2 py-0.5 text-[10px] font-medium text-canvas ${scoreColor(scores.overall)}`}>
                 {scoreLabel(scores.overall)}
               </div>
             </div>
@@ -206,7 +206,7 @@ export const CandidateCard = memo(function CandidateCard({
           <div className="grid grid-cols-4 gap-3">
             <ProgressBar value={scores.skill * 100} label="Skills" size="sm" color="bg-info" delay={0.3} />
             <ProgressBar value={scores.experience * 100} label="Experience" size="sm" color="bg-info/70" delay={0.35} />
-            <ProgressBar value={scores.education * 100} label="Education" size="sm" color="bg-muted" delay={0.4} />
+            <ProgressBar value={scores.education * 100} label="Education" size="sm" color="bg-surface-secondary" delay={0.4} />
             <ProgressBar value={scores.overall * 100} label="Overall" size="sm" color="bg-info" delay={0.45} />
           </div>
         </div>

@@ -1,79 +1,74 @@
 "use client"
 
-import { motion } from "framer-motion"
 import Link from "next/link"
-import { ChevronRight } from "lucide-react"
+import { Sparkles, ChevronRight } from "lucide-react"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { PanelHeader } from "@/components/ui/panel-header"
 import { getInitials, ROUTES } from "@/lib/constants"
 import type { AiRecommendation } from "@/lib/types"
-
-const itemVariants = {
-  hidden: { opacity: 0, y: 16 },
-  visible: { opacity: 1, y: 0, transition: { duration: 0.4, ease: [0.25, 0.1, 0.25, 1] as const } },
-}
 
 export function AiRecommendations({ items }: { items: AiRecommendation[] }) {
   if (items.length === 0) return null
   return (
-    <motion.div variants={itemVariants}>
-      <div className="flex items-end justify-between mb-4">
-        <div>
-          <h2 className="text-[18px] font-semibold text-ink" style={{ fontFamily: "var(--font-inter)", letterSpacing: "-0.01em" }}>
-            AI Recommendations
-          </h2>
-          <p className="text-[13px] text-muted mt-0.5" style={{ fontFamily: "var(--font-inter)" }}>
-            Top candidates from your pipeline
-          </p>
-        </div>
-        <Link href={ROUTES.candidates} className="text-[13px] font-medium text-muted hover:text-ink transition-colors duration-120 inline-flex items-center gap-1" style={{ fontFamily: "var(--font-inter)" }}>
-          View all
-          <ChevronRight className="size-3.5" strokeWidth={1.5} />
-        </Link>
-      </div>
-      <div className="grid grid-cols-2 gap-3">
-        {items.slice(0, 4).map((item, i) => (
-          <motion.div
-            key={item.id}
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: i * 0.05, duration: 0.35, ease: [0.25, 0.1, 0.25, 1] }}
+    <section>
+      <PanelHeader
+        title="AI Recommendations"
+        description="Top candidates from your pipeline"
+        className="mb-3"
+        action={
+          <Link
+            href={ROUTES.candidates}
+            className="inline-flex items-center gap-1 text-[12px] font-medium text-muted transition-colors duration-120 hover:text-ink"
           >
-            <Link href={`${ROUTES.candidates}/${item.id}`}>
-              <div className="bg-surface border border-border rounded-xl hover:border-border-hover transition-all duration-120 p-5">
-                <div className="flex items-center gap-3 mb-3">
-                  <Avatar className="size-9 shrink-0">
-                    <AvatarFallback className="text-[12px] font-medium bg-soft text-muted" style={{ fontFamily: "var(--font-inter)" }}>
-                      {getInitials(item.full_name ?? undefined)}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-[14px] font-medium text-ink truncate" style={{ fontFamily: "var(--font-inter)" }}>
-                      {item.full_name || "Unknown"}
-                    </p>
-                    <p className="text-[12px] text-muted truncate" style={{ fontFamily: "var(--font-inter)" }}>
-                      {item.current_title || ""}
-                    </p>
-                  </div>
-                </div>
-                {item.skills.length > 0 && (
-                  <div className="flex flex-wrap gap-1.5">
-                    {item.skills.slice(0, 3).map((skill, j) => (
-                      <span key={j} className="inline-flex items-center px-[8px] py-[2px] rounded-[6px] text-[11px] font-normal bg-surface-secondary text-muted" style={{ fontFamily: "var(--font-inter)" }}>
-                        {skill}
-                      </span>
-                    ))}
-                    {item.skills.length > 3 && (
-                      <span className="text-[11px] text-faint font-normal" style={{ fontFamily: "var(--font-inter)" }}>
-                        +{item.skills.length - 3}
-                      </span>
-                    )}
-                  </div>
+            View all
+            <ChevronRight className="size-3.5" strokeWidth={1.5} />
+          </Link>
+        }
+      />
+      <div className="grid gap-3 sm:grid-cols-2">
+        {items.slice(0, 4).map((item) => (
+          <Link
+            key={item.id}
+            href={`${ROUTES.candidates}/${item.id}`}
+            className="group rounded-lg border border-border bg-surface p-4 transition-all duration-120 hover:border-border-hover"
+          >
+            <div className="flex items-center gap-3">
+              <Avatar className="size-9 shrink-0">
+                <AvatarFallback className="text-[12px] font-medium">
+                  {getInitials(item.full_name ?? undefined)}
+                </AvatarFallback>
+              </Avatar>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-[14px] font-medium text-ink">
+                  {item.full_name || "Unknown"}
+                </p>
+                <p className="truncate text-[12px] text-muted">{item.current_title || ""}</p>
+              </div>
+              <div className="flex shrink-0 items-center gap-1 rounded-md bg-soft px-1.5 py-0.5">
+                <Sparkles className="size-3 text-info" strokeWidth={1.5} />
+                <span className="font-data text-[11px] font-medium text-ink">
+                  {Math.round((item.match_score ?? 0) * 100)}%
+                </span>
+              </div>
+            </div>
+            {item.skills.length > 0 && (
+              <div className="mt-3 flex flex-wrap gap-1.5">
+                {item.skills.slice(0, 3).map((skill, j) => (
+                  <span
+                    key={j}
+                    className="rounded-md bg-surface-secondary px-2 py-0.5 text-[11px] text-muted"
+                  >
+                    {skill}
+                  </span>
+                ))}
+                {item.skills.length > 3 && (
+                  <span className="text-[11px] text-faint">+{item.skills.length - 3}</span>
                 )}
               </div>
-            </Link>
-          </motion.div>
+            )}
+          </Link>
         ))}
       </div>
-    </motion.div>
+    </section>
   )
 }

@@ -42,16 +42,30 @@ interface ChatCompletionResponse {
 
 const BASE_URL = config.openai.baseUrl;
 
+const MAX_RETRY_DELAY_MS = 30_000;
+
+function parseRetryAfter(response: Response): number {
+  const header = response.headers.get('retry-after');
+  if (!header) return 0;
+  const seconds = Number(header);
+  if (Number.isFinite(seconds) && seconds >= 0) return seconds * 1000;
+  const date = Date.parse(header);
+  if (!Number.isNaN(date)) return Math.max(0, date - Date.now());
+  return 0;
+}
+
 async function fetchWithRetry(
   url: string,
   options: RequestInit,
-  retries: number = 2,
+  retries: number = 3,
 ): Promise<Response> {
   for (let attempt = 0; attempt < retries; attempt++) {
     try {
       const response = await fetch(url, options);
       if (response.status === 429 && attempt < retries - 1) {
-        const delay = Math.pow(2, attempt) * 1000;
+        const retryAfter = parseRetryAfter(response);
+        const backoff = Math.pow(2, attempt) * 1000;
+        const delay = Math.min(Math.max(retryAfter, backoff), MAX_RETRY_DELAY_MS);
         logger.warn(`Rate limited, retrying in ${delay}ms (attempt ${attempt + 1}/${retries})`);
         await new Promise((resolve) => setTimeout(resolve, delay));
         continue;

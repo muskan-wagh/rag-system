@@ -2,10 +2,12 @@
 
 import { useState, useEffect, useCallback } from "react"
 import { useRouter } from "next/navigation"
-import { Bookmark, Plus } from "lucide-react"
+import { Bookmark, Plus, X } from "lucide-react"
 import { useApi } from "@/hooks/use-api"
 import { SavedSearchCard } from "@/components/search/saved-search-card"
 import { EmptyState } from "@/components/ui/empty-state"
+import { PageHeader } from "@/components/ui/page-header"
+import { Button } from "@/components/ui/button"
 import { ROUTES } from "@/lib/constants"
 import type { SavedSearch } from "@/lib/types"
 
@@ -60,48 +62,52 @@ export default function SavedSearchesPage() {
   const recent = searches.filter((s) => !s.is_favorite)
 
   return (
-    <div className="pt-6">
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-lg font-medium text-text-primary" style={{ letterSpacing: "-0.01em", fontFamily: "var(--font-inter)" }}>Saved Searches</h1>
-          <p className="text-sm text-text-secondary mt-1" style={{ fontFamily: "var(--font-inter)" }}>{searches.length} saved searches</p>
-        </div>
-        <button
-          onClick={() => setShowNewForm(!showNewForm)}
-          className="flex items-center gap-1.5 text-sm px-4 py-2 bg-primary-solid text-white rounded-lg hover:bg-primary-solid-hover transition-colors duration-120"
-        >
-          <Plus className="h-4 w-4" />
-          New Search
-        </button>
-      </div>
+    <div className="space-y-8">
+      <PageHeader
+        title="Saved Searches"
+        description={`${searches.length} saved search${searches.length === 1 ? "" : "es"}`}
+        actions={
+          <Button size="sm" onClick={() => setShowNewForm((v) => !v)}>
+            <Plus className="size-3.5" strokeWidth={1.5} />
+            New Search
+          </Button>
+        }
+      />
 
       {showNewForm && (
-        <form onSubmit={handleCreate} className="bg-card border border-border rounded-[10px] p-4 mb-6 space-y-3">
+        <form onSubmit={handleCreate} className="space-y-3 rounded-lg border border-border bg-surface p-4">
+          <div className="flex items-start justify-between gap-3">
+            <p className="text-[13px] font-medium text-ink">Save a new search</p>
+            <button
+              type="button"
+              onClick={() => setShowNewForm(false)}
+              className="flex size-6 items-center justify-center rounded-md text-muted transition-colors duration-120 hover:bg-surface-secondary hover:text-ink"
+              aria-label="Close"
+            >
+              <X className="size-3.5" strokeWidth={1.5} />
+            </button>
+          </div>
           <input
             type="text"
             value={newName}
             onChange={(e) => setNewName(e.target.value)}
             placeholder="Search name (e.g. Senior React Dev)"
-            className="w-full text-sm px-[14px] py-[10px] rounded-lg border border-input bg-surface text-text-primary placeholder:text-text-muted focus:outline-none focus:border-ring transition-all duration-120"
+            className="w-full rounded-md border border-border bg-surface px-3 py-2 text-[13px] text-ink outline-none transition-colors duration-120 placeholder:text-faint focus:border-border-hover"
           />
           <textarea
             value={newJdText}
             onChange={(e) => setNewJdText(e.target.value)}
-            placeholder="Paste job description..."
+            placeholder="Paste job description…"
             rows={4}
-            className="w-full text-sm px-[14px] py-[10px] rounded-lg border border-input bg-surface text-text-primary placeholder:text-text-muted focus:outline-none focus:border-ring transition-all duration-120 resize-y"
+            className="w-full resize-y rounded-md border border-border bg-surface px-3 py-2 text-[13px] text-ink outline-none transition-colors duration-120 placeholder:text-faint focus:border-border-hover"
           />
           <div className="flex gap-2">
-            <button type="submit" disabled={!newName.trim() || !newJdText.trim()}
-              className="text-sm px-4 py-2 bg-primary-solid text-white rounded-lg hover:bg-primary-solid-hover disabled:opacity-50 transition-all duration-120"
-            >
+            <Button type="submit" disabled={!newName.trim() || !newJdText.trim()}>
               Save
-            </button>
-            <button type="button" onClick={() => setShowNewForm(false)}
-              className="text-sm px-4 py-2 bg-surface-secondary text-text-secondary rounded-lg hover:bg-surface-secondary transition-all duration-120"
-            >
+            </Button>
+            <Button variant="outline" type="button" onClick={() => setShowNewForm(false)}>
               Cancel
-            </button>
+            </Button>
           </div>
         </form>
       )}
@@ -109,7 +115,7 @@ export default function SavedSearchesPage() {
       {loading ? (
         <div className="grid gap-3 md:grid-cols-2">
           {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="h-28 bg-card border border-border rounded-[10px] animate-pulse" />
+            <div key={i} className="h-28 animate-pulse rounded-lg border border-border bg-surface-secondary" />
           ))}
         </div>
       ) : searches.length === 0 ? (
@@ -118,7 +124,7 @@ export default function SavedSearchesPage() {
         <div className="space-y-6">
           {favorites.length > 0 && (
             <div>
-              <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">Favorites</h2>
+              <h2 className="mb-3 text-[10px] font-medium uppercase tracking-[0.07em] text-faint">Favorites</h2>
               <div className="grid gap-3 md:grid-cols-2">
                 {favorites.map((s) => (
                   <SavedSearchCard key={s.id} search={s} onRun={handleRun} onToggleFavorite={handleToggleFavorite} onDelete={handleDelete} />
@@ -127,7 +133,7 @@ export default function SavedSearchesPage() {
             </div>
           )}
           <div>
-            {favorites.length > 0 && <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">All Searches</h2>}
+            {favorites.length > 0 && <h2 className="mb-3 text-[10px] font-medium uppercase tracking-[0.07em] text-faint">All Searches</h2>}
             <div className="grid gap-3 md:grid-cols-2">
               {recent.map((s) => (
                 <SavedSearchCard key={s.id} search={s} onRun={handleRun} onToggleFavorite={handleToggleFavorite} onDelete={handleDelete} />
