@@ -450,7 +450,7 @@ export const makeOfferHandler = asyncHandler(async (req: Request, res: Response)
     joining_date: joiningDate || null,
   });
 
-  const emailBody = `Dear Candidate,\n\nCongratulations! We are pleased to offer you the position.\n${salary ? `Salary: $${salary}\n` : ''}${joiningDate ? `Joining Date: ${joiningDate}\n` : ''}\n\nBest regards,\nRecruitIQ Team`;
+  const emailBody = `Dear Candidate,\n\nCongratulations! We are pleased to offer you the position.\n${salary ? `Salary: $${salary}\n` : ''}${joiningDate ? `Joining Date: ${joiningDate}\n` : ''}\n\nBest regards,\nHireStack Team`;
   await logEmail(id, 'offer_sent', 'Offer Letter', emailBody);
 
   await invalidateDashboard(req);
@@ -556,7 +556,7 @@ export const sendInterviewEmailHandler = asyncHandler(async (req: Request, res: 
   }
 
   const emailSubject = subject || 'Interview Confirmation';
-  const emailBody = body || `Dear Candidate,\n\nYour interview has been confirmed.\n\nDate: ${interview.scheduled_date}\nTime: ${interview.scheduled_time}\nType: ${interview.interview_type}\n${interview.meeting_link ? `Link: ${interview.meeting_link}\n` : ''}\n\nBest regards,\nRecruitIQ Team`;
+  const emailBody = body || `Dear Candidate,\n\nYour interview has been confirmed.\n\nDate: ${interview.scheduled_date}\nTime: ${interview.scheduled_time}\nType: ${interview.interview_type}\n${interview.meeting_link ? `Link: ${interview.meeting_link}\n` : ''}\n\nBest regards,\nHireStack Team`;
 
   await logEmail(id, 'interview_email', emailSubject, emailBody);
 

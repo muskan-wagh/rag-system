@@ -26,7 +26,7 @@ const settingsSections = [
   {
     icon: Palette,
     title: "Appearance",
-    description: "Customize your RecruitIQ experience.",
+    description: "Customize your HireStack experience.",
     status: "Coming soon",
   },
 ]

@@ -9,7 +9,7 @@ export function ProductShowcase() {
       <div className="mx-auto max-w-7xl px-4 md:px-8 relative">
         <SectionHeader
           label="Product"
-          title="See RecruitIQ"
+          title="See HireStack"
           highlight="in action"
           description="A powerful dashboard that gives you complete visibility into your candidate pipeline"
         />
@@ -31,7 +31,7 @@ export function ProductShowcase() {
                 </div>
                 <div className="flex-1 flex justify-center">
                   <div className="rounded-md px-3 py-0.5 text-xs text-faint font-medium border border-border" style={{ fontFamily: "var(--font-inter)" }}>
-                    dashboard.recruitiq.ai
+                    dashboard.hirestack.ai
                   </div>
                 </div>
                 <div className="w-16" />

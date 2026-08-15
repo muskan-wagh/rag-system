@@ -28,12 +28,12 @@ const blocks = [
   },
 ]
 
-export function WhyRecruitIQ() {
+export function WhyHireStack() {
   return (
     <section className="w-full py-20 md:py-28 relative overflow-hidden">
       <div className="mx-auto max-w-7xl px-4 md:px-8 relative">
         <SectionHeader
-          label="Why RecruitIQ"
+          label="Why HireStack"
           title="Built for modern"
           highlight="hiring teams"
           description="Purpose-built AI tools that transform every stage of your recruitment workflow"

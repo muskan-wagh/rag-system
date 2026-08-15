@@ -97,7 +97,7 @@ export const useSearchStore = create<SearchState>()(
         }),
     }),
     {
-      name: "recruitiq-search",
+      name: "hirestack-search",
       storage: createJSONStorage(() => localStorage),
       version: 1,
       migrate: (persisted: unknown, version: number) => {

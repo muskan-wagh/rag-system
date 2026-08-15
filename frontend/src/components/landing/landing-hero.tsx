@@ -55,7 +55,7 @@ function DashboardMockup() {
             </div>
             <div className="flex-1 flex justify-center">
               <div className="rounded-md px-3 py-0.5 text-[10px] text-faint font-medium border border-border" style={{ fontFamily: "var(--font-inter)" }}>
-                dashboard.recruitiq.ai
+                dashboard.hirestack.ai
               </div>
             </div>
           </div>

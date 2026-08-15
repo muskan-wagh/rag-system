@@ -61,7 +61,7 @@ export function RecentActivity({ items }: { items: RecentActivityItem[] }) {
           <EmptyState
             icon={History}
             title="No activity yet"
-            description="Start using RecruitIQ to see your activity here."
+            description="Start using HireStack to see your activity here."
           />
         ) : (
           <ul className="divide-y divide-border">

@@ -7,12 +7,12 @@ import { SectionHeader } from "@/components/ui/section-header"
 
 const faqs = [
   {
-    question: "How does RecruitIQ rank candidates?",
-    answer: "RecruitIQ uses a hybrid ranking engine that combines semantic similarity (via vector embeddings) with weighted scoring across skills, experience, and education. The result is ranked by overall fit rather than just keyword matches.",
+    question: "How does HireStack rank candidates?",
+    answer: "HireStack uses a hybrid ranking engine that combines semantic similarity (via vector embeddings) with weighted scoring across skills, experience, and education. The result is ranked by overall fit rather than just keyword matches.",
   },
   {
     question: "What file formats are supported for resume uploads?",
-    answer: "RecruitIQ supports PDF and DOCX formats for resume uploads, with a maximum file size of 5MB per upload.",
+    answer: "HireStack supports PDF and DOCX formats for resume uploads, with a maximum file size of 5MB per upload.",
   },
   {
     question: "How accurate is the AI parsing?",
@@ -20,7 +20,7 @@ const faqs = [
   },
   {
     question: "Can I compare multiple candidates side by side?",
-    answer: "Yes, RecruitIQ's comparison view lets you select multiple candidates and see an AI-powered head-to-head analysis with score breakdowns, strengths, and weaknesses relative to your job description.",
+    answer: "Yes, HireStack's comparison view lets you select multiple candidates and see an AI-powered head-to-head analysis with score breakdowns, strengths, and weaknesses relative to your job description.",
   },
   {
     question: "How does the resume dropbox feature work?",
@@ -28,7 +28,7 @@ const faqs = [
   },
   {
     question: "Is my data secure and private?",
-    answer: "Absolutely. RecruitIQ is SOC 2 compliant and GDPR ready. All data is encrypted at rest (AES-256) and in transit (TLS 1.3). Your candidate data is never used for training our AI models.",
+    answer: "Absolutely. HireStack is SOC 2 compliant and GDPR ready. All data is encrypted at rest (AES-256) and in transit (TLS 1.3). Your candidate data is never used for training our AI models.",
   },
 ]
 
@@ -42,7 +42,7 @@ export function FAQSection() {
           label="FAQ"
           title="Frequently asked"
           highlight="questions"
-          description="Everything you need to know about RecruitIQ"
+          description="Everything you need to know about HireStack"
         />
 
         <div className="space-y-3">

@@ -6,7 +6,7 @@ import { SectionHeader } from "@/components/ui/section-header"
 
 const testimonials = [
   {
-    quote: "RecruitIQ cut our candidate screening time by 70%. The semantic search finds candidates we would have missed with traditional ATS tools.",
+    quote: "HireStack cut our candidate screening time by 70%. The semantic search finds candidates we would have missed with traditional ATS tools.",
     author: "Sarah Chen",
     role: "VP of Talent",
     company: "TechCorp",
@@ -36,7 +36,7 @@ export function Testimonials() {
           label="Testimonials"
           title="Trusted by"
           highlight="recruiters"
-          description="See what recruitment teams are saying about RecruitIQ"
+          description="See what recruitment teams are saying about HireStack"
         />
 
         <div className="grid md:grid-cols-3 gap-4">

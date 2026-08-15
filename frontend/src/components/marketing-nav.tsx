@@ -42,7 +42,7 @@ export function MarketingNav() {
               <Sparkles className="h-4 w-4 text-white" />
             </div>
             <span className="text-base font-medium text-ink" style={{ fontFamily: "var(--font-inter)" }}>
-              RecruitIQ
+              HireStack
             </span>
           </Link>
 

@@ -8,7 +8,7 @@ export function ThemeToggle({ className = "" }: { className?: string }) {
       onClick={() => {
         const el = document.documentElement
         const dark = el.classList.toggle("dark")
-        document.cookie = `recruitiq-theme=${
+        document.cookie = `hirestack-theme=${
           dark ? "dark" : "light"
         }; path=/; max-age=31536000; samesite=lax`
       }}

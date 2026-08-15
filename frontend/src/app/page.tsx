@@ -6,7 +6,7 @@ import { LogoWall } from "@/components/landing/logo-wall"
 import { MetricsSection } from "@/components/landing/metrics-section"
 import { FeaturesBento } from "@/components/landing/features-bento"
 import { ProductShowcase } from "@/components/landing/product-showcase"
-import { WhyRecruitIQ } from "@/components/landing/why-recruitiq"
+import { WhyHireStack } from "@/components/landing/why-hirestack"
 import { WorkflowSection } from "@/components/landing/workflow-section"
 import { Testimonials } from "@/components/landing/testimonials"
 import { SecuritySection } from "@/components/landing/security-section"
@@ -22,7 +22,7 @@ export default function Home() {
       <MetricsSection />
       <FeaturesBento />
       <ProductShowcase />
-      <WhyRecruitIQ />
+      <WhyHireStack />
       <WorkflowSection />
       <Testimonials />
       <SecuritySection />

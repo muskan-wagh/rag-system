@@ -8,7 +8,7 @@ const metrics = [
   { value: 98, suffix: "%", label: "Resume Parsing Accuracy", sublabel: "Industry-leading AI extraction" },
   { value: 50, prefix: "50", suffix: "K+", label: "Candidates Processed", sublabel: "And counting every day" },
   { value: 85, suffix: "%", label: "Time Saved", sublabel: "In candidate screening" },
-  { value: 120, suffix: "+", label: "Hiring Teams", sublabel: "Trust RecruitIQ globally" },
+  { value: 120, suffix: "+", label: "Hiring Teams", sublabel: "Trust HireStack globally" },
 ]
 
 function Counter({ value, suffix, prefix }: { value: number; suffix?: string; prefix?: string }) {
@@ -39,7 +39,7 @@ export function MetricsSection() {
     <section className="w-full py-20 md:py-28 relative overflow-hidden">
       <div className="mx-auto max-w-7xl px-4 md:px-8 relative">
         <SectionHeader
-          title="RecruitIQ by the"
+          title="HireStack by the"
           highlight="numbers"
           description="Trusted by hiring teams worldwide to make better hiring decisions faster"
         />

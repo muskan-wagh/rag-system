@@ -29,7 +29,7 @@ const examplePrompts = [
   "Product Manager SaaS",
 ]
 
-const SCROLL_KEY = "recruitiq-scroll-candidates"
+const SCROLL_KEY = "hirestack-scroll-candidates"
 
 const sortLabels: Record<SortKey, string> = {
   overall: "Overall Score",

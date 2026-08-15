@@ -35,7 +35,7 @@ export function MarketingFooter() {
                 <Sparkles className="h-4 w-4 text-white" />
               </div>
               <span className="text-base font-medium text-ink" style={{ fontFamily: "var(--font-inter)" }}>
-                RecruitIQ
+                HireStack
               </span>
             </Link>
             <p className="text-sm text-muted leading-relaxed max-w-xs mb-6" style={{ fontFamily: "var(--font-inter)" }}>
@@ -67,12 +67,12 @@ export function MarketingFooter() {
 
         <div className="mt-12 pt-6 border-t border-border flex flex-col md:flex-row items-center justify-between gap-4">
           <p className="text-xs text-faint" style={{ fontFamily: "var(--font-inter)" }}>
-            &copy; {new Date().getFullYear()} RecruitIQ. All rights reserved.
+            &copy; {new Date().getFullYear()} HireStack. All rights reserved.
           </p>
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2 text-xs text-faint" style={{ fontFamily: "var(--font-inter)" }}>
               <Mail className="h-3 w-3" />
-              hello@recruitiq.ai
+              hello@hirestack.ai
             </div>
             <span className="text-xs text-border">|</span>
             <p className="text-xs text-faint" style={{ fontFamily: "var(--font-inter)" }}>

@@ -45,7 +45,7 @@ export function ActivityFeed({
           </div>
           <h3 className="text-base font-medium text-ink mb-1">No activity found</h3>
           <p className="text-sm text-muted leading-relaxed">
-            Try adjusting your filters or search. Activity will appear as you use RecruitIQ.
+            Try adjusting your filters or search. Activity will appear as you use HireStack.
           </p>
         </div>
       </div>

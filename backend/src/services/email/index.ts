@@ -62,7 +62,7 @@ export function buildRejectionEmail(candidateName: string): string {
       <p style="font-size: 16px; line-height: 1.6; color: #374151;">
         This decision was not easy, and we encourage you to apply for future positions that align with your skills and experience.
       </p>
-      <p style="font-size: 16px; line-height: 1.6; color: #374151;">Best regards,<br/>RecruitIQ Talent Team</p>
+      <p style="font-size: 16px; line-height: 1.6; color: #374151;">Best regards,<br/>HireStack Talent Team</p>
     </div>
   `;
 }
@@ -80,7 +80,7 @@ export function buildOfferEmail(candidateName: string, salary?: number, joiningD
         Please review the attached offer letter and let us know your decision by replying to this email.
       </p>
       <p style="font-size: 16px; line-height: 1.6; color: #374151;">We look forward to welcoming you to the team!</p>
-      <p style="font-size: 16px; line-height: 1.6; color: #374151;">Best regards,<br/>RecruitIQ Talent Team</p>
+      <p style="font-size: 16px; line-height: 1.6; color: #374151;">Best regards,<br/>HireStack Talent Team</p>
     </div>
   `;
 }
@@ -108,7 +108,7 @@ export function buildInterviewEmailHtml(
       <p style="font-size: 16px; line-height: 1.6; color: #374151;">
         Please confirm your availability by replying to this email. We look forward to speaking with you!
       </p>
-      <p style="font-size: 16px; line-height: 1.6; color: #374151;">Best regards,<br/>RecruitIQ Talent Team</p>
+      <p style="font-size: 16px; line-height: 1.6; color: #374151;">Best regards,<br/>HireStack Talent Team</p>
     </div>
   `;
 }

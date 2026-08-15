@@ -21,7 +21,7 @@ export function BrandLogo({ compact = false }: { compact?: boolean }) {
     <span className="flex items-center gap-2.5">
       <BrandMark />
       {!compact && (
-        <span className="text-[15px] font-medium tracking-tight text-ink">RecruitIQ</span>
+        <span className="text-[15px] font-medium tracking-tight text-ink">HireStack</span>
       )}
     </span>
   )

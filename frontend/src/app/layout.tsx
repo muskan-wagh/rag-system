@@ -22,7 +22,7 @@ const jetbrainsMono = JetBrains_Mono({
 })
 
 export const metadata: Metadata = {
-  title: "RecruitIQ — AI-Powered Candidate Discovery",
+  title: "HireStack — AI-Powered Candidate Discovery",
   description:
     "AI-powered candidate discovery and ranking. Find the right candidate in seconds.",
 }
@@ -33,7 +33,7 @@ export default async function RootLayout({
   children: React.ReactNode
 }>) {
   const cookieStore = await cookies()
-  const theme = cookieStore.get("recruitiq-theme")?.value
+  const theme = cookieStore.get("hirestack-theme")?.value
   const isDark = theme === "dark"
 
   return (

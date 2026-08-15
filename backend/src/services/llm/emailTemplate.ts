@@ -38,7 +38,7 @@ Write a warm, professional interview invitation email to ${candidateName}. Inclu
 4. A request to confirm their availability
 5. Professional closing with contact information
 
-Make it concise (4-5 paragraphs), warm, and professional. Sign it as "RecruitIQ Talent Team".`;
+Make it concise (4-5 paragraphs), warm, and professional. Sign it as "HireStack Talent Team".`;
 
   const response = await chatCompletion([
     { role: 'system', content: 'You are a professional recruitment coordinator who writes clear, warm interview invitation emails.' },

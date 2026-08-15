@@ -1,5 +1,5 @@
 -- ============================================================
--- RecruitIQ Supabase Setup (idempotent — safe to re-run)
+-- HireStack Supabase Setup (idempotent — safe to re-run)
 -- ============================================================
 
 -- 1. Upload sessions table

@@ -13,7 +13,7 @@ import { publishEvent } from '@/services/events';
 import { runStartupRecovery } from '@/services/recovery';
 
 async function startWorker(): Promise<void> {
-  logger.info('=== RecruitIQ Worker Starting ===');
+  logger.info('=== HireStack Worker Starting ===');
 
   const connection = await ensureRedisConnected();
 
