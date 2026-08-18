@@ -491,18 +491,6 @@ export function buildStatusFilterParam(status?: string): (q: any) => any {
   };
 }
 
-export async function getDistinctCandidateSkills(limit = 3000): Promise<string[]> {
-  const supabase = getSupabaseClient();
-  const { data, error } = await supabase
-    .from('candidate_skills')
-    .select('skill_name')
-    .not('skill_name', 'is', null)
-    .limit(limit);
-
-  if (error || !data) return [];
-  return [...new Set(data.map((r) => String((r as { skill_name?: string }).skill_name || '').trim()).filter(Boolean))];
-}
-
 export async function getAllCandidatesPaginated(params: {
   page?: number;
   limit?: number;

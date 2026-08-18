@@ -6,8 +6,6 @@
     "build": "tsc",
     "start": "node start.js",
     "start:worker": "node start-worker.js",
-    "start:email-worker": "node start-email-worker.js",
-    "start:workers": "node start-workers.js",
     "start:all": "node start-all.js",
     "dev": "ts-node-dev --respawn --require tsconfig-paths/register src/server.ts",
     "dev:all": "ts-node-dev --respawn --require tsconfig-paths/register src/worker.ts & ts-node-dev --respawn --require tsconfig-paths/register src/server.ts & wait",
