@@ -4,10 +4,8 @@
 # image so cold starts never re-download it from Hugging Face (~23MB).
 #
 # Build context = repository root (Render docker runtime uses the repo root).
-# This is the API image (CMD: node start.js). The worker uses
-# Dockerfile.worker (CMD: node start-workers.js) — Render's Docker runtime
-# cannot override the command via startCommand, so each service has its own
-# Dockerfile.
+# The same image serves both the API web service (`node start.js`) and the
+# worker service (`node start-workers.js`) via startCommand override.
 
 # ---- Build stage ----
 FROM node:22-bookworm-slim AS build

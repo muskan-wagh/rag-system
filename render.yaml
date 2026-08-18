@@ -3,12 +3,8 @@
 # Deploy with:  Render Dashboard → New → Blueprint → this repository
 # Or CLI:       render blueprint launch
 #
-# Render's Docker runtime runs the CMD baked into each Dockerfile (startCommand
-# is not allowed), so each service has its own Dockerfile:
-#   - hirestack-api    -> backend/Dockerfile          (CMD: node start.js)
-#   - hirestack-worker -> backend/Dockerfile.worker   (CMD: node start-workers.js)
-# Both bake the ONNX embedding model into the image so cold starts never
-# re-download it.
+# Both services use the same Docker image (backend/Dockerfile), which bakes the
+# ONNX embedding model into the image so cold starts never re-download it.
 #
 # Note on cold starts: on Render's free/Starter tiers the web service sleeps
 # after idle, so the first request after idle pays a boot penalty. Options:
@@ -25,6 +21,7 @@ services:
     runtime: docker
     dockerfilePath: ./backend/Dockerfile
     plan: starter
+    startCommand: node start.js
     healthCheckPath: /health
     autoDeploy: true
     envVars:
@@ -80,8 +77,9 @@ services:
   - type: worker
     name: hirestack-worker
     runtime: docker
-    dockerfilePath: ./backend/Dockerfile.worker
+    dockerfilePath: ./backend/Dockerfile
     plan: starter
+    startCommand: node start-workers.js
     autoDeploy: true
     envVars:
       - key: NODE_ENV
