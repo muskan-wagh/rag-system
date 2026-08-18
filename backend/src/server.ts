@@ -9,6 +9,7 @@ import { errorHandler } from '@/middleware/errorHandler';
 import { ErrorCodes } from '@/middleware/errorCodes';
 import { createCollection } from '@/services/qdrant/createCollection';
 import { ensureResumeBucket } from '@/services/supabase/storage';
+import { warmUpEmbedding } from '@/services/embedding';
 import { authMiddleware } from '@/middleware/auth';
 import { rateLimiter } from '@/middleware/rateLimit';
 import { initWebSocketServer } from '@/services/websocket';
@@ -148,6 +149,11 @@ async function start(): Promise<void> {
   } catch (error) {
     logger.error('Failed to initialize Supabase storage', { error });
   }
+
+  // Warm the embedding model in the background so the first search isn't penalized
+  warmUpEmbedding()
+    .then(() => logger.info('Embedding model warm'))
+    .catch((error) => logger.error('Failed to warm embedding model', { error: error.message }));
 }
 
 start();

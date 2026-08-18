@@ -1,0 +1,119 @@
+# Render Blueprint — split the latency-sensitive API from the CPU-bound worker.
+#
+# Deploy with:  Render Dashboard → New → Blueprint → this repository
+# Or CLI:       render blueprint launch
+#
+# Both services use the same Docker image (backend/Dockerfile), which bakes the
+# ONNX embedding model into the image so cold starts never re-download it.
+#
+# Note on cold starts: on Render's free/Starter tiers the web service sleeps
+# after idle, so the first request after idle pays a boot penalty. Options:
+#   - Upgrade the api service to a non-sleeping plan (Pro+).
+#   - Point a free uptime pinger (UptimeRobot, Cronitor) at
+#     https://<api-url>/health every 5 minutes to keep the instance warm.
+#
+# Env vars marked `sync: false` are pulled from your Render dashboard at deploy
+# time — set them once.
+
+services:
+  - type: web
+    name: hirestack-api
+    runtime: docker
+    dockerfilePath: ./backend/Dockerfile
+    plan: starter
+    startCommand: node start.js
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: "5000"
+      - key: CLIENT_URL
+        sync: false
+      - key: CORS_ORIGINS
+        sync: false
+      - key: QWEN_API_KEY
+        sync: false
+      - key: QWEN_MODEL
+        value: qwen/qwen-2.5-7b-instruct
+      - key: QWEN_PREMIUM_MODEL
+        value: qwen/qwen3-next-80b-a3b-instruct
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: QDRANT_URL
+        sync: false
+      - key: QDRANT_API_KEY
+        sync: false
+      - key: QDRANT_COLLECTION_NAME
+        value: candidates
+      - key: QDRANT_VECTOR_SIZE
+        value: "384"
+      - key: REDIS_URL
+        sync: false
+      - key: CLERK_SECRET_KEY
+        sync: false
+      # Optional hosted embeddings (recommended — removes in-process ONNX from the API).
+      # Example (Jina):  EMBEDDING_API_URL=https://api.jina.ai/v1   EMBEDDING_API_KEY=...
+      # Example (OpenAI): EMBEDDING_API_URL=https://api.openai.com/v1 EMBEDDING_API_KEY=...
+      # When set, EMBEDDING_VECTOR_SIZE + QDRANT_VECTOR_SIZE must match the model's
+      # output dimension (Jina v3 = 1024, OpenAI text-embedding-3-small = 1536) and
+      # the Qdrant collection must be re-created / candidates re-embedded.
+      - key: EMBEDDING_API_URL
+        sync: false
+      - key: EMBEDDING_API_KEY
+        sync: false
+      - key: EMBEDDING_API_MODEL
+        sync: false
+      - key: EMBEDDING_VECTOR_SIZE
+        value: "384"
+      - key: RESEND_API_KEY
+        sync: false
+      - key: RATE_LIMIT_MAX
+        value: "120"
+
+  - type: worker
+    name: hirestack-worker
+    runtime: docker
+    dockerfilePath: ./backend/Dockerfile
+    plan: starter
+    startCommand: node start-workers.js
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: QWEN_API_KEY
+        sync: false
+      - key: QWEN_MODEL
+        value: qwen/qwen-2.5-7b-instruct
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: QDRANT_URL
+        sync: false
+      - key: QDRANT_API_KEY
+        sync: false
+      - key: QDRANT_COLLECTION_NAME
+        value: candidates
+      - key: QDRANT_VECTOR_SIZE
+        value: "384"
+      - key: REDIS_URL
+        sync: false
+      - key: CLERK_SECRET_KEY
+        sync: false
+      # Embeddings used by the worker for resume processing.
+      - key: EMBEDDING_API_URL
+        sync: false
+      - key: EMBEDDING_API_KEY
+        sync: false
+      - key: EMBEDDING_API_MODEL
+        sync: false
+      - key: EMBEDDING_VECTOR_SIZE
+        value: "384"
+      - key: RESEND_API_KEY
+        sync: false
+      - key: RESEND_FROM_EMAIL
+        sync: false

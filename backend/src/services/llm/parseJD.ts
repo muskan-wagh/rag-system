@@ -6,7 +6,7 @@ import { AppError } from '@/middleware/errorHandler';
 import { ErrorCodes } from '@/middleware/errorCodes';
 import { getCached, setCache } from '@/utils/cache';
 
-const CACHE_TTL = 300_000;
+const CACHE_TTL = 86_400_000;
 
 const SYSTEM_PROMPT = `You are a job description parser. Extract structured information from job descriptions.
 Return ONLY valid JSON with this exact shape:
@@ -50,7 +50,7 @@ function tryParseJSON(raw: string): ParsedJD | null {
   }
 }
 
-function jdCacheKey(jdText: string): string {
+export function jdCacheKey(jdText: string): string {
   return `jd:${crypto.createHash('md5').update(jdText).digest('hex')}`;
 }
 
@@ -72,6 +72,7 @@ export async function parseJD(jdText: string): Promise<ParsedJD> {
 
     const parsed = tryParseJSON(response.content);
     if (parsed) {
+      parsed.rawText = jdText;
       await setCache(cacheKey, parsed, CACHE_TTL).catch(() => {});
       return parsed;
     }

@@ -5,7 +5,7 @@ import { logger } from '@/utils/logger';
 import { downloadResumeFile } from '@/services/supabase/storage';
 import { updateCandidate, updateCandidateSafe, insertSkills, insertExperience } from '@/services/supabase/database';
 import { extractResumeText, sanitizeText } from '@/services/resume-parser';
-import { generateEmbedding } from '@/services/embedding';
+import { generateEmbedding, warmUpEmbedding } from '@/services/embedding';
 import { parseResume } from '@/services/llm/parseResume';
 import { calculateFlightRisk } from '@/services/llm/flightRisk';
 import { getQdrantClient } from '@/services/qdrant/client';
@@ -16,6 +16,11 @@ async function startWorker(): Promise<void> {
   logger.info('=== HireStack Worker Starting ===');
 
   const connection = await ensureRedisConnected();
+
+  // Warm the embedding model in the background so the first resume job isn't penalized
+  warmUpEmbedding()
+    .then(() => logger.info('Embedding model warm (worker)'))
+    .catch((error) => logger.warn('Embedding warmup failed (worker)', { error: error.message }));
 
   const worker = new Worker(
     'resume-processing',

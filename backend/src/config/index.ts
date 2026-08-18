@@ -96,8 +96,11 @@ export const config = Object.freeze({
 
   embedding: {
     model: optional("EMBEDDING_MODEL", "Xenova/all-MiniLM-L6-v2"),
-    vectorSize: 384,
+    vectorSize: parseInt(optional("EMBEDDING_VECTOR_SIZE", "384"), 10),
     distance: "Cosine" as const,
+    apiUrl: optional("EMBEDDING_API_URL", ""),
+    apiKey: optional("EMBEDDING_API_KEY", ""),
+    apiModel: optional("EMBEDDING_API_MODEL", ""),
   },
 
   resend: {
@@ -113,7 +116,7 @@ export const config = Object.freeze({
     url: required("QDRANT_URL"),
     apiKey: required("QDRANT_API_KEY"),
     collectionName: optional("QDRANT_COLLECTION_NAME", "candidates"),
-    vectorSize: 384,
+    vectorSize: parseInt(optional("QDRANT_VECTOR_SIZE", "384"), 10),
     distance: "Cosine" as const,
   },
 });

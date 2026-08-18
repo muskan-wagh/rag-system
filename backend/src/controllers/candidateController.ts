@@ -1,7 +1,7 @@
 import crypto from 'crypto';
 import { Request, Response } from 'express';
 import { asyncHandler } from '@/utils/asyncHandler';
-import { parseJD } from '@/services/llm/parseJD';
+import { getParsedJDBestEffort } from '@/services/jd/bestEffortParse';
 import { generateEmbedding } from '@/services/embedding';
 import { searchByEmbedding } from '@/services/qdrant/searchCandidates';
 import { retrieveCandidateByIds } from '@/services/qdrant/retrieveCandidates';
@@ -58,7 +58,7 @@ export const searchCandidatesHandler = asyncHandler(async (req: Request, res: Re
   }
 
   const [jd, embedding] = await Promise.all([
-    parseJD(jdText),
+    getParsedJDBestEffort(jdText),
     generateEmbedding(jdText),
   ]);
 
@@ -222,7 +222,7 @@ export const compareCandidatesHandler = asyncHandler(async (req: Request, res: R
   }
 
   const t1 = Date.now();
-  const jd = await parseJD(jdText);
+  const jd = await getParsedJDBestEffort(jdText);
   logger.info('Compare lifecycle: parseJD done', { ms: Date.now() - t1 });
 
   const t2 = Date.now();
