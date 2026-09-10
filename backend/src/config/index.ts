@@ -66,20 +66,25 @@ export const config = Object.freeze({
   clientUrl: optional("CLIENT_URL", "http://localhost:3000"),
   clerkSecretKey: required("CLERK_SECRET_KEY"),
   allowedOrigins: (() => {
-    const envOrigins = optional("CORS_ORIGINS", "");
-    if (envOrigins) {
-      return envOrigins.split(",").map((s) => s.trim());
+    const parseList = (raw: string): string[] =>
+      raw
+        .split(',')
+        .map((s) => s.trim().replace(/\/+$/, ''))
+        .filter(Boolean);
+    const origins = new Set<string>();
+    // Env-based configuration takes precedence and is merged with defaults
+    // so CLIENT_URL is never silently dropped when CORS_ORIGINS is set.
+    for (const o of parseList(optional('CORS_ORIGINS', ''))) origins.add(o);
+    const clientUrl = optional('CLIENT_URL', '').trim().replace(/\/+$/, '');
+    if (clientUrl) origins.add(clientUrl);
+    if (optional('NODE_ENV', 'development') === 'development') {
+      origins.add('http://localhost:3000');
+      origins.add('http://localhost:3001');
     }
-    const origins: string[] = [];
-    const clientUrl = optional("CLIENT_URL", "");
-    if (clientUrl) origins.push(clientUrl);
-    if (optional("NODE_ENV", "development") === "development") {
-      origins.push("http://localhost:3000", "http://localhost:3001");
+    if (optional('NODE_ENV', 'development') === 'production') {
+      origins.add('https://hirestack-vert.vercel.app');
     }
-    if (optional("NODE_ENV", "development") === "production") {
-      origins.push("https://rag-system-vert.vercel.app");
-    }
-    return origins;
+    return [...origins];
   })(),
 
   supabase: {

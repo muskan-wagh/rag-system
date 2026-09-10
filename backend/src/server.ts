@@ -41,13 +41,17 @@ app.use(cors({
     }
   },
   credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  optionsSuccessStatus: 204,
+  maxAge: 86400,
 }));
 
 app.use(express.json({ limit: '1mb' }));
 app.use(requestLogger);
-app.use(rateLimiter);
-app.use(authMiddleware);
 
+// Public routes — must be registered before rateLimiter/auth so that
+// Render health checks and browser probes never require a token.
 app.get('/', (_req, res) => {
   res.json({ service: 'RAG System API', status: 'running', endpoints: { health: '/health', api: '/api' } });
 });
@@ -70,6 +74,10 @@ app.get('/health', async (_req, res) => {
   res.status(healthy ? 200 : 503).json({ status: healthy ? 'ok' : 'degraded', checks, timestamp: new Date().toISOString() });
 });
 
+// Protected API — everything under /api requires Clerk auth (except
+// explicitly public paths handled inside authMiddleware).
+app.use(rateLimiter);
+app.use(authMiddleware);
 app.use('/api', routes);
 
 app.use((err: Error, _req: express.Request, res: express.Response, next: express.NextFunction) => {

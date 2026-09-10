@@ -8,7 +8,7 @@ import { logger } from '@/utils/logger';
 
 const clerkClient = createClerkClient({ secretKey: config.clerkSecretKey });
 
-const PUBLIC_PATHS = ['/api/upload'];
+const PUBLIC_PATHS = ['/', '/health', '/api/upload'];
 
 const RECRUITER_CACHE_TTL = 300_000;
 
@@ -28,6 +28,12 @@ function decodeJwtPayload(token: string): Record<string, unknown> | null {
 }
 
 export async function authMiddleware(req: Request, res: Response, next: NextFunction): Promise<void> {
+  // Allow CORS preflight to pass through — browsers never send
+  // Authorization on OPTIONS, cors() middleware already handles the response.
+  if (req.method === 'OPTIONS') {
+    return next();
+  }
+
   if (isPublicPath(req)) {
     return next();
   }
