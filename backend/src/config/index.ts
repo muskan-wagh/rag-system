@@ -118,6 +118,12 @@ export const config = Object.freeze({
     fromEmail: optional("RESEND_FROM_EMAIL", "onboarding@resend.dev"),
   },
 
+  google: {
+    clientId: optional("GOOGLE_CLIENT_ID", ""),
+    clientSecret: optional("GOOGLE_CLIENT_SECRET", ""),
+    redirectUri: optional("GOOGLE_REDIRECT_URI", ""),
+  },
+
   redis: {
     url: required("REDIS_URL"),
   },

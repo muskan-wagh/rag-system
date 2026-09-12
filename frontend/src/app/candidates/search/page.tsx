@@ -14,6 +14,7 @@ import { useApi } from "@/hooks/use-api"
 import { CandidateCard } from "@/components/candidate-card"
 import { AiInsightsPanel } from "@/components/ai-insights-panel"
 import { ResumeDrawer } from "@/components/resume-drawer"
+import { GmailOutreachModal } from "@/components/gmail-outreach-modal"
 import { SearchSidebar } from "@/components/search-sidebar"
 import { useSearchStore, isCacheValid } from "@/lib/search-store"
 import type { Candidate } from "@/lib/api"
@@ -40,6 +41,7 @@ const sortLabels: Record<SortKey, string> = {
 function CandidatesContent() {
   const searchParams = useSearchParams()
   const [selectedCandidate, setSelectedCandidate] = useState<Candidate | null>(null)
+  const [emailCandidate, setEmailCandidate] = useState<Candidate | null>(null)
   const [sortKey, setSortKey] = useState<SortKey>("overall")
   const [minScore, setMinScore] = useState(0)
 
@@ -437,6 +439,10 @@ function CandidatesContent() {
                             variant="recommendation"
                             jdSkills={jdSkills}
                             onAddToPool={handleAddToPool}
+                            onEmail={(id) => {
+                              const c = results.find((r) => r.candidate.id === id)?.candidate ?? null
+                              setEmailCandidate(c)
+                            }}
                           />
                         </div>
                       )
@@ -505,7 +511,15 @@ function CandidatesContent() {
                       <div className={viewMode === "grid" ? "grid grid-cols-1 md:grid-cols-2 gap-3" : "space-y-3"}>
                         {results.map((result, i) => (
                           <div key={result.candidate.id} onClick={() => setSelectedCandidate(result.candidate)} className="cursor-pointer">
-                            <CandidateCard result={result} index={i} variant="detailed" />
+                            <CandidateCard
+                              result={result}
+                              index={i}
+                              variant="detailed"
+                              onEmail={(id) => {
+                                const c = results.find((r) => r.candidate.id === id)?.candidate ?? null
+                                setEmailCandidate(c)
+                              }}
+                            />
                           </div>
                         ))}
                       </div>
@@ -634,6 +648,16 @@ function CandidatesContent() {
         candidate={selectedCandidate}
         onClose={() => setSelectedCandidate(null)}
       />
+
+      {emailCandidate && (
+        <GmailOutreachModal
+          open
+          onClose={() => setEmailCandidate(null)}
+          candidateId={emailCandidate.id}
+          candidateName={emailCandidate.name}
+          candidateEmail={emailCandidate.email || ""}
+        />
+      )}
     </div>
   )
 }

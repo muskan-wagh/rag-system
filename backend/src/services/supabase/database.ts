@@ -1054,4 +1054,71 @@ export async function getStuckCandidates(): Promise<CandidateRecord[]> {
   return (data || []) as CandidateRecord[];
 }
 
+// === GMAIL OAUTH (per-recruiter, server-side refresh tokens only) ===
+
+export interface RecruiterGmailState {
+  connected: boolean;
+  email: string;
+}
+
+export async function getRecruiterGmailState(recruiterId: string): Promise<RecruiterGmailState> {
+  const supabase = getSupabaseClient();
+  const { data, error } = await supabase
+    .from('recruiters')
+    .select('gmail_connected_email, gmail_refresh_token')
+    .eq('id', recruiterId)
+    .maybeSingle();
+  if (error) {
+    throw new AppError('Failed to get Gmail status', 500, ErrorCodes.DATABASE_ERROR);
+  }
+  const row = data as { gmail_connected_email?: string | null; gmail_refresh_token?: string | null } | null;
+  const connected = Boolean(row?.gmail_refresh_token && row?.gmail_connected_email);
+  return { connected, email: connected ? String(row?.gmail_connected_email) : '' };
+}
+
+export async function getRecruiterGmailRefreshToken(recruiterId: string): Promise<string | null> {
+  const supabase = getSupabaseClient();
+  const { data, error } = await supabase
+    .from('recruiters')
+    .select('gmail_refresh_token')
+    .eq('id', recruiterId)
+    .maybeSingle();
+  if (error) {
+    throw new AppError('Failed to get Gmail credentials', 500, ErrorCodes.DATABASE_ERROR);
+  }
+  const token = (data as { gmail_refresh_token?: string | null } | null)?.gmail_refresh_token;
+  return token || null;
+}
+
+export async function setRecruiterGmail(recruiterId: string, connectedEmail: string, refreshToken: string): Promise<void> {
+  const supabase = getSupabaseClient();
+  const { error } = await supabase
+    .from('recruiters')
+    .update({
+      gmail_connected_email: connectedEmail,
+      gmail_refresh_token: refreshToken,
+      gmail_connected_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', recruiterId);
+  if (error) {
+    throw new AppError('Failed to save Gmail connection', 500, ErrorCodes.DATABASE_ERROR);
+  }
+}
+
+export async function clearRecruiterGmail(recruiterId: string): Promise<void> {
+  const supabase = getSupabaseClient();
+  const { error } = await supabase
+    .from('recruiters')
+    .update({
+      gmail_connected_email: null,
+      gmail_refresh_token: null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', recruiterId);
+  if (error) {
+    throw new AppError('Failed to disconnect Gmail', 500, ErrorCodes.DATABASE_ERROR);
+  }
+}
+
 

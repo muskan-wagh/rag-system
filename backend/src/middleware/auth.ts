@@ -8,7 +8,7 @@ import { logger } from '@/utils/logger';
 
 const clerkClient = createClerkClient({ secretKey: config.clerkSecretKey });
 
-const PUBLIC_PATHS = ['/', '/health', '/api/upload'];
+const PUBLIC_PATHS = ['/', '/health', '/api/upload', '/api/gmail/callback'];
 
 const RECRUITER_CACHE_TTL = 300_000;
 

@@ -6,6 +6,7 @@ import uploadRoutes from './uploadRoutes';
 import biasRoutes from './biasRoutes';
 import dashboardRoutes from './dashboardRoutes';
 import historyRoutes from './historyRoutes';
+import gmailRoutes from './gmailRoutes';
 
 import {
   listSavedSearchesHandler,
@@ -26,6 +27,7 @@ const router = Router();
 
 router.use('/jd', jdRoutes);
 router.use('/candidates', candidateRoutes);
+router.use('/gmail', gmailRoutes);
 
 // Root-level routers
 router.use('/', dashboardRoutes);

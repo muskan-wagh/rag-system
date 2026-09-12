@@ -1,9 +1,14 @@
 "use client"
 
+import { useState } from "react"
+import { useRouter } from "next/navigation"
 import { motion, AnimatePresence } from "framer-motion"
 import { X, Mail, Phone, GraduationCap, Briefcase, Wrench, Sparkles } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { GmailOutreachModal } from "@/components/gmail-outreach-modal"
+import { GmailLogo } from "@/components/gmail-logo"
+import { ROUTES } from "@/lib/constants"
 import type { Candidate } from "@/lib/api"
 
 interface ResumeDrawerProps {
@@ -12,6 +17,8 @@ interface ResumeDrawerProps {
 }
 
 export function ResumeDrawer({ candidate, onClose }: ResumeDrawerProps) {
+  const router = useRouter()
+  const [showEmailModal, setShowEmailModal] = useState(false)
   return (
     <AnimatePresence>
       {candidate && (
@@ -122,12 +129,36 @@ export function ResumeDrawer({ candidate, onClose }: ResumeDrawerProps) {
               </div>
 
               <div className="flex gap-2 pt-2">
-                <Button size="sm" className="flex-1 bg-ink text-canvas hover:bg-ink/90 text-xs">
+                <Button
+                  size="sm"
+                  className="flex-1 bg-ink text-canvas hover:bg-ink/90 text-xs"
+                  onClick={() => router.push(ROUTES.candidateDetail(candidate.id))}
+                >
                   View Full Profile
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="flex-1 text-xs"
+                  disabled={!candidate.email}
+                  title={candidate.email ? `Send outreach to ${candidate.name}` : "No email on file for this candidate"}
+                  onClick={() => setShowEmailModal(true)}
+                >
+                  <GmailLogo className="size-3.5" />
+                  Send Email
                 </Button>
               </div>
             </div>
           </motion.div>
+          {showEmailModal && (
+            <GmailOutreachModal
+              open={showEmailModal}
+              onClose={() => setShowEmailModal(false)}
+              candidateId={candidate.id}
+              candidateName={candidate.name}
+              candidateEmail={candidate.email || ""}
+            />
+          )}
         </>
       )}
     </AnimatePresence>

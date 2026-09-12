@@ -11,6 +11,8 @@ import {
 } from "lucide-react"
 import { toast } from "sonner"
 import { CandidateDetailModal } from "@/components/candidate-detail-modal"
+import { GmailOutreachModal } from "@/components/gmail-outreach-modal"
+import { GmailLogo } from "@/components/gmail-logo"
 import { useApi } from "@/hooks/use-api"
 import { useWebSocket } from "@/lib/use-websocket"
 import { ROUTES, getInitials } from "@/lib/constants"
@@ -49,6 +51,7 @@ function CandidatesContent() {
   const [page, setPage] = useState(1)
   const [selectedCandidate, setSelectedCandidate] = useState<CandidateRecord | null>(null)
   const [showDetailModal, setShowDetailModal] = useState(false)
+  const [emailCandidate, setEmailCandidate] = useState<CandidateRecord | null>(null)
   const [showHireConfirm, setShowHireConfirm] = useState(false)
   const [hireCandidate, setHireCandidate] = useState<CandidateRecord | null>(null)
   const [hireLoading, setHireLoading] = useState(false)
@@ -438,6 +441,15 @@ function CandidatesContent() {
                     >
                       <Eye className="size-3.5" strokeWidth={1.5} />
                     </button>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); setEmailCandidate(candidate) }}
+                      disabled={!candidate.email}
+                      title={candidate.email ? `Send outreach to ${candidate.full_name || "candidate"}` : "No email on file"}
+                      className="flex size-7 items-center justify-center rounded-md text-muted transition-colors duration-120 hover:bg-surface-secondary hover:text-ink disabled:opacity-40"
+                      aria-label="Send email"
+                    >
+                      <GmailLogo className="size-3.5" />
+                    </button>
                   </div>
                 </div>
               </div>
@@ -525,6 +537,16 @@ function CandidatesContent() {
         candidate={selectedCandidate || null}
         onStatusChange={() => mutateCandidates()}
       />
+
+      {emailCandidate && (
+        <GmailOutreachModal
+          open
+          onClose={() => setEmailCandidate(null)}
+          candidateId={emailCandidate.id}
+          candidateName={emailCandidate.full_name || "Candidate"}
+          candidateEmail={emailCandidate.email || ""}
+        />
+      )}
     </div>
   )
 }

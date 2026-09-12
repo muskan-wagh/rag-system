@@ -478,3 +478,12 @@ BEGIN
   RETURN result;
 END;
 $$ LANGUAGE plpgsql;
+
+-- ============================================================
+-- 16. Gmail OAuth (per-recruiter, server-side refresh tokens)
+-- Tokens are read/written with the service_role key only.
+-- Never expose gmail_refresh_token to the browser.
+-- ============================================================
+ALTER TABLE recruiters ADD COLUMN IF NOT EXISTS gmail_connected_email TEXT DEFAULT '';
+ALTER TABLE recruiters ADD COLUMN IF NOT EXISTS gmail_refresh_token TEXT DEFAULT '';
+ALTER TABLE recruiters ADD COLUMN IF NOT EXISTS gmail_connected_at TIMESTAMPTZ;

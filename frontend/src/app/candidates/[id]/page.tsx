@@ -8,6 +8,8 @@ import useSWR, { useSWRConfig } from "swr"
 import { useApi } from "@/hooks/use-api"
 import { ROUTES } from "@/lib/constants"
 import type { CandidateBrief, ApiResponse } from "@/lib/types"
+import { GmailOutreachModal } from "@/components/gmail-outreach-modal"
+import { GmailLogo } from "@/components/gmail-logo"
 import {
   MatchScoreCard,
   ExecutiveSummaryCard,
@@ -84,6 +86,7 @@ export default function CandidateDetailPage() {
   const briefErr = briefError ? "Failed to connect to server" : (!isLoading && !briefRes?.success ? (briefRes?.error || "Candidate not found") : "")
 
   const [activeTab, setActiveTab] = useState("overview")
+  const [showEmailModal, setShowEmailModal] = useState(false)
 
   const handleAddNote = useCallback(async (text: string) => {
     await api.addCandidateNote(candidateId, text)
@@ -163,6 +166,20 @@ export default function CandidateDetailPage() {
                 </span>
               )}
             </div>
+          </div>
+          <div className="flex md:flex-col items-stretch gap-2 w-full md:w-auto shrink-0">
+            <button
+              onClick={() => setShowEmailModal(true)}
+              disabled={!record.email}
+              title={record.email ? `Send outreach to ${candidate.name}` : "No email on file for this candidate"}
+              className="inline-flex flex-1 md:flex-none items-center justify-center gap-2 h-9 px-4 rounded-lg bg-primary-solid text-white text-[13px] font-medium hover:bg-primary-solid-hover transition-all duration-120 active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none"
+            >
+              <GmailLogo className="size-4" />
+              Send Email
+            </button>
+            {!record.email && (
+              <p className="text-[11px] text-muted-foreground md:text-right">No email on file</p>
+            )}
           </div>
         </div>
       </div>
@@ -387,6 +404,17 @@ export default function CandidateDetailPage() {
             <p className="text-sm text-muted-foreground">No parsed resume data available.</p>
           )}
         </div>
+      )}
+
+      {/* Fresh mount per open resets draft + connection state; popup OAuth never unmounts this page. */}
+      {showEmailModal && (
+        <GmailOutreachModal
+          open={showEmailModal}
+          onClose={() => setShowEmailModal(false)}
+          candidateId={candidateId}
+          candidateName={candidate.name}
+          candidateEmail={record.email || ""}
+        />
       )}
     </div>
   )

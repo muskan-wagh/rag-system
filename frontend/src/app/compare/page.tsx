@@ -10,6 +10,7 @@ import { EmptyState } from "@/components/ui/empty-state"
 import { CandidateSearchInput } from "@/components/candidate-search-input"
 import { ScheduleInterviewModal } from "@/components/schedule-interview-modal"
 import { RejectModal } from "@/components/reject-modal"
+import { GmailOutreachModal } from "@/components/gmail-outreach-modal"
 import { PageHeader } from "@/components/ui/page-header"
 import { GitCompare, Loader2, Plus, Trash2, Brain, Sparkles } from "lucide-react"
 import { useApi } from "@/hooks/use-api"
@@ -43,6 +44,7 @@ export default function ComparePage() {
     candidateId: string
     candidateName: string
   }>({ type: null, candidateId: "", candidateName: "" })
+  const [emailCandidate, setEmailCandidate] = useState<{ id: string; name: string } | null>(null)
   const api = useApi()
 
   function updateSelection(index: number, candidate: SelectedCandidate | null) {
@@ -122,16 +124,9 @@ export default function ComparePage() {
   }
 
   async function handleEmail(candidateId: string, name: string) {
-    try {
-      const res = await api.generateEmailTemplate(candidateId)
-      if (res.success && res.data) {
-        toast.success(`Email template generated for ${name}`)
-      } else {
-        toast.error(res.error || "Failed to generate email")
-      }
-    } catch {
-      toast.error("Failed to generate email")
-    }
+    // Open the Gmail outreach composer — recipient/subject/body are resolved
+    // by the backend from the candidate record; nothing is sent automatically.
+    setEmailCandidate({ id: candidateId, name })
   }
 
   return (
@@ -251,6 +246,16 @@ export default function ComparePage() {
         onClose={() => setModalState({ type: null, candidateId: "", candidateName: "" })}
         candidateId={modalState.candidateId}
       />
+
+      {emailCandidate && (
+        <GmailOutreachModal
+          open
+          onClose={() => setEmailCandidate(null)}
+          candidateId={emailCandidate.id}
+          candidateName={emailCandidate.name}
+          candidateEmail=""
+        />
+      )}
     </motion.div>
   )
 }

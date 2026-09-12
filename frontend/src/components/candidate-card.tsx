@@ -10,6 +10,7 @@ import Link from "next/link"
 import { ROUTES, getInitials } from "@/lib/constants"
 import type { RankingResult } from "@/lib/api"
 import { Button } from "@/components/ui/button"
+import { GmailLogo } from "@/components/gmail-logo"
 
 function scoreLabel(score: number) {
   if (score >= 0.8) return "Excellent"
@@ -29,6 +30,7 @@ interface CandidateCardProps {
   variant?: "detailed" | "recommendation"
   jdSkills?: string[]
   onAddToPool?: (candidateId: string, name: string) => void
+  onEmail?: (candidateId: string, name: string) => void
 }
 
 export const CandidateCard = memo(function CandidateCard({
@@ -37,6 +39,7 @@ export const CandidateCard = memo(function CandidateCard({
   variant = "detailed",
   jdSkills = [],
   onAddToPool,
+  onEmail,
 }: CandidateCardProps) {
   const { candidate, scores } = result
   const [expanded, setExpanded] = useState(false)
@@ -138,6 +141,18 @@ export const CandidateCard = memo(function CandidateCard({
                 Pool
               </Button>
             )}
+            {onEmail && (
+              <Button
+                size="xs"
+                variant="ghost"
+                disabled={!candidate.email}
+                title={candidate.email ? `Send outreach to ${candidate.name}` : "No email on file for this candidate"}
+                onClick={(e) => { e.stopPropagation(); onEmail(candidate.id, candidate.name) }}
+              >
+                <GmailLogo className="size-3" />
+                Email
+              </Button>
+            )}
           </div>
         </div>
       </motion.div>
@@ -227,6 +242,17 @@ export const CandidateCard = memo(function CandidateCard({
             <button className="flex h-7 w-7 items-center justify-center rounded-md hover:bg-surface-secondary transition-colors duration-120 text-faint hover:text-ink">
               <Bookmark className="size-[14px]" strokeWidth={1.5} />
             </button>
+            {onEmail && (
+              <button
+                disabled={!candidate.email}
+                title={candidate.email ? `Send outreach to ${candidate.name}` : "No email on file for this candidate"}
+                onClick={(e) => { e.stopPropagation(); onEmail(candidate.id, candidate.name) }}
+                className="flex h-7 w-7 items-center justify-center rounded-md hover:bg-surface-secondary transition-colors duration-120 text-faint hover:text-ink disabled:opacity-40"
+                aria-label="Send email"
+              >
+                <GmailLogo className="size-[14px]" />
+              </button>
+            )}
           </div>
         </div>
       </div>
