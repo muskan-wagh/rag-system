@@ -103,13 +103,14 @@ export const config = Object.freeze({
     model: optional("EMBEDDING_MODEL", "Xenova/all-MiniLM-L6-v2"),
     vectorSize: 384,
     distance: "Cosine" as const,
-    // 'local' (default, Xenova MiniLM 384-d) or 'hosted' (OpenAI-compatible
-    // /embeddings API). Hosted is opt-in and dimension-guarded in
-    // services/embedding.ts — never auto-migrated.
+    // 'local' (default, Xenova MiniLM 384-d) or 'hosted' (Hugging Face
+    // Inference API for sentence-transformers/all-MiniLM-L6-v2 — same
+    // model, same 384-d vectors, no Qdrant migration). Hosted failures
+    // fall back to local; see services/embedding.ts. Never auto-migrated.
     provider: optional("EMBEDDING_PROVIDER", "local"),
-    apiUrl: optional("EMBEDDING_API_URL", ""),
+    apiUrl: optional("EMBEDDING_API_URL", "https://router.huggingface.co/hf-inference/models"),
     apiKey: optional("EMBEDDING_API_KEY", ""),
-    hostedModel: optional("EMBEDDING_HOSTED_MODEL", ""),
+    hostedModel: optional("EMBEDDING_HOSTED_MODEL", "sentence-transformers/all-MiniLM-L6-v2"),
   },
 
   resend: {

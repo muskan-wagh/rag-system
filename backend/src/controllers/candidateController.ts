@@ -4,7 +4,7 @@ import { asyncHandler } from '@/utils/asyncHandler';
 import { parseJD } from '@/services/llm/parseJD';
 import { generateEmbedding } from '@/services/embedding';
 import { searchByEmbedding } from '@/services/qdrant/searchCandidates';
-import { retrieveCandidateByIds } from '@/services/qdrant/retrieveCandidates';
+import { retrieveCandidateByIds, retrieveCandidateVector } from '@/services/qdrant/retrieveCandidates';
 import { rankCandidates } from '@/services/ranking/finalRanker';
 import { compareCandidates } from '@/services/llm/compareCandidates';
 import { generateScreeningQuestions } from '@/services/llm/screeningQuestions';
@@ -623,8 +623,12 @@ export const getCandidateBriefHandler = asyncHandler(async (req: Request, res: R
     getCandidateNotes(id),
     getCandidateTimeline(id),
     (async () => {
-      const embeddingText = `${candidate.name} Skills: ${candidate.skills.join(', ')}`;
-      const embedding = await generateEmbedding(embeddingText);
+      // Reuse the candidate's stored Qdrant vector — no embedding inference.
+      // Falls back to generateEmbedding() only when the vector is missing.
+      const stored = await retrieveCandidateVector(id);
+      const embedding =
+        stored ??
+        (await generateEmbedding(`${candidate.name} Skills: ${candidate.skills.join(', ')}`));
       const similar = await searchByEmbedding(embedding, 10, {});
       return similar.filter((r) => r.candidate.id !== id).slice(0, 5).map((r) => r.candidate);
     })(),
@@ -670,8 +674,12 @@ export const getSimilarCandidatesHandler = asyncHandler(async (req: Request, res
   }
 
   const candidate = candidates[0];
-  const embeddingText = `${candidate.name} Skills: ${candidate.skills.join(', ')}`;
-  const embedding = await generateEmbedding(embeddingText);
+  // Reuse the candidate's stored Qdrant vector — no embedding inference.
+  // Falls back to generateEmbedding() only when the vector is missing.
+  const stored = await retrieveCandidateVector(id);
+  const embedding =
+    stored ??
+    (await generateEmbedding(`${candidate.name} Skills: ${candidate.skills.join(', ')}`));
 
   const similar = await searchByEmbedding(embedding, 10, {});
   const filtered = similar.filter((r) => r.candidate.id !== id);

@@ -1,9 +1,20 @@
 import crypto from 'crypto';
+import dns from 'dns';
 import { pipeline, env } from '@xenova/transformers';
 import { config } from '@/config';
 import { logger } from '@/utils/logger';
 import { AppError } from '@/middleware/errorHandler';
 import { ErrorCodes } from '@/middleware/errorCodes';
+
+// Prefer IPv4 for outbound HTTPS (notably the HF Inference API): on hosts
+// with broken IPv6 DNS/routing, undici can stall on AAAA before falling
+// back. A records are still used whenever present; AAAA remains the
+// fallback when no A record exists.
+try {
+  dns.setDefaultResultOrder('ipv4first');
+} catch {
+  // Older Node — default ordering already IPv4-first.
+}
 
 env.localModelPath = '';
 env.allowRemoteModels = true;
@@ -100,30 +111,39 @@ async function generateLocalEmbedding(text: string): Promise<number[]> {
   return embedding;
 }
 
-// Optional hosted provider (OpenAI-compatible /embeddings endpoint).
-// Configured ONLY via environment — no hardcoded keys. Defaults to off;
-// local Xenova remains the default until a 384-d compatible provider is
-// verified by the operator.
-async function generateHostedEmbedding(text: string): Promise<number[]> {
+// Hosted provider: Hugging Face Inference for the SAME MiniLM model, so
+// vectors stay 384-d and compatible with the existing Qdrant collection
+// (no re-embed, no migration). NOTE (verified 2026-09-12): the serverless
+// router maps sentence-transformers/all-MiniLM-L6-v2 to a
+// sentence-similarity pipeline, so it canNOT serve raw embeddings — point
+// EMBEDDING_API_URL at a dedicated HF Inference Endpoint (or another
+// feature-extraction endpoint for this model) instead. Until then,
+// production stays on local; hosted failures fall back to local.
+// Configured ONLY via environment — no hardcoded endpoints or keys.
+const HOSTED_TIMEOUT_MS = 60_000;
+
+export async function generateHostedEmbedding(text: string): Promise<number[]> {
   const { apiUrl, apiKey, hostedModel } = config.embedding;
   if (!apiUrl || !apiKey || !hostedModel) {
     throw new AppError(
-      'Hosted embeddings selected but EMBEDDING_API_URL / EMBEDDING_API_KEY / EMBEDDING_MODEL are not all set',
+      'Hosted embeddings selected but EMBEDDING_API_URL / EMBEDDING_API_KEY / EMBEDDING_HOSTED_MODEL are not all set',
       500,
       ErrorCodes.AI_ERROR,
     );
   }
 
+  const endpoint = `${apiUrl.replace(/\/+$/, '')}/${hostedModel}`;
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 30_000);
+  const timeoutId = setTimeout(() => controller.abort(), HOSTED_TIMEOUT_MS);
   try {
-    const response = await fetch(`${apiUrl.replace(/\/+$/, '')}/embeddings`, {
+    const response = await fetch(endpoint, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${apiKey}`,
       },
-      body: JSON.stringify({ model: hostedModel, input: text }),
+      // wait_for_model: HF cold-starts the model instead of 503ing.
+      body: JSON.stringify({ inputs: text, options: { wait_for_model: true } }),
       signal: controller.signal,
     });
     if (!response.ok) {
@@ -136,10 +156,16 @@ async function generateHostedEmbedding(text: string): Promise<number[]> {
         body.slice(0, 200),
       );
     }
-    const data = (await response.json()) as { data?: Array<{ embedding: number[] }> };
-    const vector = data.data?.[0]?.embedding;
-    if (!vector) {
-      throw new AppError('Hosted embedding response had no vector', 503, ErrorCodes.AI_ERROR);
+    const data = (await response.json()) as unknown;
+    // Feature-extraction returns number[] for a single input; accept
+    // number[][] defensively (take the first embedding).
+    const vector = Array.isArray(data) && data.length > 0 && typeof data[0] === 'number'
+      ? (data as number[])
+      : Array.isArray(data) && Array.isArray(data[0])
+        ? (data[0] as number[])
+        : null;
+    if (!vector || !vector.every((n) => typeof n === 'number')) {
+      throw new AppError('Hosted embedding response had no usable vector', 503, ErrorCodes.AI_ERROR);
     }
     assertCompatibleDims(vector, 'hosted');
     return vector;
@@ -166,8 +192,27 @@ export async function generateEmbedding(text: string): Promise<number[]> {
   }
 
   const provider = config.embedding.provider;
-  const vector =
-    provider === 'hosted' ? await generateHostedEmbedding(truncated) : await generateLocalEmbedding(truncated);
+  if (provider === 'hosted') {
+    // Local stays as the safety net: a hosted outage or bad response must
+    // never take down resume processing or search. Mismatches are logged
+    // loudly so staging validation can detect them.
+    try {
+      const vector = await generateHostedEmbedding(truncated);
+      cacheSet(key, vector);
+      logger.debug('Embedding generated', {
+        provider,
+        dimensions: vector.length,
+        duration: `${Date.now() - startTime}ms`,
+      });
+      return vector;
+    } catch (err) {
+      logger.warn('Hosted embedding failed — falling back to local provider', {
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+  }
+
+  const vector = await generateLocalEmbedding(truncated);
 
   cacheSet(key, vector);
   logger.debug('Embedding generated', {
