@@ -103,6 +103,13 @@ export const config = Object.freeze({
     model: optional("EMBEDDING_MODEL", "Xenova/all-MiniLM-L6-v2"),
     vectorSize: 384,
     distance: "Cosine" as const,
+    // 'local' (default, Xenova MiniLM 384-d) or 'hosted' (OpenAI-compatible
+    // /embeddings API). Hosted is opt-in and dimension-guarded in
+    // services/embedding.ts — never auto-migrated.
+    provider: optional("EMBEDDING_PROVIDER", "local"),
+    apiUrl: optional("EMBEDDING_API_URL", ""),
+    apiKey: optional("EMBEDDING_API_KEY", ""),
+    hostedModel: optional("EMBEDDING_HOSTED_MODEL", ""),
   },
 
   resend: {

@@ -33,6 +33,11 @@ export async function extractTextFromDocx(buffer: Buffer): Promise<string> {
 
 const MAX_TEXT_LENGTH = 50000;
 
+// Defense in depth: uploads enforce 5MB via multer + Zod, but the worker
+// downloads from storage (bypassing multer). Reject oversized buffers here
+// before pdf-parse/mammoth expand them further in memory.
+export const MAX_RESUME_BYTES = 5 * 1024 * 1024;
+
 export function sanitizeText(text: string): string {
   const cleaned = text.replace(/\s+/g, ' ').trim().slice(0, MAX_TEXT_LENGTH);
   logger.debug('Text sanitized', { originalLength: text.length, cleanedLength: cleaned.length });
@@ -50,6 +55,14 @@ export async function extractResumeText(
     mimeType.includes('docx');
 
   logger.info('Extracting resume text', { mimeType, bufferSize: buffer.length, isPdf, isDocx });
+
+  if (buffer.length > MAX_RESUME_BYTES) {
+    throw new AppError(
+      'File too large. Maximum size is 5MB.',
+      400,
+      ErrorCodes.VALIDATION_ERROR,
+    );
+  }
 
   if (isPdf) {
     return extractTextFromPdf(buffer);

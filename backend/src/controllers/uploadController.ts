@@ -2,7 +2,7 @@ import { Request, Response } from 'express';
 import { asyncHandler } from '@/utils/asyncHandler';
 import { getSession, createCandidate } from '@/services/supabase/database';
 import { uploadResumeFile, getResumeFileUrl, deleteResumeFile } from '@/services/supabase/storage';
-import { getResumeQueue } from '@/services/queue';
+import { enqueueResumeJob } from '@/services/queue';
 import { logger } from '@/utils/logger';
 import { AppError } from '@/middleware/errorHandler';
 import { ErrorCodes } from '@/middleware/errorCodes';
@@ -77,11 +77,13 @@ export const uploadResumeHandler = asyncHandler(async (req: Request, res: Respon
     await invalidateDashboardCache(session.recruiter_id);
   }
 
-  // Step 6: Enqueue BullMQ job for background processing
+  // Step 6: Enqueue BullMQ job for background processing.
+  // Deduplicated by candidate id — a double-submit reuses the live job
+  // instead of processing the same resume twice. The upload itself is
+  // never dropped: we still return 202 with the candidate id.
   logger.info('UPLOAD: Step 6/7 — Enqueuing BullMQ job', { candidateId: candidate.id });
   try {
-    const queue = await getResumeQueue();
-    const job = await queue.add('process-resume', {
+    const { jobId, deduplicated } = await enqueueResumeJob({
       sessionId: uuid,
       storagePath,
       mimeType: file.mimetype,
@@ -89,7 +91,7 @@ export const uploadResumeHandler = asyncHandler(async (req: Request, res: Respon
       source,
       candidateId: candidate.id,
     });
-    logger.info('UPLOAD: BullMQ job enqueued', { candidateId: candidate.id, jobId: job.id });
+    logger.info(deduplicated ? 'UPLOAD: BullMQ job already queued — reused' : 'UPLOAD: BullMQ job enqueued', { candidateId: candidate.id, jobId });
   } catch (queueErr: any) {
     // Queue failed — candidate exists but won't be processed. This should be rare.
     logger.error('UPLOAD: Failed to enqueue BullMQ job', {

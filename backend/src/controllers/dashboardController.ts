@@ -7,9 +7,9 @@ import { RecruiterRecord } from '@/services/supabase/database';
 import { logger } from '@/utils/logger';
 import { getCached, setCache, invalidateCacheByPattern } from '@/utils/cache';
 
-const DASHBOARD_CACHE_TTL = 60_000;
+const DASHBOARD_CACHE_TTL = 5 * 60_000;
 const STALE_TTL = 10 * 60_000;
-const DEFAULT_LIMIT = 50;
+const DEFAULT_LIMIT = 8;
 
 interface DashboardStats {
   totalCandidates: number;
@@ -147,10 +147,16 @@ async function fetchAiRecommendations(supabase: ReturnType<typeof getSupabaseCli
   const candidates = data as Array<{ id: string; full_name: string | null; current_title: string | null; current_company: string | null }>;
   const candidateIds = candidates.map((c) => c.id);
 
-  const { data: skillsData } = await supabase
-    .from('candidate_skills')
-    .select('candidate_id, skill_name')
-    .in('candidate_id', candidateIds);
+  // Skip the round trip when there is nothing to look up — Supabase
+  // rejects empty .in() lists, turning it into a wasted failing query.
+  let skillsData: Array<{ candidate_id: string; skill_name: string }> | null = null;
+  if (candidateIds.length > 0) {
+    const res = await supabase
+      .from('candidate_skills')
+      .select('candidate_id, skill_name')
+      .in('candidate_id', candidateIds);
+    skillsData = res.data as Array<{ candidate_id: string; skill_name: string }> | null;
+  }
 
   const skillsMap = new Map<string, string[]>();
   if (skillsData) {
@@ -189,10 +195,14 @@ async function fetchUpcomingInterviews(supabase: ReturnType<typeof getSupabaseCl
   const interviews = data as Array<Record<string, unknown>>;
   const candidateIds = interviews.map((i) => i.candidate_id as string).filter(Boolean);
 
-  const { data: candidatesData } = await supabase
-    .from('candidates')
-    .select('id, full_name, current_title')
-    .in('id', candidateIds);
+  let candidatesData: Array<{ id: string; full_name: string | null; current_title: string | null }> | null = null;
+  if (candidateIds.length > 0) {
+    const res = await supabase
+      .from('candidates')
+      .select('id, full_name, current_title')
+      .in('id', candidateIds);
+    candidatesData = res.data as Array<{ id: string; full_name: string | null; current_title: string | null }> | null;
+  }
 
   const nameMap = new Map<string, { full_name: string | null; current_title: string | null }>();
   if (candidatesData) {
@@ -229,10 +239,14 @@ async function fetchRecentActivity(supabase: ReturnType<typeof getSupabaseClient
 
   if (statusLogs) {
     const logCandIds = [...new Set((statusLogs as Array<Record<string, unknown>>).map((l) => l.candidate_id as string))];
-    const { data: logCands } = await supabase
-      .from('candidates')
-      .select('id, full_name')
-      .in('id', logCandIds);
+    let logCands: Array<{ id: string; full_name: string | null }> | null = null;
+    if (logCandIds.length > 0) {
+      const res = await supabase
+        .from('candidates')
+        .select('id, full_name')
+        .in('id', logCandIds);
+      logCands = res.data as Array<{ id: string; full_name: string | null }> | null;
+    }
     const logNameMap = new Map<string, string>();
     if (logCands) {
       for (const c of logCands as Array<{ id: string; full_name: string | null }>) {
@@ -496,13 +510,17 @@ async function fetchDashboardData(recruiterId: string, page: number, limit: numb
   let interviewsToday = 0;
   let searches = 0;
   try {
+    const candidateIds = allCandidates.map(c => c.id);
+    const intQuery = supabase
+      .from('interviews')
+      .select('id', { count: 'exact', head: true })
+      .eq('scheduled_date', today)
+      .eq('status', 'scheduled');
     const [intResult, searchResult] = await Promise.all([
-      supabase
-        .from('interviews')
-        .select('id', { count: 'exact', head: true })
-        .eq('scheduled_date', today)
-        .eq('status', 'scheduled')
-        .in('candidate_id', allCandidates.map(c => c.id)),
+      // Empty .in() lists are rejected by Supabase — skip when no candidates.
+      candidateIds.length > 0
+        ? intQuery.in('candidate_id', candidateIds)
+        : Promise.resolve({ count: 0 } as unknown as { count: number | null }),
       supabase
         .from('search_sessions')
         .select('id', { count: 'exact', head: true })

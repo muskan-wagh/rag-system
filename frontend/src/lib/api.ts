@@ -252,7 +252,7 @@ export function createApiClient(getToken: () => Promise<string | null>) {
         }, a),
       ),
 
-    getDashboard: (page = 1, limit = 50) =>
+    getDashboard: (page = 1, limit = 8) =>
       withAuth((a) =>
         request<DashboardData>(`/dashboard?page=${page}&limit=${limit}`, { method: "GET" }, a),
       ),

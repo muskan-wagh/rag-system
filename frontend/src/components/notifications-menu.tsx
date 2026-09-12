@@ -5,7 +5,7 @@ import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { AnimatePresence, motion } from "framer-motion"
 import { Bell, Calendar, Inbox, ArrowRight, Eye, Send, FileText, UserPlus } from "lucide-react"
-import { useDashboard } from "@/hooks/use-dashboard"
+import { useDashboard, DASHBOARD_PAGE_SIZE } from "@/hooks/use-dashboard"
 import { ROUTES } from "@/lib/constants"
 import { cn } from "@/lib/utils"
 
@@ -54,7 +54,8 @@ function useClickOutside(ref: React.RefObject<HTMLElement | null>, onOutside: ()
 
 function NotificationsContent({ onNavigated }: { onNavigated: () => void }) {
   const router = useRouter()
-  const { upcomingInterviews, candidatesRequiringReview, recentActivity } = useDashboard(1, 20)
+  // Same key as the dashboard page -> SWR dedupes to a single /dashboard request.
+  const { upcomingInterviews, candidatesRequiringReview, recentActivity } = useDashboard(1, DASHBOARD_PAGE_SIZE)
 
   const today = new Date().toISOString().split("T")[0]
   const interviewsToday = upcomingInterviews.filter((i) => i.scheduled_date === today)
