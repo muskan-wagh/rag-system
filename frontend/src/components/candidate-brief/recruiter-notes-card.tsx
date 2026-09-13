@@ -44,7 +44,7 @@ export function RecruiterNotesCard({ notes, onAddNote }: RecruiterNotesCardProps
         <button
           type="submit"
           disabled={!newNote.trim() || adding}
-          className="flex items-center gap-1 text-sm px-3 py-2 bg-primary-solid text-white rounded-lg hover:bg-primary-solid/90 disabled:opacity-50"
+          className="flex items-center gap-1 text-sm px-3 py-2 bg-primary-solid text-primary-solid-text rounded-lg hover:bg-primary-solid/90 disabled:opacity-50"
         >
           {adding ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />}
         </button>
