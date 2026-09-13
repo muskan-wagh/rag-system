@@ -2,7 +2,7 @@ import type { Metadata } from "next"
 import { Inter, JetBrains_Mono } from "next/font/google"
 import { cookies } from "next/headers"
 import { ClerkProvider } from "@clerk/nextjs"
-import { shadcn } from "@clerk/ui/themes"
+import { dark, shadcn } from "@clerk/ui/themes"
 import "./globals.css"
 import { Toaster } from "sonner"
 import { ThemeSync } from "@/components/theme-sync"
@@ -45,7 +45,11 @@ export default async function RootLayout({
         <ThemeSync />
         <ClerkProvider
           appearance={{
-            theme: shadcn,
+            // shadcn for brand styling + dark base when dark mode is active
+            // so Clerk internals (icons, OTP, status) match the theme.
+            // Our CSS-var appearance + globals.css overrides keep the
+            // toggle instant on the client without a reload.
+            theme: isDark ? [shadcn, dark] : shadcn,
           }}
         >
           {children}

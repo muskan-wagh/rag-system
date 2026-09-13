@@ -15,6 +15,7 @@
   --color-primary-foreground: #FFFFFF;
   --color-primary-solid: var(--primary-solid);
   --color-primary-solid-hover: var(--primary-solid-hover);
+  --color-primary-solid-text: var(--primary-solid-text);
   --color-secondary: var(--surface-secondary);
   --color-secondary-foreground: var(--ink);
   --color-muted: var(--muted);
@@ -29,6 +30,8 @@
   --color-info: var(--info);
   --color-border: var(--border);
   --color-border-strong: var(--border-hover);
+  --color-border-hover: var(--border-hover);
+  --color-faint: var(--faint);
   --color-input: var(--border);
   --color-ring: var(--ink);
   --color-sidebar: var(--surface);
@@ -73,6 +76,7 @@
   --ink-hover: #27272A;
   --primary-solid: #0C0C0C;
   --primary-solid-hover: #27272A;
+  --primary-solid-text: #FFFFFF;
   --muted: #5F6368;
   --faint: #9CA0A6;
   --danger: #D5342C;
@@ -236,4 +240,249 @@
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
+}
+
+/* ——— Auth / Clerk polish (Vercel/Linear style) ——— */
+
+/* Kill yellow browser-autofill on email/password fields */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 48px var(--surface) inset !important;
+  -webkit-text-fill-color: var(--ink) !important;
+  caret-color: var(--ink);
+  border-radius: 8px;
+  transition: background-color 9999s ease-in-out 0s;
+}
+
+/* Clerk renders its own card — make it flush so AuthShell owns the card,
+   and force full-width stretched layout (fixes "everything stuck left"). */
+.cl-rootBox,
+.cl-cardBox,
+.cl-card,
+.cl-main,
+.cl-form,
+.cl-socialButtons,
+.cl-socialButtonsBlockButtonContainer,
+.cl-formFieldRow,
+.cl-formFieldInputGroup,
+.cl-otpCodeField,
+.cl-identityPreview {
+  width: 100% !important;
+  max-width: 100% !important;
+}
+.cl-cardBox,
+.cl-card {
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+.cl-card {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: stretch !important;
+  gap: 1.25rem !important;
+}
+.cl-main {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: stretch !important;
+  gap: 1.25rem !important;
+  padding: 0 !important;
+}
+.cl-form {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: stretch !important;
+  gap: 1rem !important;
+}
+.cl-socialButtons {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: stretch !important;
+  gap: 0.625rem !important;
+}
+.cl-dividerRow {
+  margin-block: 0.25rem !important;
+}
+
+/* AuthShell owns the account switcher + trust row — never show Clerk's
+   duplicate footer ("Don't have an account? Sign up" + "Secured by Clerk").
+   Belt-and-suspenders with appearance `footer: hidden`. */
+.cl-footer,
+.cl-footerAction,
+.cl-footerPages {
+  display: none !important;
+}
+
+/* Primary button: guarantee contrast in both themes via CSS vars
+   (vars flip automatically with `.dark`, so no reload needed).
+   Covers old (`cl-formButtonPrimary`) + new UI (`cl-button solid`) selectors
+   and forces every inner span/svg to inherit the contrast color. */
+.cl-formButtonPrimary,
+.cl-button[data-variant="solid"] {
+  width: 100% !important;
+  height: 2.5rem !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  border-radius: 8px !important;
+  border: 0 !important;
+  background-color: var(--primary-solid) !important;
+  color: var(--primary-solid-text) !important;
+  font-size: 0.875rem !important;
+  font-weight: 500 !important;
+  text-transform: none !important;
+  letter-spacing: normal !important;
+  box-shadow: none !important;
+}
+.cl-formButtonPrimary *,
+.cl-button[data-variant="solid"] * {
+  color: var(--primary-solid-text) !important;
+  fill: var(--primary-solid-text) !important;
+}
+/* Arrow / spinner icons inside the primary button are stroke-based —
+   force the stroke too, otherwise the glyph stays invisible in dark. */
+.cl-formButtonPrimary svg,
+.cl-button[data-variant="solid"] svg,
+.cl-buttonArrowIcon {
+  stroke: var(--primary-solid-text) !important;
+  color: var(--primary-solid-text) !important;
+}
+.cl-formButtonPrimary:hover,
+.cl-button[data-variant="solid"]:hover {
+  background-color: var(--primary-solid-hover) !important;
+}
+
+/* Step headers on verification screens ("Check your email", …) */
+.cl-formHeaderTitle {
+  color: var(--ink) !important;
+}
+.cl-formHeaderSubtitle,
+.cl-verificationLinkStatusText {
+  color: var(--muted) !important;
+}
+
+/* Helper + validation lines under inputs — explicit colors per kind */
+.cl-formFieldHintText,
+.cl-formFieldInfoText {
+  color: var(--muted) !important;
+}
+.cl-formFieldErrorText,
+.cl-otpCodeFieldErrorText {
+  color: var(--danger) !important;
+}
+.cl-formFieldWarningText {
+  color: var(--warning) !important;
+}
+.cl-formFieldSuccessText,
+.cl-otpCodeFieldSuccessText {
+  color: var(--success) !important;
+}
+
+/* "Last used" pill on the most-recent social provider */
+.cl-lastAuthenticationStrategyBadge {
+  background-color: var(--surface-secondary) !important;
+  border: 1px solid var(--border) !important;
+  color: var(--muted) !important;
+}
+
+/* Dropdown options (country code, …) incl. search field */
+.cl-selectOptionsContainer {
+  background-color: var(--surface) !important;
+  border: 1px solid var(--border) !important;
+}
+.cl-selectOption,
+.cl-selectSearchInput {
+  color: var(--ink) !important;
+}
+.cl-selectSearchInput::placeholder {
+  color: var(--faint) !important;
+  opacity: 1 !important;
+}
+
+/* Social + secondary buttons follow app tokens in both themes */
+.cl-socialButtonsBlockButton,
+.cl-alternativeMethodsBlockButton {
+  width: 100% !important;
+  height: 2.5rem !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 0.5rem !important;
+  border-radius: 8px !important;
+  border: 1px solid var(--border) !important;
+  background-color: var(--surface) !important;
+  color: var(--ink) !important;
+  font-size: 0.875rem !important;
+  font-weight: 500 !important;
+  box-shadow: none !important;
+}
+.cl-socialButtonsBlockButton *,
+.cl-alternativeMethodsBlockButton * {
+  color: var(--ink) !important;
+}
+.cl-socialButtonsBlockButton:hover,
+.cl-alternativeMethodsBlockButton:hover {
+  background-color: var(--surface-secondary) !important;
+  border-color: var(--border-hover) !important;
+}
+
+/* Inputs follow app tokens in both themes */
+.cl-formFieldInput,
+.cl-otpCodeFieldInput,
+.cl-phoneInputBox,
+.cl-selectButton {
+  background-color: var(--surface) !important;
+  border: 1px solid var(--border) !important;
+  color: var(--ink) !important;
+  border-radius: 8px !important;
+}
+.cl-formFieldInput {
+  height: 2.5rem !important;
+  width: 100% !important;
+  font-size: 0.875rem !important;
+}
+.cl-formFieldInput::placeholder {
+  color: var(--faint) !important;
+  opacity: 1 !important;
+}
+.cl-formFieldLabel {
+  color: var(--ink) !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+}
+.cl-formFieldAction,
+.cl-backLink,
+.cl-formResendCodeLink,
+.cl-identityPreviewEditButton {
+  color: var(--muted) !important;
+}
+.cl-dividerLine {
+  background-color: var(--border) !important;
+}
+.cl-dividerText {
+  color: var(--faint) !important;
+}
+.cl-identityPreview {
+  border: 1px solid var(--border) !important;
+  background-color: var(--surface-secondary) !important;
+  border-radius: 8px !important;
+}
+.cl-identityPreviewText {
+  color: var(--ink) !important;
+}
+.cl-alert,
+.cl-alertText {
+  color: var(--ink) !important;
+}
+
+/* Dev-mode / badge: never orange-on-gray inside the card */
+.cl-badge,
+.cl-developmentModeBadge,
+.cl-systemThemeToggle {
+  display: none !important;
 }

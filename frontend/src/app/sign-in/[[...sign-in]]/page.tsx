@@ -1,13 +1,26 @@
+import Link from "next/link"
 import { SignIn } from "@clerk/nextjs"
+import { AuthShell } from "@/components/auth-shell"
+import { authAppearance } from "@/lib/clerk-appearance"
 
 export default function SignInPage() {
   return (
-    <div className="min-h-[calc(100vh-0.75rem)] flex items-center justify-center bg-gradient-to-b from-background via-primary/[0.03] to-background p-4">
-      <div className="absolute inset-0 grid-bg pointer-events-none opacity-30" />
-      <div className="absolute inset-0 noise-bg pointer-events-none opacity-20" />
-      <div className="relative w-full max-w-md">
-        <SignIn />
-      </div>
-    </div>
+    <AuthShell
+      title="Sign in to HireStack"
+      subtitle="Welcome back. Sign in to continue hiring."
+      footerSwitch={
+        <p className="text-sm text-muted">
+          New to HireStack?{" "}
+          <Link
+            href="/sign-up"
+            className="font-medium text-ink hover:opacity-70 transition-opacity"
+          >
+            Create an account
+          </Link>
+        </p>
+      }
+    >
+      <SignIn appearance={authAppearance} routing="path" path="/sign-in" />
+    </AuthShell>
   )
 }
