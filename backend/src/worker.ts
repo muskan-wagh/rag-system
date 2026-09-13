@@ -1,4 +1,4 @@
-import { Worker } from 'bullmq';
+import { Worker, Job, UnrecoverableError } from 'bullmq';
 import { ensureRedisConnected, shutdownRedis } from '@/services/redis/manager';
 import { config } from '@/config';
 import { logger } from '@/utils/logger';
@@ -12,33 +12,68 @@ import { getQdrantClient } from '@/services/qdrant/client';
 import { publishEvent } from '@/services/events';
 import { runStartupRecovery } from '@/services/recovery';
 
-async function startWorker(): Promise<void> {
-  logger.info('=== HireStack Worker Starting ===');
+// Job safeguards (concurrency stays 5 — see Worker opts below):
+// - lockDuration 180s: real jobs take 30-120s (2× LLM calls with 45s
+//   timeouts + ONNX embedding + Qdrant). The 30s BullMQ default would mark
+//   live jobs stalled and process them twice.
+// - JOB_TIMEOUT_MS 300s: a hung LLM/fetch must not occupy 1 of 5 slots
+//   forever; on timeout the job fails and retries with backoff.
+const JOB_TIMEOUT_MS = 300_000;
 
-  const connection = await ensureRedisConnected();
+function withJobTimeout<T>(promise: Promise<T>): Promise<T> {
+  let timer: NodeJS.Timeout;
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(
+      () => reject(new Error(`Job timed out after ${JOB_TIMEOUT_MS}ms`)),
+      JOB_TIMEOUT_MS,
+    );
+    if (timer.unref) timer.unref();
+  });
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(timer!));
+}
 
-  const worker = new Worker(
-    'resume-processing',
-    async (job) => {
+function logMemory(ctx: Record<string, unknown>): void {
+  const mem = process.memoryUsage();
+  logger.info('WORKER: memory', {
+    ...ctx,
+    heapUsedMb: Math.round(mem.heapUsed / 1024 / 1024),
+    rssMb: Math.round(mem.rss / 1024 / 1024),
+  });
+}
+
+async function processResumeJob(job: Job): Promise<void> {
       const { sessionId, storagePath, mimeType, originalName, source, candidateId } = job.data;
       const logCtx = { jobId: job.id, candidateId, sessionId, fileName: originalName };
 
       logger.info('=== WORKER: Job started ===', logCtx);
+      const jobStart = Date.now();
 
       // Step 1: Mark as PROCESSING
       logger.info('WORKER: Step 1/8 — Marking candidate as PROCESSING', logCtx);
       await updateCandidate(candidateId, { processing_status: 'PROCESSING' });
       publishEvent('resume:processing', { candidateId, sessionId });
 
-      // Step 2: Download file from storage + extract text
+      // Step 2: Download file from storage + extract text.
+      // fileBuffer is released right after extraction so 5 concurrent jobs
+      // don't hold 5 full PDFs in RAM through the LLM/Qdrant stages.
       logger.info('WORKER: Step 2/8 — Downloading file from storage', logCtx);
-      const fileBuffer = await downloadResumeFile(storagePath);
-      const rawText = await extractResumeText(fileBuffer, mimeType);
+      let fileBuffer: Buffer | null = await downloadResumeFile(storagePath);
+      let rawText: string;
+      try {
+        rawText = await extractResumeText(fileBuffer, mimeType);
+      } finally {
+        fileBuffer = null;
+      }
       const cleanText = sanitizeText(rawText);
+      rawText = '';
       logger.info('WORKER: Text extracted', { ...logCtx, textLength: cleanText.length });
 
       if (cleanText.length < 50) {
-        throw new Error(`Extracted text is too short (${cleanText.length} chars) — file may be unreadable or scanned image`);
+        // Malformed/scanned file — retrying the LLM 3× is pure waste, and
+        // the text is too short to ever parse. Fail fast without retries,
+        // but still land in the 'failed' handler so the candidate is
+        // marked FAILED (never silently dropped).
+        throw new UnrecoverableError(`Extracted text is too short (${cleanText.length} chars) — file may be unreadable or scanned image`);
       }
 
       // Step 3: Parse with Qwen LLM
@@ -140,30 +175,51 @@ async function startWorker(): Promise<void> {
       // Step 8: Publish completion event
       logger.info('WORKER: Step 8/8 — Publishing completion event', logCtx);
       publishEvent('resume:completed', { candidateId, name: parsed.full_name });
-      logger.info('=== WORKER: Job completed successfully ===', { ...logCtx, name: parsed.full_name });
-    },
+      logger.info('=== WORKER: Job completed successfully ===', {
+        ...logCtx,
+        durationMs: Date.now() - jobStart,
+      });
+      logMemory({ jobId: job.id, candidateId });
+}
+
+async function startWorker(): Promise<void> {
+  logger.info('=== HireStack Worker Starting ===');
+
+  const connection = await ensureRedisConnected();
+
+  const worker = new Worker(
+    'resume-processing',
+    (job) => withJobTimeout(processResumeJob(job)),
     {
       connection: connection as any,
+      // KEEP at 5 — required. API runs in a separate forked process
+      // (start-all.js), so worker CPU cannot block Express.
       concurrency: 5,
+      // Live jobs run 30–120s; the 30s BullMQ default would stall-loop them.
+      lockDuration: 180_000,
+      stalledInterval: 60_000,
     },
   );
 
   worker.on('failed', async (job, err) => {
     const candidateId = job?.data?.candidateId;
+    // Truncate: error text goes to the DB + Redis pub/sub (forwarded to
+    // browsers over /ws). Never store/forward unbounded internals.
+    const safeError = (err.message || 'Unknown error').slice(0, 300);
     logger.error('=== WORKER: Job failed ===', {
       jobId: job?.id,
       candidateId,
-      error: err.message,
+      error: safeError,
       attempts: job?.attemptsMade,
       stack: err.stack,
     });
 
     if (candidateId) {
-      publishEvent('resume:failed', { candidateId, error: err.message });
+      publishEvent('resume:failed', { candidateId, error: safeError });
       try {
         await updateCandidate(candidateId, {
           processing_status: 'FAILED',
-          error_message: `Attempt ${job?.attemptsMade}/3: ${err.message}`,
+          error_message: `Attempt ${job?.attemptsMade}/3: ${safeError}`,
         });
       } catch (dbErr) {
         logger.error('WORKER: Failed to update candidate error status', { candidateId, dbErr });

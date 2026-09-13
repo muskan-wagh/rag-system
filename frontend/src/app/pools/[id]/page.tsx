@@ -3,9 +3,10 @@
 import { useCallback } from "react"
 import { useParams } from "next/navigation"
 import Link from "next/link"
-import { ArrowLeft, Users, Trash2, BarChart3 } from "lucide-react"
+import { ArrowLeft, Users, Trash2, BarChart3, ExternalLink } from "lucide-react"
 import useSWR from "swr"
 import { useApi } from "@/hooks/use-api"
+import { ROUTES } from "@/lib/constants"
 import { Skeleton } from "@/components/ui/skeleton"
 import type { TalentPool, ApiResponse } from "@/lib/types"
 
@@ -96,15 +97,27 @@ export default function PoolDetailPage() {
             {candidates.map((pc) => (
               <div key={pc.id} className="flex items-center justify-between p-4 hover:bg-hover-tone">
                 <div className="min-w-0 flex-1">
-                  <p className="text-sm font-medium text-ink">{pc.candidate_name || pc.candidate_id}</p>
+                  <Link
+                    href={ROUTES.candidateDetail(pc.candidate_id)}
+                    className="text-sm font-medium text-ink hover:underline"
+                  >
+                    {pc.candidate_name || pc.candidate_id}
+                  </Link>
                   {pc.candidate_title && (
                     <p className="text-xs text-muted">{pc.candidate_title}</p>
                   )}
                 </div>
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-1.5">
                   {pc.match_score > 0 && (
-                    <span className="text-sm font-medium text-ink">{(pc.match_score * 100).toFixed(0)}%</span>
+                    <span className="text-sm font-medium text-ink mr-1.5">{(pc.match_score * 100).toFixed(0)}%</span>
                   )}
+                  <Link
+                    href={ROUTES.candidateDetail(pc.candidate_id)}
+                    title="Open profile — Send Email available there"
+                    className="p-1.5 rounded-lg text-muted hover:bg-surface-secondary hover:text-ink"
+                  >
+                    <ExternalLink className="h-3.5 w-3.5" />
+                  </Link>
                   <button
                     onClick={() => handleRemove(pc.candidate_id)}
                     className="p-1.5 rounded-lg hover:bg-red-50 text-muted hover:text-red-500"

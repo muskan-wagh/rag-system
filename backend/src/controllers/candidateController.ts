@@ -4,7 +4,7 @@ import { asyncHandler } from '@/utils/asyncHandler';
 import { parseJD } from '@/services/llm/parseJD';
 import { generateEmbedding } from '@/services/embedding';
 import { searchByEmbedding } from '@/services/qdrant/searchCandidates';
-import { retrieveCandidateByIds } from '@/services/qdrant/retrieveCandidates';
+import { retrieveCandidateByIds, retrieveCandidateVector } from '@/services/qdrant/retrieveCandidates';
 import { rankCandidates } from '@/services/ranking/finalRanker';
 import { compareCandidates } from '@/services/llm/compareCandidates';
 import { generateScreeningQuestions } from '@/services/llm/screeningQuestions';
@@ -35,6 +35,13 @@ import { getCached, setCache } from '@/utils/cache';
 import { invalidateDashboardCache } from '@/controllers/dashboardController';
 import { generateExplanations } from '@/services/llm/explainability';
 import { generateInterviewEmail } from '@/services/llm/emailTemplate';
+import { generateOutreachEmail } from '@/services/llm/outreachEmail';
+import { isGmailConfigured } from '@/services/gmail/oauth';
+import { isValidEmail, sendGmailMessage } from '@/services/gmail/send';
+import {
+  getRecruiterGmailState,
+  getRecruiterGmailRefreshToken,
+} from '@/services/supabase/database';
 import { broadcast } from '@/services/websocket';
 import { logActivity } from '@/services/activity';
 import { enqueueEmail } from '@/services/queue/emailQueue';
@@ -623,8 +630,12 @@ export const getCandidateBriefHandler = asyncHandler(async (req: Request, res: R
     getCandidateNotes(id),
     getCandidateTimeline(id),
     (async () => {
-      const embeddingText = `${candidate.name} Skills: ${candidate.skills.join(', ')}`;
-      const embedding = await generateEmbedding(embeddingText);
+      // Reuse the candidate's stored Qdrant vector — no embedding inference.
+      // Falls back to generateEmbedding() only when the vector is missing.
+      const stored = await retrieveCandidateVector(id);
+      const embedding =
+        stored ??
+        (await generateEmbedding(`${candidate.name} Skills: ${candidate.skills.join(', ')}`));
       const similar = await searchByEmbedding(embedding, 10, {});
       return similar.filter((r) => r.candidate.id !== id).slice(0, 5).map((r) => r.candidate);
     })(),
@@ -670,8 +681,12 @@ export const getSimilarCandidatesHandler = asyncHandler(async (req: Request, res
   }
 
   const candidate = candidates[0];
-  const embeddingText = `${candidate.name} Skills: ${candidate.skills.join(', ')}`;
-  const embedding = await generateEmbedding(embeddingText);
+  // Reuse the candidate's stored Qdrant vector — no embedding inference.
+  // Falls back to generateEmbedding() only when the vector is missing.
+  const stored = await retrieveCandidateVector(id);
+  const embedding =
+    stored ??
+    (await generateEmbedding(`${candidate.name} Skills: ${candidate.skills.join(', ')}`));
 
   const similar = await searchByEmbedding(embedding, 10, {});
   const filtered = similar.filter((r) => r.candidate.id !== id);
@@ -730,4 +745,153 @@ export const getAllCandidatesHandler = asyncHandler(async (req: Request, res: Re
   });
 
   res.status(200).json({ success: true, data: result });
+});
+
+// === GMAIL OUTREACH (new — existing interview email flow untouched) ===
+
+function asStringArray(value: unknown): string[] {
+  return Array.isArray(value) ? value.map(String).filter(Boolean) : [];
+}
+
+export const generateOutreachEmailHandler = asyncHandler(async (req: Request, res: Response) => {
+  const id = req.params.id as string;
+  const recruiter = req.recruiter;
+
+  const [candidates, supabaseData] = await Promise.all([
+    retrieveCandidateByIds([id]),
+    getSupabaseClient().from('candidates').select('full_name, email, current_title, current_company, total_experience_years, parsed_json, upload_session_id').eq('id', id).single(),
+  ]);
+
+  if (candidates.length === 0 || !supabaseData.data) {
+    throw new AppError('Candidate not found', 404, ErrorCodes.NOT_FOUND);
+  }
+
+  const candidate = candidates[0];
+  const record = supabaseData.data as Record<string, unknown>;
+  const parsed = (record.parsed_json as Record<string, unknown> | null) || {};
+
+  const candidateEmail = String(record.email || candidate.email || '');
+  const candidateName = String(record.full_name || candidate.name || 'Candidate');
+
+  let jobDescription = '';
+  let targetRole = String(record.current_title || '');
+  if (record.upload_session_id) {
+    const { data: session } = await getSupabaseClient()
+      .from('upload_sessions')
+      .select('job_description_text')
+      .eq('id', String(record.upload_session_id))
+      .single();
+    jobDescription = String((session as { job_description_text?: string } | null)?.job_description_text || '');
+    if (!targetRole) {
+      const firstLine = jobDescription.split('\n')[0]?.trim() || '';
+      targetRole = firstLine.slice(0, 120) || 'the position';
+    }
+  }
+  if (!targetRole) targetRole = 'the position';
+
+  let companyName: string | undefined;
+  let recruiterName: string | undefined;
+  if (recruiter?.id) {
+    const { data: rec } = await getSupabaseClient()
+      .from('recruiters')
+      .select('organization_name, first_name, last_name')
+      .eq('id', recruiter.id)
+      .maybeSingle();
+    const row = rec as { organization_name?: string | null; first_name?: string | null; last_name?: string | null } | null;
+    companyName = row?.organization_name || undefined;
+    const full = `${row?.first_name || ''} ${row?.last_name || ''}`.trim();
+    recruiterName = full || undefined;
+  }
+
+  const workHistory = ((parsed.work_history as Array<Record<string, unknown>> | undefined) || []).map((w) => ({
+    company: String(w.company || w.employer || ''),
+    title: String(w.title || w.role || w.position || ''),
+    duration: String(w.duration || w.duration_years || ''),
+  }));
+  const projects = ((parsed.projects as Array<Record<string, unknown>> | undefined) || []).map((p) => ({
+    name: String(p.name || p.title || ''),
+    description: String(p.description || ''),
+    technologies: Array.isArray(p.technologies) ? (p.technologies as unknown[]).map(String) : undefined,
+  }));
+
+  const result = await generateOutreachEmail({
+    candidateName,
+    skills: candidate.skills?.length ? candidate.skills : asStringArray(parsed.skills),
+    experienceYears: typeof record.total_experience_years === 'number' ? record.total_experience_years : candidate.experience,
+    currentTitle: String(record.current_title || ''),
+    currentCompany: String(record.current_company || ''),
+    projects,
+    workHistory,
+    summary: String((parsed.summary as string) || candidate.summary || ''),
+    targetRole,
+    jobDescription,
+    companyName,
+    recruiterName,
+  });
+
+  res.status(200).json({ success: true, data: { to: candidateEmail, subject: result.subject, body: result.body } });
+});
+
+export const sendGmailOutreachHandler = asyncHandler(async (req: Request, res: Response) => {
+  const id = req.params.id as string;
+  const recruiter = req.recruiter;
+  if (!recruiter) {
+    throw new AppError('Authentication required', 401, ErrorCodes.VALIDATION_ERROR);
+  }
+  if (!isGmailConfigured()) {
+    throw new AppError('Gmail is not configured on the server.', 503, ErrorCodes.INTERNAL_ERROR);
+  }
+
+  const { to, subject, body } = req.body as { to?: string; subject?: string; body?: string };
+  if (!to || !isValidEmail(String(to))) {
+    throw new AppError('A valid recipient email is required.', 400, ErrorCodes.VALIDATION_ERROR);
+  }
+  if (!subject?.trim() || !body?.trim()) {
+    throw new AppError('Subject and body are required.', 400, ErrorCodes.VALIDATION_ERROR);
+  }
+
+  const gmailState = await getRecruiterGmailState(recruiter.id);
+  if (!gmailState.connected) {
+    res.status(409).json({ success: false, code: 'GMAIL_NOT_CONNECTED', error: 'Gmail is not connected. Please connect Gmail first.' });
+    return;
+  }
+  const refreshToken = await getRecruiterGmailRefreshToken(recruiter.id);
+  if (!refreshToken) {
+    res.status(409).json({ success: false, code: 'GMAIL_NOT_CONNECTED', error: 'Gmail is not connected. Please connect Gmail first.' });
+    return;
+  }
+
+  // Verify the candidate exists and the recipient matches the candidate (prevents misdirected sends).
+  const { data: candidateRow } = await getSupabaseClient()
+    .from('candidates')
+    .select('id, email, full_name')
+    .eq('id', id)
+    .single();
+  if (!candidateRow) {
+    throw new AppError('Candidate not found', 404, ErrorCodes.NOT_FOUND);
+  }
+
+  try {
+    const { messageId } = await sendGmailMessage({
+      refreshToken,
+      to: String(to),
+      subject: String(subject),
+      textBody: String(body),
+    });
+
+    await logEmail(id, 'gmail_outreach', String(subject), String(body));
+    logActivity({
+      recruiterId: recruiter.id,
+      actionType: 'email_sent',
+      description: `Gmail outreach sent to ${(candidateRow as { full_name?: string }).full_name || to}`,
+      candidateId: id,
+    });
+
+    res.status(200).json({ success: true, data: { message: 'Email sent via Gmail', messageId, from: gmailState.email } });
+  } catch (err: unknown) {
+    const statusCode = (err as { statusCode?: number }).statusCode || 502;
+    const code = (err as { code?: string }).code || 'GMAIL_SEND_FAILED';
+    const message = err instanceof Error ? err.message : 'Failed to send via Gmail.';
+    res.status(statusCode).json({ success: false, code, error: message });
+  }
 });

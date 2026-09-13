@@ -14,6 +14,7 @@ import { rateLimiter } from '@/middleware/rateLimit';
 import { initWebSocketServer } from '@/services/websocket';
 import { healthCheck as qdrantHealth } from '@/services/qdrant/client';
 import { getSupabaseClient } from '@/services/supabase/client';
+import { ensureRedisConnected, setRedisClientOrigin } from '@/services/redis/manager';
 import routes from '@/routes';
 
 // Ensure logs directory exists
@@ -143,6 +144,16 @@ server.on('error', (error: NodeJS.ErrnoException) => {
 });
 
 async function start(): Promise<void> {
+  // Connect Redis at API boot so dashboard/RATE-limit cache actually hits.
+  // Best-effort: API must stay up even if Redis is unreachable.
+  setRedisClientOrigin('api-server');
+  try {
+    await ensureRedisConnected();
+    logger.info('Redis ready (api-server)');
+  } catch (error) {
+    logger.warn('Redis unavailable at startup — caching disabled until reconnect', { error });
+  }
+
   try {
     await createCollection();
     logger.info('Qdrant collection ready');

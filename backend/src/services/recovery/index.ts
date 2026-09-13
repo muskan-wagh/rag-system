@@ -1,4 +1,4 @@
-import { getResumeQueue } from '@/services/queue';
+import { enqueueResumeJob } from '@/services/queue';
 import { getStuckCandidates, updateCandidate } from '@/services/supabase/database';
 import { logger } from '@/utils/logger';
 
@@ -85,29 +85,36 @@ export async function runStartupRecovery(): Promise<void> {
     return;
   }
 
-  const queue = await getResumeQueue();
-
   for (const c of recoverable) {
     const retryCount = getRetryCount(c.error_message) + 1;
 
     const urlParts = new URL(c.resume_file_url!).pathname.split('/');
     const storagePath = urlParts.slice(-2).join('/');
 
-    await queue.add('process-resume', {
-      sessionId: c.upload_session_id,
-      storagePath,
-      mimeType: c.resume_file_url!.endsWith('.pdf')
-        ? 'application/pdf'
-        : 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-      originalName: c.resume_file_url!.split('/').pop() || 'resume',
-      source: c.source || '',
-      candidateId: c.id,
-    });
+    // Per-candidate try/catch: one bad row must not abort the whole
+    // recovery pass. Deduplicated by candidate id via enqueueResumeJob.
+    try {
+      await enqueueResumeJob({
+        sessionId: c.upload_session_id ?? '',
+        storagePath,
+        mimeType: c.resume_file_url!.endsWith('.pdf')
+          ? 'application/pdf'
+          : 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        originalName: c.resume_file_url!.split('/').pop() || 'resume',
+        source: c.source || '',
+        candidateId: c.id,
+      });
 
-    // Update the error message to track recovery retry count
-    await updateCandidate(c.id, {
-      error_message: `recovery_retry=${retryCount} — Re-enqueued for reprocessing on startup.`,
-    });
+      // Update the error message to track recovery retry count
+      await updateCandidate(c.id, {
+        error_message: `recovery_retry=${retryCount} — Re-enqueued for reprocessing on startup.`,
+      });
+    } catch (err: any) {
+      logger.error('Recovery: failed to re-enqueue candidate — skipping', {
+        candidateId: c.id,
+        error: err.message,
+      });
+    }
   }
 
   logger.info(`Recovery completed — enqueued ${recoverable.length} candidate(s) for reprocessing`);

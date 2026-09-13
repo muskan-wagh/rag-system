@@ -19,6 +19,8 @@ import {
   rejectCandidateHandler,
   generateEmailTemplateHandler,
   sendInterviewEmailHandler,
+  generateOutreachEmailHandler,
+  sendGmailOutreachHandler,
   getCandidateTimelineHandler,
   getCandidateBriefHandler,
 } from '@/controllers/candidateController';
@@ -34,6 +36,7 @@ import {
   updateInterviewSchema,
   rejectCandidateSchema,
   makeOfferSchema,
+  sendGmailOutreachSchema,
 } from '@/middleware/validate';
 
 const router = Router();
@@ -57,6 +60,8 @@ router.post('/:id/accept-offer', validate(idParamSchema, 'params'), acceptOfferH
 router.post('/:id/reject', validate(idParamSchema, 'params'), validate(rejectCandidateSchema), rejectCandidateHandler);
 router.post('/:id/email-template', validate(idParamSchema, 'params'), generateEmailTemplateHandler);
 router.post('/:id/send-email', validate(idParamSchema, 'params'), sendInterviewEmailHandler);
+router.post('/:id/outreach-email', validate(idParamSchema, 'params'), generateOutreachEmailHandler);
+router.post('/:id/send-gmail', validate(idParamSchema, 'params'), validate(sendGmailOutreachSchema), sendGmailOutreachHandler);
 router.get('/:id/timeline', validate(idParamSchema, 'params'), getCandidateTimelineHandler);
 router.get('/:id/similar', validate(idParamSchema, 'params'), getSimilarCandidatesHandler);
 router.get('/:id/brief', validate(idParamSchema, 'params'), getCandidateBriefHandler);

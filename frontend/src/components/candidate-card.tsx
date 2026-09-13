@@ -5,22 +5,38 @@ import { motion } from "framer-motion"
 import { Badge } from "@/components/ui/badge"
 import { ProgressBar } from "@/components/ui/progress-bar"
 import { ScoreRing } from "@/components/ui/score-ring"
-import { Bookmark, GitCompare, Eye, ChevronDown, ChevronUp, Plus, ExternalLink } from "lucide-react"
-import Link from "next/link"
-import { ROUTES, getInitials } from "@/lib/constants"
+import {
+  Briefcase,
+  GraduationCap,
+  Sparkles,
+  Eye,
+  ChevronDown,
+  Plus,
+  Mail,
+} from "lucide-react"
+import { getInitials } from "@/lib/constants"
 import type { RankingResult } from "@/lib/api"
 import { Button } from "@/components/ui/button"
+import { GmailLogo } from "@/components/gmail-logo"
+import { cn } from "@/lib/utils"
 
-function scoreLabel(score: number) {
-  if (score >= 0.8) return "Excellent"
-  if (score >= 0.6) return "Strong"
-  if (score >= 0.4) return "Good"
-  return "Fair"
+function scoreTone(score: number): "high" | "medium" | "low" | "none" {
+  if (!Number.isFinite(score)) return "none"
+  if (score >= 0.7) return "high"
+  if (score >= 0.5) return "medium"
+  return "low"
 }
 
-function scoreColor(score: number) {
-  if (score >= 0.8) return "bg-ink"
-  return "bg-ink/70"
+function ringColorFor(score: number): string {
+  const tone = scoreTone(score)
+  if (tone === "high") return "#16A34A"
+  if (tone === "medium") return "#D97706"
+  if (tone === "low") return "#DC2626"
+  return "#6B7280"
+}
+
+function hasScore(score: unknown): score is number {
+  return typeof score === "number" && Number.isFinite(score)
 }
 
 interface CandidateCardProps {
@@ -28,7 +44,9 @@ interface CandidateCardProps {
   index: number
   variant?: "detailed" | "recommendation"
   jdSkills?: string[]
+  onView?: (candidateId: string) => void
   onAddToPool?: (candidateId: string, name: string) => void
+  onEmail?: (candidateId: string, name: string) => void
 }
 
 export const CandidateCard = memo(function CandidateCard({
@@ -36,198 +54,243 @@ export const CandidateCard = memo(function CandidateCard({
   index,
   variant = "detailed",
   jdSkills = [],
+  onView,
   onAddToPool,
+  onEmail,
 }: CandidateCardProps) {
   const { candidate, scores } = result
   const [expanded, setExpanded] = useState(false)
 
-  if (variant === "recommendation") {
-    const subScores: [string, number, string][] = [
-      ["Skill Match", scores.skill * 100, "#111111"],
-      ["Experience", scores.experience * 100, "#2563EB"],
-      ["Education", scores.education * 100, "#D97706"],
-    ]
-    const matchedSkills = candidate.skills.filter(s => jdSkills.includes(s))
-    const unmatchedSkills = candidate.skills.filter(s => !jdSkills.includes(s))
+  const overall = scores?.overall
+  const overallValid = hasScore(overall)
+  const overallPct = overallValid ? Math.round(overall * 100) : null
 
-    function ringColor(v: number): string {
-      if (v >= 0.8) return "#059669"
-      if (v >= 0.6) return "#2563EB"
-      if (v >= 0.4) return "#D97706"
-      return "#DC2626"
-    }
+  const skillScore = hasScore(scores?.skill) ? scores.skill : null
+  const expScore = hasScore(scores?.experience) ? scores.experience : null
+  const eduScore = hasScore(scores?.education) ? scores.education : null
 
-    return (
-      <motion.div
-        initial={{ opacity: 0, y: 16 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4, delay: index * 0.04 }}
-      >
-        <div className="bg-surface border border-border rounded-xl hover:border-border-hover transition-all duration-120 p-5 h-full flex flex-col">
-          <div className="flex items-start gap-4">
-            <ScoreRing value={scores.overall} size={56} color={ringColor(scores.overall)} />
-            <div className="flex-1 min-w-0">
-              <Link href={ROUTES.candidateDetail(candidate.id)} className="hover:underline">
-                <h3 className="font-medium text-ink text-[15px]">{candidate.name}</h3>
-              </Link>
-              <div className="flex items-center gap-2 text-xs text-faint mt-0.5">
-                <span className="font-data text-muted">{candidate.experience}y exp</span>
-                {candidate.education?.level && (
-                  <>
-                    <span className="text-border">|</span>
-                    <span className="capitalize">{candidate.education.level}{candidate.education.field ? `, ${candidate.education.field}` : ""}</span>
-                  </>
-                )}
-              </div>
-            </div>
-          </div>
+  const matchedSkills =
+    jdSkills.length > 0
+      ? candidate.skills.filter((s) =>
+          jdSkills.map((j) => j.toLowerCase()).includes(s.toLowerCase()),
+        )
+      : []
+  const unmatchedSkills =
+    jdSkills.length > 0
+      ? candidate.skills.filter(
+          (s) => !jdSkills.map((j) => j.toLowerCase()).includes(s.toLowerCase()),
+        )
+      : candidate.skills
 
-          {candidate.summary && (
-            <p className="text-xs text-muted leading-relaxed mt-3 line-clamp-2">{candidate.summary}</p>
-          )}
+  const visibleMatched = matchedSkills.slice(0, 4)
+  const remainingSlots = Math.max(0, 4 - visibleMatched.length)
+  const visibleUnmatched = unmatchedSkills.slice(0, remainingSlots)
+  const hiddenCount = candidate.skills.length - visibleMatched.length - visibleUnmatched.length
 
-          <div className="mt-3 space-y-1.5">
-            {subScores.map(([label, value, color], i) => (
-              <ProgressBar key={label} value={value} label={label} size="sm" color={color} delay={0.2 + i * 0.05} />
-            ))}
-          </div>
-
-          <div className="mt-3 flex flex-wrap gap-1">
-            {matchedSkills.slice(0, 4).map(skill => (
-              <Badge key={skill} variant="success" className="text-[10px]">{skill}</Badge>
-            ))}
-            {unmatchedSkills.slice(0, 4 - matchedSkills.slice(0, 4).length).map(skill => (
-              <Badge key={skill} variant="secondary" className="text-[10px]">{skill}</Badge>
-            ))}
-            {candidate.skills.length > 4 && (
-              <Badge variant="outline" className="text-[10px]">+{candidate.skills.length - 4}</Badge>
-            )}
-          </div>
-
-          {result.explanation && (
-            <div className="mt-3">
-              <button
-                onClick={() => setExpanded(!expanded)}
-                className="flex items-center gap-1 text-[11px] font-medium text-muted hover:text-ink transition-colors"
-              >
-                {expanded ? <ChevronUp className="size-3" /> : <ChevronDown className="size-3" />}
-                AI Reasoning
-              </button>
-              {expanded && (
-                <motion.p
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: "auto" }}
-                  className="text-[11px] text-faint leading-relaxed mt-1.5"
-                >
-                  {result.explanation}
-                </motion.p>
-              )}
-            </div>
-          )}
-
-          <div className="mt-auto pt-3 flex items-center gap-2">
-            <Link href={ROUTES.candidateDetail(candidate.id)}>
-              <Button size="xs" variant="outline">
-                <ExternalLink className="size-3" />
-                View
-              </Button>
-            </Link>
-            {onAddToPool && (
-              <Button size="xs" variant="ghost" onClick={() => onAddToPool(candidate.id, candidate.name)}>
-                <Plus className="size-3" />
-                Pool
-              </Button>
-            )}
-          </div>
-        </div>
-      </motion.div>
-    )
-  }
+  const showDetailedBars = variant === "detailed"
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 16 }}
+      initial={{ opacity: 0, y: 14 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4, delay: index * 0.04 }}
+      transition={{ duration: 0.35, delay: Math.min(index * 0.04, 0.3) }}
+      className="h-full"
     >
-      <div className="group bg-surface border border-border rounded-xl hover:border-border-hover transition-all duration-120 p-6">
-        <div className="flex items-start gap-4">
-          <div className="relative shrink-0">
-            <div className="flex size-11 items-center justify-center rounded-full bg-soft">
-              <span className="text-sm font-medium text-muted">
-                {getInitials(candidate.name)}
-              </span>
-            </div>
-            <div className="absolute -top-1 -right-1 flex h-[18px] w-[18px] items-center justify-center rounded-full bg-ink text-[9px] font-medium text-canvas">
-              {index + 1}
-            </div>
+      <div className="flex h-full flex-col rounded-xl border border-border bg-surface p-4 transition-all duration-150 hover:border-border-hover hover:shadow-[0_8px_28px_rgba(0,0,0,0.28)] sm:p-5">
+        {/* Header: avatar + name + score */}
+        <div className="flex items-start gap-3">
+          <div className="flex size-11 shrink-0 items-center justify-center rounded-full bg-soft ring-1 ring-border">
+            <span className="text-[13px] font-semibold text-muted">
+              {getInitials(candidate.name)}
+            </span>
           </div>
-
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-1">
-              <Link href={ROUTES.candidateDetail(candidate.id)} className="hover:underline">
-                <h3 className="font-medium text-ink text-[15px]">{candidate.name}</h3>
-              </Link>
-              <div className={`rounded-md px-2 py-0.5 text-[10px] font-medium text-canvas ${scoreColor(scores.overall)}`}>
-                {scoreLabel(scores.overall)}
-              </div>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-start justify-between gap-2">
+              <h3 className="truncate text-[15px] font-semibold leading-tight text-ink">
+                {candidate.name}
+              </h3>
+              {overallValid ? (
+                <span
+                  className={cn(
+                    "shrink-0 rounded-md px-1.5 py-0.5 font-data text-[13px] font-semibold tabular-nums",
+                    scoreTone(overall) === "high" && "text-success",
+                    scoreTone(overall) === "medium" && "text-warning",
+                    scoreTone(overall) === "low" && "text-danger",
+                  )}
+                >
+                  {overallPct}%
+                </span>
+              ) : (
+                <span className="shrink-0 rounded-md bg-surface-secondary px-1.5 py-0.5 text-[11px] font-medium text-muted">
+                  —
+                </span>
+              )}
             </div>
-            <p className="text-[13px] text-muted line-clamp-1 mb-2">
-              {candidate.summary}
-            </p>
-            <div className="flex items-center gap-3 text-xs text-faint mb-3">
-              <span className="font-data text-muted">{candidate.experience}y</span>
-              <span className="text-border">|</span>
-              <span className="capitalize">{candidate.education?.level ?? "N/A"}{candidate.education?.field ? ` in ${candidate.education.field}` : ""}</span>
-            </div>
-            <div className="flex flex-wrap gap-1.5">
-              {candidate.skills.slice(0, 5).map((skill) => (
-                <Badge key={skill} variant="secondary" className="text-[11px] font-normal">
-                  {skill}
-                </Badge>
-              ))}
-              {candidate.skills.length > 5 && (
-                <Badge variant="outline" className="text-[11px] font-normal">
-                  +{candidate.skills.length - 5}
-                </Badge>
+            <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[12px] text-muted">
+              <span className="inline-flex items-center gap-1">
+                <Briefcase className="size-3" strokeWidth={1.75} />
+                {candidate.experience}y exp
+              </span>
+              {candidate.education?.level && (
+                <span className="inline-flex min-w-0 items-center gap-1">
+                  <GraduationCap className="size-3 shrink-0" strokeWidth={1.75} />
+                  <span className="truncate capitalize">
+                    {candidate.education.level}
+                    {candidate.education.field ? ` · ${candidate.education.field}` : ""}
+                  </span>
+                </span>
               )}
             </div>
           </div>
-
-          <div className="flex flex-col items-center gap-1 shrink-0">
-            <span className="font-data text-[28px] font-medium text-ink leading-none">
-              {Math.round(scores.overall * 100)}%
-            </span>
-            <span className="text-[11px] text-faint uppercase" style={{ letterSpacing: "0.04em" }}>Match</span>
+          <div className="shrink-0">
+            {overallValid ? (
+              <ScoreRing value={overall} size={52} color={ringColorFor(overall)} />
+            ) : (
+              <div
+                className="flex items-center justify-center rounded-full border border-border text-[11px] font-medium text-muted"
+                style={{ width: 52, height: 52 }}
+              >
+                —
+              </div>
+            )}
           </div>
         </div>
 
-        <div className="mt-4 pt-4 border-t border-border">
-          <div className="grid grid-cols-4 gap-3">
-            <ProgressBar value={scores.skill * 100} label="Skills" size="sm" color="bg-info" delay={0.3} />
-            <ProgressBar value={scores.experience * 100} label="Experience" size="sm" color="bg-info/70" delay={0.35} />
-            <ProgressBar value={scores.education * 100} label="Education" size="sm" color="bg-surface-secondary" delay={0.4} />
-            <ProgressBar value={scores.overall * 100} label="Overall" size="sm" color="bg-info" delay={0.45} />
+        {/* Skills */}
+        {candidate.skills.length > 0 ? (
+          <div className="mt-3 flex flex-wrap gap-1.5">
+            {visibleMatched.map((skill) => (
+              <Badge key={`m-${skill}`} variant="success" className="text-[11px]">
+                {skill}
+              </Badge>
+            ))}
+            {visibleUnmatched.map((skill) => (
+              <Badge key={`u-${skill}`} variant="secondary" className="text-[11px] font-normal">
+                {skill}
+              </Badge>
+            ))}
+            {hiddenCount > 0 && (
+              <Badge variant="outline" className="text-[11px] font-normal">
+                +{hiddenCount}
+              </Badge>
+            )}
           </div>
+        ) : (
+          <p className="mt-3 text-[12px] text-faint">No skills listed</p>
+        )}
+
+        {/* Score bars — real scores only */}
+        <div className="mt-3 space-y-2">
+          {skillScore !== null && (
+            <ProgressBar
+              value={skillScore * 100}
+              label="Skill Match"
+              size="sm"
+              color={scoreTone(skillScore) === "high" ? "bg-success" : scoreTone(skillScore) === "medium" ? "bg-warning" : "bg-danger"}
+              delay={0.15}
+            />
+          )}
+          {expScore !== null && (
+            <ProgressBar
+              value={expScore * 100}
+              label="Experience"
+              size="sm"
+              color={scoreTone(expScore) === "high" ? "bg-success" : scoreTone(expScore) === "medium" ? "bg-warning" : "bg-danger"}
+              delay={0.2}
+            />
+          )}
+          {showDetailedBars && eduScore !== null && (
+            <ProgressBar
+              value={eduScore * 100}
+              label="Education"
+              size="sm"
+              color={scoreTone(eduScore) === "high" ? "bg-success" : scoreTone(eduScore) === "medium" ? "bg-warning" : "bg-danger"}
+              delay={0.25}
+            />
+          )}
         </div>
 
-        <div className="mt-4 pt-4 border-t border-border flex items-center justify-between">
-          <p className="text-xs text-faint leading-relaxed line-clamp-1 flex-1 mr-4">
-            <span className="font-medium text-ink">AI:</span> {result.explanation}
-          </p>
-          <div className="flex items-center gap-1">
-            <Link href={ROUTES.candidateDetail(candidate.id)}>
-              <button className="flex h-7 w-7 items-center justify-center rounded-md hover:bg-surface-secondary transition-colors duration-120 text-faint hover:text-ink">
-                <Eye className="size-[14px]" strokeWidth={1.5} />
-              </button>
-            </Link>
-            <button className="flex h-7 w-7 items-center justify-center rounded-md hover:bg-surface-secondary transition-colors duration-120 text-faint hover:text-ink">
-              <GitCompare className="size-[14px]" strokeWidth={1.5} />
+        {/* AI reasoning — real explanation only */}
+        {result.explanation ? (
+          <div className="mt-3 rounded-lg border border-border bg-surface-secondary/40 p-2.5">
+            <button
+              onClick={(e) => {
+                e.stopPropagation()
+                setExpanded((v) => !v)
+              }}
+              className="flex w-full items-center gap-1.5 text-left text-[11px] font-medium text-muted transition-colors hover:text-ink"
+              aria-expanded={expanded}
+            >
+              <Sparkles className="size-3 shrink-0 text-warning" strokeWidth={1.75} />
+              <span className="flex-1">AI reasoning</span>
+              <ChevronDown
+                className={cn("size-3 transition-transform", expanded && "rotate-180")}
+                strokeWidth={1.75}
+              />
             </button>
-            <button className="flex h-7 w-7 items-center justify-center rounded-md hover:bg-surface-secondary transition-colors duration-120 text-faint hover:text-ink">
-              <Bookmark className="size-[14px]" strokeWidth={1.5} />
-            </button>
+            <p
+              className={cn(
+                "mt-1 text-[12px] leading-relaxed text-muted",
+                !expanded && "line-clamp-2",
+              )}
+            >
+              {result.explanation}
+            </p>
           </div>
+        ) : null}
+
+        {/* Actions */}
+        <div className="mt-auto flex items-center gap-1.5 pt-3">
+          <Button
+            size="xs"
+            variant="outline"
+            onClick={(e) => {
+              e.stopPropagation()
+              if (onView) onView(candidate.id)
+            }}
+            className="h-8 flex-1 text-[12px] sm:flex-none sm:px-3.5"
+          >
+            <Eye className="size-3.5" strokeWidth={1.75} />
+            View Profile
+          </Button>
+          {onAddToPool && (
+            <Button
+              size="xs"
+              variant="ghost"
+              onClick={(e) => {
+                e.stopPropagation()
+                onAddToPool(candidate.id, candidate.name)
+              }}
+              className="h-8 text-[12px]"
+            >
+              <Plus className="size-3.5" strokeWidth={1.75} />
+              Pool
+            </Button>
+          )}
+          {onEmail && (
+            <Button
+              size="xs"
+              variant="ghost"
+              disabled={!candidate.email}
+              title={
+                candidate.email
+                  ? `Send outreach to ${candidate.name}`
+                  : "No email on file for this candidate"
+              }
+              onClick={(e) => {
+                e.stopPropagation()
+                onEmail(candidate.id, candidate.name)
+              }}
+              className="h-8 text-[12px]"
+            >
+              {candidate.email ? (
+                <GmailLogo className="size-3.5" />
+              ) : (
+                <Mail className="size-3.5" strokeWidth={1.75} />
+              )}
+              Email
+            </Button>
+          )}
         </div>
       </div>
     </motion.div>

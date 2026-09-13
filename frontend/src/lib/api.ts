@@ -239,6 +239,34 @@ export function createApiClient(getToken: () => Promise<string | null>) {
         }, a),
       ),
 
+    getGmailStatus: () =>
+      withAuth((a) =>
+        request<{ connected: boolean; email: string; configured: boolean }>("/gmail/status", { method: "GET" }, a),
+      ),
+
+    getGmailAuthUrl: () =>
+      withAuth((a) =>
+        request<{ url: string }>("/gmail/auth-url", { method: "GET" }, a),
+      ),
+
+    disconnectGmail: () =>
+      withAuth((a) =>
+        request<{ message: string }>("/gmail/disconnect", { method: "POST" }, a),
+      ),
+
+    generateOutreachEmail: (candidateId: string) =>
+      withAuth((a) =>
+        request<{ to: string; subject: string; body: string }>(`/candidates/${candidateId}/outreach-email`, { method: "POST" }, a),
+      ),
+
+    sendGmailOutreach: (candidateId: string, data: { to: string; subject: string; body: string }) =>
+      withAuth((a) =>
+        request<{ message: string; messageId?: string; from?: string }>(`/candidates/${candidateId}/send-gmail`, {
+          method: "POST",
+          body: JSON.stringify(data),
+        }, a),
+      ),
+
     getCandidateTimeline: (candidateId: string) =>
       withAuth((a) =>
         request<TimelineEntry[]>(`/candidates/${candidateId}/timeline`, { method: "GET" }, a),
@@ -252,7 +280,7 @@ export function createApiClient(getToken: () => Promise<string | null>) {
         }, a),
       ),
 
-    getDashboard: (page = 1, limit = 50) =>
+    getDashboard: (page = 1, limit = 8) =>
       withAuth((a) =>
         request<DashboardData>(`/dashboard?page=${page}&limit=${limit}`, { method: "GET" }, a),
       ),

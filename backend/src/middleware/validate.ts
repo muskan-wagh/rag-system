@@ -91,6 +91,12 @@ export const idParamSchema = z.object({
   id: nonEmptyString,
 });
 
+export const sendGmailOutreachSchema = z.object({
+  to: z.string().email('Invalid recipient email address'),
+  subject: z.string().min(1, 'Subject is required').max(200),
+  body: z.string().min(1, 'Email body is required').max(10000),
+});
+
 const ALLOWED_MIME_TYPES = [
   'application/pdf',
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document',

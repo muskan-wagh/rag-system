@@ -12,7 +12,7 @@ import {
 import { toast } from "sonner"
 import { CandidateDetailModal } from "@/components/candidate-detail-modal"
 import { useApi } from "@/hooks/use-api"
-import { useDashboard } from "@/hooks/use-dashboard"
+import { useDashboard, DASHBOARD_PAGE_SIZE } from "@/hooks/use-dashboard"
 import { useWebSocket } from "@/lib/use-websocket"
 import { ROUTES, getInitials } from "@/lib/constants"
 import type { SessionStats } from "@/lib/types"
@@ -72,13 +72,13 @@ const containerVariants = {
   hidden: { opacity: 0 },
   visible: {
     opacity: 1,
-    transition: { staggerChildren: 0.06 },
+    transition: { staggerChildren: 0.02 },
   },
 }
 
 const itemVariants = {
-  hidden: { opacity: 0, y: 16 },
-  visible: { opacity: 1, y: 0, transition: { duration: 0.4, ease: [0.25, 0.1, 0.25, 1] as const } },
+  hidden: { opacity: 0, y: 8 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.2, ease: [0.25, 0.1, 0.25, 1] as const } },
 }
 
 function statCards(stats: SessionStats | null) {
@@ -115,16 +115,14 @@ function statCards(stats: SessionStats | null) {
 const CandidateCard = memo(function CandidateCard({
   candidate,
   onSelect,
-  index,
 }: {
   candidate: CandidateRow
   onSelect: (c: CandidateRow) => void
-  index: number
+  index?: number
 }) {
   return (
     <motion.div
       variants={itemVariants}
-      transition={{ delay: index * 0.03 }}
       className="cursor-pointer overflow-hidden rounded-lg border border-border bg-surface transition-all duration-120 hover:border-border-hover"
       onClick={() => onSelect(candidate)}
     >
@@ -215,6 +213,7 @@ export default function DashboardPage() {
   const [, setBiasError] = useState("")
   const [page] = useState(1)
   const wsDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const lastWsMutateRef = useRef(0)
   const [userClearedSession, setUserClearedSession] = useState(false)
 
   const api = useApi()
@@ -222,7 +221,7 @@ export default function DashboardPage() {
     data, stats, candidates, sessions: sessList, isLoading, isValidating, mutate,
     candidatesRequiringReview, aiRecommendedCandidates, upcomingInterviews,
     recentActivity, topTalentPools, quickActions,
-  } = useDashboard(page, 50)
+  } = useDashboard(page, DASHBOARD_PAGE_SIZE)
 
   const defaultSession = useMemo(() => {
     if (!data || userClearedSession) return null
@@ -236,8 +235,15 @@ export default function DashboardPage() {
   const effectiveSession = session ?? defaultSession
 
   useWebSocket('candidate:status_changed', useCallback(() => {
+    // Coalesce bursts, skip hidden tabs, and throttle to at most one
+    // revalidation per 30s — the 120s SWR poll already keeps data fresh.
+    if (typeof document !== "undefined" && document.visibilityState !== "visible") return
+    if (Date.now() - lastWsMutateRef.current < 30_000) return
     if (wsDebounceRef.current) clearTimeout(wsDebounceRef.current)
-    wsDebounceRef.current = setTimeout(() => mutate(), 500)
+    wsDebounceRef.current = setTimeout(() => {
+      lastWsMutateRef.current = Date.now()
+      mutate()
+    }, 2000)
   }, [mutate]))
 
   const generateLink = useCallback(async () => {
@@ -334,22 +340,9 @@ export default function DashboardPage() {
   }, [])
 
   const statsList = statCards(stats)
-
-  if (isLoading && !data) {
-    return (
-      <div className="min-h-[80vh] flex flex-col items-center justify-center">
-        <div className="flex flex-col items-center gap-4">
-          <div className="h-10 w-10 rounded-[10px] bg-info flex items-center justify-center">
-            <Sparkles className="h-[18px] w-[18px] text-white" />
-          </div>
-          <div className="space-y-2 text-center">
-            <div className="h-2.5 w-28 bg-border rounded-full animate-pulse-soft mx-auto" />
-            <div className="h-2 w-20 bg-border rounded-full animate-pulse-soft mx-auto" />
-          </div>
-        </div>
-      </div>
-    )
-  }
+  // Progressive loading: keep the workspace interactive on first paint and
+  // show section-level skeletons instead of a full-screen blocking spinner.
+  const showInitialSkeleton = isLoading && !data
 
   return (
     <motion.div
@@ -459,36 +452,7 @@ export default function DashboardPage() {
       {/* Active Application Link */}
       {effectiveSession && (
         <motion.div variants={itemVariants}>
-          <div className="bg-surface border border-border rounded-xl flex items-center justify-between px-6 py-4">
-            <div className="flex items-center gap-3">
-              <Link2 className="size-4 text-info" strokeWidth={1.5} />
-              <div>
-                <p className="text-[11px] font-medium text-faint uppercase" style={{ letterSpacing: "0.05em", fontFamily: "var(--font-inter)" }}>
-                  Active Application Link
-                </p>
-                <p className="text-[13px] text-ink font-data mt-0.5">
-                  {typeof window !== "undefined"
-                    ? `${window.location.origin}${effectiveSession.link}`
-                    : effectiveSession.link}
-                </p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={handleCopyLink}
-                className="inline-flex items-center gap-1 text-[13px] font-medium text-muted hover:text-ink transition-all duration-120"
-                style={{ fontFamily: "var(--font-inter)" }}
-              >
-                <Copy className="size-3.5" strokeWidth={1.5} />
-                {copied ? "Copied" : "Copy"}
-              </button>
-              <Button variant="outline" size="sm" onClick={handleNewSession}>
-                <Plus className="size-3.5" />
-                New Session
-              </Button>
-            </div>
-          </div>
-        <div className="rounded-lg border border-border bg-surface">
+          <div className="rounded-lg border border-border bg-surface">
             <div className="flex items-center justify-between gap-3 px-5 py-4">
               <div className="flex items-center gap-3 min-w-0">
                 <Link2 className="size-4 shrink-0 text-info" strokeWidth={1.5} />
@@ -538,8 +502,16 @@ export default function DashboardPage() {
           }
         />
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          {statsList.map((card, i) => (
-            <motion.div key={card.label} variants={itemVariants} transition={{ delay: i * 0.05 }}>
+          {showInitialSkeleton
+            ? Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} className="rounded-lg border border-border bg-surface p-5">
+                  <Skeleton className="h-3 w-24" />
+                  <Skeleton className="mt-3 h-7 w-16" />
+                  <Skeleton className="mt-2 h-3 w-32" />
+                </div>
+              ))
+            : statsList.map((card) => (
+            <motion.div key={card.label} variants={itemVariants}>
               <Link href={card.href}>
                 <div className="rounded-lg border border-border bg-surface p-5 transition-all duration-120 hover:border-border-hover">
                   <div className="flex items-center justify-between">
@@ -579,7 +551,7 @@ export default function DashboardPage() {
       <TalentPoolsSummary items={topTalentPools} />
 
       {/* Recent Uploads */}
-      {candidates.length > 0 && (
+      {(showInitialSkeleton || candidates.length > 0) && (
         <motion.div variants={itemVariants}>
           <PanelHeader
             title="Recent Uploads"
@@ -601,7 +573,7 @@ export default function DashboardPage() {
             }
           />
 
-          {isValidating && !candidates.length ? (
+          {showInitialSkeleton || (isValidating && !candidates.length) ? (
             <div className="space-y-3">
               {Array.from({ length: 3 }).map((_, i) => (
                 <div key={i} className="rounded-lg border border-border bg-surface p-4">
@@ -645,12 +617,11 @@ export default function DashboardPage() {
             </div>
           ) : (
             <div className="space-y-3">
-              {candidates.slice(0, 5).map((candidate, index) => (
+              {candidates.slice(0, 5).map((candidate) => (
                 <CandidateCard
                   key={candidate.id}
                   candidate={candidate}
                   onSelect={handleSelectCandidate}
-                  index={index}
                 />
               ))}
             </div>

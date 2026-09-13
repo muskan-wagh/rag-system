@@ -21,6 +21,8 @@ import { Tabs, TabsList, TabsTab, TabsPanel } from "@/components/ui/tabs"
 import { ScheduleInterviewModal } from "@/components/schedule-interview-modal"
 import { RejectModal } from "@/components/reject-modal"
 import { MakeOfferModal } from "@/components/make-offer-modal"
+import { GmailOutreachModal } from "@/components/gmail-outreach-modal"
+import { GmailLogo } from "@/components/gmail-logo"
 import { CandidateTimeline } from "@/components/candidate-timeline"
 
 interface CandidateDetail {
@@ -95,6 +97,7 @@ export function CandidateDetailModal({ open, onClose, candidate, onStatusChange 
   const [showScheduleModal, setShowScheduleModal] = useState(false)
   const [showRejectModal, setShowRejectModal] = useState(false)
   const [showOfferModal, setShowOfferModal] = useState(false)
+  const [showEmailModal, setShowEmailModal] = useState(false)
 
   const fetchNotes = useCallback(async () => {
     if (!candidate) return
@@ -466,10 +469,14 @@ export function CandidateDetailModal({ open, onClose, candidate, onStatusChange 
               {candidate.email && (
                 <div className="flex items-center gap-3 p-3 bg-muted/30 rounded-lg border">
                   <Mail className="h-4 w-4 text-muted-foreground shrink-0" />
-                  <div className="min-w-0">
+                  <div className="min-w-0 flex-1">
                     <p className="text-xs text-muted-foreground">Email</p>
                     <p className="text-sm truncate">{candidate.email}</p>
                   </div>
+                  <Button variant="outline" size="xs" onClick={() => setShowEmailModal(true)}>
+                    <GmailLogo className="size-3 mr-1" />
+                    Send Email
+                  </Button>
                 </div>
               )}
               {candidate.phone && (
@@ -842,7 +849,17 @@ export function CandidateDetailModal({ open, onClose, candidate, onStatusChange 
         <div className="sticky bottom-0 flex flex-col gap-3 p-4 border-t bg-surface shrink-0">
           <div className="flex items-center justify-between gap-2">
             <span className="text-xs font-medium text-muted-foreground">Next Step</span>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap justify-end">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowEmailModal(true)}
+                disabled={!candidate.email}
+                title={candidate.email ? `Send outreach to ${candidate.full_name || "candidate"}` : "No email on file for this candidate"}
+              >
+                <GmailLogo className="size-3.5 mr-1" />
+                Send Email
+              </Button>
               <Button
                 variant="outline"
                 size="sm"
@@ -916,6 +933,16 @@ export function CandidateDetailModal({ open, onClose, candidate, onStatusChange 
         candidateId={candidate.id}
         onSuccess={onStatusChange}
       />
+
+      {showEmailModal && (
+        <GmailOutreachModal
+          open={showEmailModal}
+          onClose={() => setShowEmailModal(false)}
+          candidateId={candidate.id}
+          candidateName={candidate.full_name || "Candidate"}
+          candidateEmail={candidate.email || ""}
+        />
+      )}
     </Dialog>
   )
 }
