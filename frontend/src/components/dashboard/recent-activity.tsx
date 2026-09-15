@@ -24,6 +24,21 @@ function getActivityIcon(type: string) {
   }
 }
 
+function getActivityColor(type: string) {
+  switch (type) {
+    case "status_change":
+    case "upload":
+    case "search":
+      return "text-info"
+    case "interview":
+      return "text-warning"
+    case "offer":
+      return "text-success"
+    default:
+      return "text-muted"
+  }
+}
+
 function formatTimeAgo(dateStr: string) {
   const now = Date.now()
   const date = new Date(dateStr).getTime()
@@ -39,24 +54,24 @@ function formatTimeAgo(dateStr: string) {
 
 export function RecentActivity({ items }: { items: RecentActivityItem[] }) {
   return (
-    <section>
+    <section className="min-w-0">
       <PanelHeader
         title="Recent Activity"
         description="Latest recruiter actions"
-        className="mb-3"
+        className="mb-2"
         action={
           items.length > 0 ? (
             <Link
               href={ROUTES.history}
-              className="inline-flex items-center gap-1 text-[12px] font-medium text-muted transition-colors duration-120 hover:text-ink"
+              className="group inline-flex items-center gap-1 text-[12px] font-medium text-muted transition-colors duration-120 hover:text-ink"
             >
               View all
-              <ChevronRight className="size-3.5" strokeWidth={1.5} />
+              <ChevronRight className="size-3.5 transition-transform duration-120 group-hover:translate-x-px" strokeWidth={1.5} />
             </Link>
           ) : undefined
         }
       />
-      <div className="overflow-hidden rounded-lg border border-border bg-surface">
+      <div className="overflow-hidden rounded-md border border-border bg-surface">
         {items.length === 0 ? (
           <EmptyState
             icon={History}
@@ -68,13 +83,13 @@ export function RecentActivity({ items }: { items: RecentActivityItem[] }) {
             {items.map((item) => (
               <li
                 key={item.id}
-                className="flex items-center gap-3 px-4 py-3 transition-colors duration-120 hover:bg-hover-tone"
+                className="flex min-w-0 items-center gap-2.5 px-3 py-2.5 transition-colors duration-120 hover:bg-hover-tone"
               >
-                <div className="flex size-7 shrink-0 items-center justify-center rounded-full bg-surface-secondary text-muted">
+                <div className={`flex size-6 shrink-0 items-center justify-center rounded-full bg-surface-secondary ${getActivityColor(item.type)}`}>
                   {getActivityIcon(item.type)}
                 </div>
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-[13px] text-ink">{item.description}</p>
+                  <p className="truncate text-[12.5px] text-ink">{item.description}</p>
                   {item.candidate_name && (
                     <p className="mt-0.5 truncate text-[11px] text-muted">
                       Related to {item.candidate_name}

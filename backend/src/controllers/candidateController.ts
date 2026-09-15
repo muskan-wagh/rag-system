@@ -372,6 +372,14 @@ export const scheduleInterviewHandler = asyncHandler(async (req: Request, res: R
   const id = req.params.id as string;
   const { scheduledDate, scheduledTime, interviewType, interviewerName, notes } = req.body;
 
+  // Scheduling is forward-looking — a past date would create an interview
+  // that is immediately overdue/invisible as upcoming. Reject it at the API
+  // boundary (the UI also clamps the date picker to today).
+  if (typeof scheduledDate !== 'string' || scheduledDate.slice(0, 10) < new Date().toISOString().split('T')[0]) {
+    res.status(400).json({ success: false, error: 'Interview date cannot be in the past' });
+    return;
+  }
+
   const interview = await scheduleInterview(id, {
     scheduledDate,
     scheduledTime,
@@ -433,12 +441,22 @@ export const updateInterviewHandler = asyncHandler(async (req: Request, res: Res
   const interviewId = req.params.interviewId as string;
   const updateData = req.body;
 
+  // Same guard as scheduling — rescheduling into the past is not allowed.
+  if (typeof updateData.scheduledDate === 'string' && updateData.scheduledDate.slice(0, 10) < new Date().toISOString().split('T')[0]) {
+    res.status(400).json({ success: false, error: 'Interview date cannot be in the past' });
+    return;
+  }
+
   await updateInterview(interviewId, updateData);
+
+  // Any interview change (reschedule, cancel, complete) affects the dashboard
+  // upcoming list, so the cached dashboard must be invalidated every time —
+  // not only on completion — otherwise the widget serves stale empty data.
+  await invalidateDashboard(req);
 
   if (updateData.status === 'completed') {
     const candidateId = req.params.id as string;
     await updateCandidateStatusExtended(candidateId, CANDIDATE_STATUS.INTERVIEW_COMPLETED, '', { interview_id: interviewId });
-    await invalidateDashboard(req);
     broadcast('candidate:status_changed', { candidateId, status: CANDIDATE_STATUS.INTERVIEW_COMPLETED });
   }
 

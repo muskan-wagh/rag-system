@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useRef, useEffect, useCallback } from "react"
-import { Search, X, Loader2, User } from "lucide-react"
+import { Search, X, Loader2 } from "lucide-react"
 import { useApi } from "@/hooks/use-api"
 
 interface CandidateSearchResult {
@@ -85,23 +85,33 @@ export function CandidateSearchInput({ index, selected, onSelect }: CandidateSea
   return (
     <div ref={containerRef} className="relative flex-1">
       {selected ? (
-        <div className="flex items-center gap-2 w-full bg-primary/5 text-sm text-foreground rounded-xl border border-primary/20 px-3 py-2">
-          <User className="h-3.5 w-3.5 text-primary shrink-0" />
-          <span className="flex-1 truncate">
-            <span className="font-medium">{selected.full_name}</span>
+        <div className="flex w-full items-center gap-2.5 rounded-xl border border-border bg-surface-secondary/50 px-2.5 py-2">
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-soft text-[11px] font-semibold text-muted ring-1 ring-border">
+            {(selected.full_name || "?")
+              .split(" ")
+              .map((n) => n[0])
+              .join("")
+              .slice(0, 2)
+              .toUpperCase()}
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block truncate text-[13px] font-medium text-ink">
+              {selected.full_name}
+            </span>
             {(selected.current_title || selected.current_company) && (
-              <span className="text-muted-foreground ml-1">
-                — {selected.current_title || ""}
-                {selected.current_title && selected.current_company ? " @ " : ""}
+              <span className="block truncate text-[11.5px] text-muted">
+                {selected.current_title || ""}
+                {selected.current_title && selected.current_company ? " · " : ""}
                 {selected.current_company || ""}
               </span>
             )}
           </span>
           <button
             onClick={handleClear}
-            className="flex h-5 w-5 items-center justify-center rounded-full hover:bg-muted transition-colors"
+            aria-label="Remove candidate"
+            className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-muted transition-colors hover:bg-surface-secondary hover:text-ink"
           >
-            <X className="h-3 w-3 text-muted-foreground" />
+            <X className="h-3.5 w-3.5" />
           </button>
         </div>
       ) : (

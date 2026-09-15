@@ -44,7 +44,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
               animate={{ x: 0 }}
               exit={{ x: "-100%" }}
               transition={{ duration: 0.2, ease: [0.25, 0.1, 0.25, 1] }}
-              className="fixed inset-y-0 left-0 z-50 w-[264px] border-r border-border bg-surface lg:hidden"
+              className="fixed bottom-2 left-2 top-2 z-50 w-[264px] overflow-hidden rounded-xl border border-border bg-surface lg:hidden"
               role="dialog"
               aria-modal="true"
               aria-label="Navigation"
@@ -55,9 +55,11 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
         )}
       </AnimatePresence>
 
-      <div className="lg:pl-[232px]">
-        <TopNav onOpenMobile={() => setMobileOpen(true)} />
-        <main className="px-4 pb-16 pt-6 sm:px-6 lg:px-8">{children}</main>
+      <div className="min-w-0 lg:pl-[228px]">
+        <div className="mx-auto w-full min-w-0 max-w-[1200px] px-3 sm:px-5 lg:px-6">
+          <TopNav onOpenMobile={() => setMobileOpen(true)} />
+          <main className="overflow-x-clip pb-10 pt-1 sm:pt-2">{children}</main>
+        </div>
       </div>
     </div>
   )

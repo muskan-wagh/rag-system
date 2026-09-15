@@ -11,8 +11,7 @@ import { CandidateSearchInput } from "@/components/candidate-search-input"
 import { ScheduleInterviewModal } from "@/components/schedule-interview-modal"
 import { RejectModal } from "@/components/reject-modal"
 import { GmailOutreachModal } from "@/components/gmail-outreach-modal"
-import { PageHeader } from "@/components/ui/page-header"
-import { GitCompare, Loader2, Plus, Trash2, Brain, Sparkles } from "lucide-react"
+import { GitCompare, Loader2, Plus, X, Sparkles, Briefcase } from "lucide-react"
 import { useApi } from "@/hooks/use-api"
 import type { CompareResult } from "@/lib/api"
 
@@ -29,8 +28,52 @@ const containerVariants = {
 }
 
 const itemVariants = {
-  hidden: { opacity: 0, y: 16 },
-  visible: { opacity: 1, y: 0, transition: { duration: 0.4, ease: [0.25, 0.1, 0.25, 1] as const } },
+  hidden: { opacity: 0, y: 12 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.35, ease: [0.25, 0.1, 0.25, 1] as const } },
+}
+
+function CompareSkeleton() {
+  return (
+    <div className="space-y-3" aria-label="Loading comparison">
+      {/* best-fit skeleton */}
+      <div className="rounded-xl border border-border bg-surface p-4">
+        <div className="flex items-center gap-3">
+          <Skeleton className="size-10 shrink-0 rounded-xl" />
+          <div className="flex-1 space-y-2">
+            <Skeleton className="h-3 w-20" />
+            <Skeleton className="h-4 w-40" />
+            <Skeleton className="h-3 w-full" />
+          </div>
+        </div>
+      </div>
+      {/* score cards skeleton */}
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        {[0, 1].map((i) => (
+          <div key={i} className="rounded-xl border border-border bg-surface p-4">
+            <div className="flex items-center gap-2.5">
+              <Skeleton className="size-9 shrink-0 rounded-full" />
+              <div className="flex-1 space-y-1.5">
+                <Skeleton className="h-3.5 w-28" />
+                <Skeleton className="h-3 w-20" />
+              </div>
+              <Skeleton className="size-14 shrink-0 rounded-full" />
+            </div>
+            <div className="mt-3 space-y-2">
+              <Skeleton className="h-2 w-full rounded-full" />
+              <Skeleton className="h-2 w-5/6 rounded-full" />
+              <Skeleton className="h-2 w-4/6 rounded-full" />
+            </div>
+          </div>
+        ))}
+      </div>
+      {/* summary skeleton */}
+      <div className="rounded-xl border border-border bg-surface p-4">
+        <Skeleton className="mb-2.5 h-3 w-36" />
+        <Skeleton className="h-3 w-full" />
+        <Skeleton className="mt-1.5 h-3 w-11/12" />
+      </div>
+    </div>
+  )
 }
 
 export default function ComparePage() {
@@ -134,106 +177,148 @@ export default function ComparePage() {
       variants={containerVariants}
       initial="hidden"
       animate="visible"
-      className="pt-6 space-y-8"
+      className="mx-auto w-full max-w-6xl px-4 py-6 md:px-6 md:py-8"
     >
-      <PageHeader
-        title="Compare Candidates"
-        description="Side-by-side AI-powered candidate comparison"
-      />
-
-      <motion.div variants={itemVariants} className="bg-surface rounded-lg border border-border shadow-none p-6 space-y-5">
-        <div>
-          <label className="text-xs font-medium text-muted mb-2 block">Job Description</label>
-          <div className="relative">
-            <Brain className="absolute left-4 top-3.5 h-4 w-4 text-faint" strokeWidth={1.5} />
-            <textarea
-              placeholder="Paste job description for comparison context..."
-              value={jdText}
-              onChange={(e) => setJdText(e.target.value)}
-              rows={3}
-              className="w-full bg-surface text-sm text-ink placeholder:text-faint outline-none rounded-lg border border-border pl-10 pr-4 py-3 focus:border-border-hover transition-all resize-y min-h-[80px]"
-            />
+      {/* Compact header */}
+      <motion.div variants={itemVariants} className="mb-4">
+        <div className="flex items-center gap-2.5">
+          <span className="flex size-8 items-center justify-center rounded-lg bg-ink text-canvas shadow-sm">
+            <GitCompare className="size-4" strokeWidth={1.75} />
+          </span>
+          <div className="min-w-0">
+            <h1 className="text-[17px] font-semibold tracking-tight text-ink">
+              Compare Candidates
+            </h1>
+            <p className="truncate text-[12.5px] text-muted">
+              Side-by-side AI-powered candidate comparison
+            </p>
           </div>
         </div>
-
-        <div className="space-y-3">
-          {selectedCandidates.map((selected, index) => (
-            <div key={index} className="flex items-center gap-3">
-              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-surface-secondary text-xs font-medium text-muted">
-                {index + 1}
-              </div>
-              <CandidateSearchInput
-                index={index}
-                selected={selected}
-                onSelect={(c) => updateSelection(index, c)}
-              />
-              {selectedCandidates.length > 2 && (
-                <button onClick={() => removeRow(index)}
-                  className="flex h-8 w-8 items-center justify-center rounded-full hover:bg-surface-secondary transition-colors"
-                >
-                  <Trash2 className="h-3.5 w-3.5 text-faint hover:text-danger" strokeWidth={1.5} />
-                </button>
-              )}
-            </div>
-          ))}
-        </div>
-
-        <div className="flex items-center gap-2 pt-1">
-          <Button variant="ghost" onClick={addRow} size="sm">
-            <Plus className="mr-1.5 h-3.5 w-3.5" />
-            Add Candidate
-          </Button>
-          <Button onClick={handleCompare} disabled={loading || !allSelected} size="sm" className="ml-auto bg-ink text-canvas hover:bg-ink/90">
-            {loading ? (
-              <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />
-            ) : (
-              <Sparkles className="h-3.5 w-3.5 mr-1.5" />
-            )}
-            {loading ? "Comparing..." : "Compare"}
-          </Button>
-        </div>
-
-        {error && (
-          <p className="text-xs text-danger flex items-center gap-1.5">
-            <span className="inline-block h-1 w-1 rounded-full bg-danger" />
-            {error}
-          </p>
-        )}
       </motion.div>
 
-      {loading && (
-        <motion.div variants={itemVariants} className="space-y-5">
-          <Skeleton className="h-24 w-full rounded-2xl" />
-          <div className="flex gap-5">
-            <Skeleton className="h-64 flex-1 rounded-2xl" />
-            <Skeleton className="h-64 flex-1 rounded-2xl" />
+      {/* Workspace: sticky setup rail + results column */}
+      <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-[300px_minmax(0,1fr)]">
+        {/* Setup rail */}
+        <motion.aside variants={itemVariants} className="min-w-0 lg:sticky lg:top-6">
+          <div className="rounded-xl border border-border bg-surface p-4">
+            <div className="mb-3 flex items-center gap-2">
+              <span className="flex size-6 shrink-0 items-center justify-center rounded-md bg-surface-secondary text-muted">
+                <Briefcase className="size-3.5" strokeWidth={1.75} />
+              </span>
+              <h2 className="text-[11px] font-semibold uppercase tracking-[0.07em] text-muted">
+                Setup
+              </h2>
+              {(loading || comparison) && (
+                <span className="ml-auto rounded-full bg-success/10 px-2 py-0.5 text-[10.5px] font-semibold text-success">
+                  {loading ? "Running…" : "Ready"}
+                </span>
+              )}
+            </div>
+
+            <div>
+              <label htmlFor="compare-jd" className="mb-1.5 block text-[12px] font-medium text-muted">
+                Job Description / Role
+              </label>
+              <textarea
+                id="compare-jd"
+                placeholder="Paste the job description or describe the role…"
+                value={jdText}
+                onChange={(e) => setJdText(e.target.value)}
+                rows={3}
+                className="w-full resize-y rounded-lg border border-border bg-surface-secondary/40 px-3 py-2.5 text-[13px] leading-relaxed text-ink outline-none transition-colors placeholder:text-faint focus:border-border-hover focus:bg-surface"
+              />
+            </div>
+
+            <p className="mb-1.5 mt-3 text-[12px] font-medium text-muted">Candidates</p>
+            <div className="space-y-2">
+              {selectedCandidates.map((selected, index) => (
+                <div key={index} className="flex items-center gap-2">
+                  <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-surface-secondary font-data text-[11px] font-medium text-muted">
+                    {index + 1}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <CandidateSearchInput
+                      index={index}
+                      selected={selected}
+                      onSelect={(c) => updateSelection(index, c)}
+                    />
+                  </div>
+                  {selectedCandidates.length > 2 && (
+                    <button
+                      onClick={() => removeRow(index)}
+                      aria-label="Remove candidate"
+                      className="flex size-7 shrink-0 items-center justify-center rounded-lg text-muted transition-colors hover:bg-surface-secondary hover:text-danger"
+                    >
+                      <X className="size-3.5" strokeWidth={1.75} />
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-3 space-y-2">
+              <Button
+                onClick={handleCompare}
+                disabled={loading || !allSelected || !jdText.trim()}
+                className="h-9 w-full gap-1.5 text-[13px] font-semibold"
+              >
+                {loading ? (
+                  <Loader2 className="size-4 animate-spin" strokeWidth={2} />
+                ) : (
+                  <Sparkles className="size-4" strokeWidth={2} />
+                )}
+                {loading ? "Comparing..." : "Compare →"}
+              </Button>
+              <button
+                onClick={addRow}
+                className="flex h-8 w-full items-center justify-center gap-1.5 rounded-lg text-[12.5px] font-medium text-muted transition-colors hover:bg-surface-secondary hover:text-ink"
+              >
+                <Plus className="size-3.5" strokeWidth={1.75} />
+                Add Candidate
+              </button>
+            </div>
+
+            {error && (
+              <p className="mt-2.5 flex items-center gap-1.5 text-[12px] text-danger">
+                <span className="inline-block h-1.5 w-1.5 rounded-full bg-danger" />
+                {error}
+              </p>
+            )}
           </div>
-          <Skeleton className="h-48 w-full rounded-2xl" />
-        </motion.div>
-      )}
+        </motion.aside>
 
-      {comparison && !loading && (
-        <motion.div variants={itemVariants}>
-          <ComparisonView
-            result={comparison}
-            onScheduleInterview={(id, name) => setModalState({ type: "schedule", candidateId: id, candidateName: name })}
-            onAddToPool={handleAddToPool}
-            onEmail={handleEmail}
-            onShortlist={handleShortlist}
-            onReject={(id, name) => setModalState({ type: "reject", candidateId: id, candidateName: name })}
-          />
-        </motion.div>
-      )}
+        {/* Results column */}
+        <div className="min-w-0">
+          {loading && (
+            <motion.div variants={itemVariants}>
+              <CompareSkeleton />
+            </motion.div>
+          )}
 
-      {!loading && !comparison && !error && (
-        <motion.div variants={itemVariants}>
-          <EmptyState
-            icon={GitCompare}
-            title="Compare Candidates"
-            description="Search and select candidates, then add a job description to get an AI-powered side-by-side comparison with score breakdowns."
-          />
-        </motion.div>
-      )}
+          {comparison && !loading && (
+            <motion.div variants={itemVariants}>
+              <ComparisonView
+                result={comparison}
+                onScheduleInterview={(id, name) => setModalState({ type: "schedule", candidateId: id, candidateName: name })}
+                onAddToPool={handleAddToPool}
+                onEmail={handleEmail}
+                onShortlist={handleShortlist}
+                onReject={(id, name) => setModalState({ type: "reject", candidateId: id, candidateName: name })}
+              />
+            </motion.div>
+          )}
+
+          {!loading && !comparison && !error && (
+            <motion.div variants={itemVariants} className="rounded-xl border border-dashed border-border bg-surface/60 lg:sticky lg:top-6">
+              <EmptyState
+                icon={Sparkles}
+                title="Compare candidates"
+                description="Select candidates and add a job description to see an AI-powered comparison."
+              />
+            </motion.div>
+          )}
+        </div>
+      </div>
 
       <ScheduleInterviewModal
         open={modalState.type === "schedule"}

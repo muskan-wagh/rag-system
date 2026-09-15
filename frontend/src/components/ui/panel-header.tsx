@@ -9,10 +9,10 @@ interface PanelHeaderProps {
 
 export function PanelHeader({ title, description, action, className }: PanelHeaderProps) {
   return (
-    <div className={cn("flex items-end justify-between gap-3", className)}>
+    <div className={cn("flex items-center justify-between gap-2", className)}>
       <div className="min-w-0">
-        <h2 className="text-[14px] font-medium tracking-tight text-ink">{title}</h2>
-        {description && <p className="mt-0.5 text-[12px] text-muted">{description}</p>}
+        <h2 className="truncate text-[13px] font-medium tracking-tight text-ink sm:text-[14px]">{title}</h2>
+        {description && <p className="mt-px truncate text-[11px] text-muted sm:text-[12px]">{description}</p>}
       </div>
       {action && <div className="shrink-0">{action}</div>}
     </div>
