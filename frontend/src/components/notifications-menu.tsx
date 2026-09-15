@@ -57,7 +57,8 @@ function NotificationsContent({ onNavigated }: { onNavigated: () => void }) {
   // Same key as the dashboard page -> SWR dedupes to a single /dashboard request.
   const { upcomingInterviews, candidatesRequiringReview, recentActivity } = useDashboard(1, DASHBOARD_PAGE_SIZE)
 
-  const today = new Date().toISOString().split("T")[0]
+  const now = new Date()
+  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`
   const interviewsToday = upcomingInterviews.filter((i) => i.scheduled_date === today)
 
   const count = interviewsToday.length + candidatesRequiringReview.length

@@ -36,6 +36,11 @@ export function ScheduleInterviewModal({
   const [saving, setSaving] = useState(false)
   const api = useApi()
 
+  // Clamp the picker to today or later (local calendar date) — the API also
+  // rejects past dates, since they would land straight in "overdue".
+  const now = new Date()
+  const todayInput = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`
+
   const handleSubmit = async () => {
     if (!date || !time) {
       toast.error("Please select date and time")
@@ -81,6 +86,7 @@ export function ScheduleInterviewModal({
               <input
                 type="date"
                 value={date}
+                min={todayInput}
                 onChange={(e) => setDate(e.target.value)}
                 className="w-full h-9 px-3 text-sm rounded-lg border border-border bg-surface focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
               />

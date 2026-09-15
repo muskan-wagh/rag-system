@@ -21,15 +21,43 @@ import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Dialog, DialogContent } from "@/components/ui/dialog"
-import { StatusDot } from "@/components/ui/status-dot"
 import { PageHeader } from "@/components/ui/page-header"
 import { EmptyState } from "@/components/ui/empty-state"
 import { cn } from "@/lib/utils"
 
 const PAGE_SIZE = 20
 
+type StatusTone = "amber" | "blue" | "green" | "red" | "neutral"
+
+function getStatusTone(status?: string): StatusTone {
+  const s = (status || "").toLowerCase()
+  if (s === "hired" || s === "offered" || s === "pending offer") return "green"
+  if (s === "rejected") return "red"
+  if (s.includes("interview") || s === "technical round" || s === "hr round") return "blue"
+  if (s === "applied" || s === "screening" || s === "shortlisted") return "amber"
+  return "neutral"
+}
+
+// Thick left-edge status indicator — solid in both themes.
+const STATUS_LINE: Record<StatusTone, string> = {
+  amber: "bg-amber-400",
+  blue: "bg-blue-500",
+  green: "bg-green-500",
+  red: "bg-red-500",
+  neutral: "bg-zinc-400 dark:bg-zinc-600",
+}
+
+// Color-coded status text — readable on dark surfaces without loud backgrounds.
+const STATUS_TEXT: Record<StatusTone, string> = {
+  amber: "text-amber-700 dark:text-amber-400",
+  blue: "text-blue-700 dark:text-blue-400",
+  green: "text-green-700 dark:text-green-400",
+  red: "text-red-600 dark:text-red-400",
+  neutral: "text-muted",
+}
+
 function getScoreTone(score?: number) {
-  if (!score) return "text-faint"
+  if (!score) return "text-muted"
   if (score >= 80) return "text-success"
   if (score >= 60) return "text-warning"
   return "text-danger"
@@ -176,8 +204,8 @@ function CandidatesContent() {
               <card.icon className="size-4" strokeWidth={1.5} />
             </div>
             <div className="min-w-0">
-              <p className="font-data text-[15px] font-medium leading-tight text-ink">{card.value}</p>
-              <p className="text-[10px] uppercase tracking-[0.05em] text-faint">{card.label}</p>
+              <p className="font-data text-[15px] font-semibold leading-tight text-ink">{card.value}</p>
+              <p className="text-[10px] uppercase tracking-[0.05em] text-muted">{card.label}</p>
             </div>
           </div>
         ))}
@@ -221,7 +249,7 @@ function CandidatesContent() {
                     : session.job_description_text
                   : "Untitled"}
               </span>
-              <span className="font-data text-[10px] text-faint">{session.candidate_count}</span>
+              <span className="font-data text-[10px] text-muted">{session.candidate_count}</span>
             </button>
           ))
         )}
@@ -229,7 +257,7 @@ function CandidatesContent() {
 
       {/* Filters */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-1.5 rounded-lg bg-surface-secondary p-1">
+        <div className="flex items-center gap-1.5 self-start overflow-x-auto rounded-lg bg-surface-secondary p-1 sm:self-auto">
           {statusTabs.map((tab) => {
             const isActive = tab.value === null
               ? !statusFilterParam
@@ -239,9 +267,9 @@ function CandidatesContent() {
                 key={tab.label}
                 onClick={() => handleStatusTabClick(tab.value)}
                 className={cn(
-                  "rounded-md px-3.5 py-1.5 text-[12px] font-medium transition-colors duration-120",
+                  "shrink-0 whitespace-nowrap rounded-md px-3.5 py-1.5 text-[12px] font-medium transition-colors duration-120",
                   isActive
-                    ? "bg-surface text-ink shadow-sm"
+                    ? "bg-ink text-canvas shadow-sm"
                     : "text-muted hover:text-ink",
                 )}
               >
@@ -251,13 +279,13 @@ function CandidatesContent() {
           })}
         </div>
         <div className="relative">
-          <Search className="absolute left-3.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-faint" strokeWidth={1.5} />
+          <Search className="absolute left-3.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted" strokeWidth={1.5} />
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => handleSearch(e.target.value)}
             placeholder="Search candidates…"
-            className="h-9 w-full rounded-md border border-border bg-surface pl-9 pr-3.5 text-[13px] text-ink outline-none transition-colors duration-120 placeholder:text-faint focus:border-border-hover sm:w-64"
+            className="h-9 w-full rounded-md border border-border bg-surface pl-9 pr-3.5 text-[13px] text-ink outline-none transition-colors duration-120 placeholder:text-muted focus:border-border-hover sm:w-64"
           />
         </div>
       </div>
@@ -312,148 +340,159 @@ function CandidatesContent() {
       ) : (
         <>
           <div className="grid gap-3 sm:grid-cols-2">
-            {candidates.map((candidate) => (
-              <div
-                key={candidate.id}
-                className="group cursor-pointer overflow-hidden rounded-lg border border-border bg-surface transition-all duration-120 hover:border-border-hover"
-                onClick={() => handleViewCandidate(candidate)}
-              >
-                <div className="p-5">
-                  <div className="flex items-start gap-3">
-                    <div className="relative shrink-0">
-                      <Avatar className="size-11">
-                        <AvatarFallback className="text-[13px] font-medium">
-                          {getInitials(candidate.full_name)}
-                        </AvatarFallback>
-                      </Avatar>
-                      {candidate.match_score !== undefined && candidate.match_score >= 85 && (
-                        <div className="absolute -right-1 -top-1 flex size-5 items-center justify-center rounded-full border border-border bg-surface">
-                          <Sparkles className="size-3 text-warning" strokeWidth={1.5} />
-                        </div>
-                      )}
-                    </div>
+            {candidates.map((candidate) => {
+              const tone = getStatusTone(candidate.current_status)
+              return (
+                <div
+                  key={candidate.id}
+                  className="group relative cursor-pointer overflow-hidden rounded-xl border border-border bg-surface transition-all duration-200 hover:border-border-hover hover:bg-hover-tone"
+                  onClick={() => handleViewCandidate(candidate)}
+                >
+                  {/* Thick vertical status indicator */}
+                  <span
+                    aria-hidden
+                    className={cn("absolute inset-y-0 left-0 w-1", STATUS_LINE[tone])}
+                  />
+                  <div className="p-5 pl-6">
+                    <div className="flex items-start gap-3">
+                      <div className="relative shrink-0">
+                        <Avatar className="size-11">
+                          <AvatarFallback className="text-[13px] font-medium">
+                            {getInitials(candidate.full_name)}
+                          </AvatarFallback>
+                        </Avatar>
+                        {candidate.match_score !== undefined && candidate.match_score >= 85 && (
+                          <div className="absolute -right-1 -top-1 flex size-5 items-center justify-center rounded-full border border-border bg-surface">
+                            <Sparkles className="size-3 text-warning" strokeWidth={1.5} />
+                          </div>
+                        )}
+                      </div>
 
-                    <div className="min-w-0 flex-1">
-                      <h3 className="truncate text-[14px] font-medium text-ink">
-                        {candidate.full_name || "Unknown"}
-                      </h3>
-                      <p className="mt-0.5 truncate text-[12px] text-muted">
-                        {candidate.current_title || ""}
-                        {candidate.current_title && candidate.current_company ? " · " : ""}
-                        {candidate.current_company || ""}
-                      </p>
+                      <div className="min-w-0 flex-1">
+                        <h3 className="truncate text-[15px] font-semibold text-ink">
+                          {candidate.full_name || "Unknown"}
+                        </h3>
+                        <p className="mt-0.5 truncate text-[12px] text-muted">
+                          {candidate.current_title || ""}
+                          {candidate.current_title && candidate.current_company ? " · " : ""}
+                          {candidate.current_company || ""}
+                        </p>
 
-                      {(candidate.skills || []).length > 0 && (
-                        <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
-                          {(candidate.skills || []).slice(0, 3).map((skill, j) => (
-                            <span
-                              key={j}
-                              className="rounded-md bg-surface-secondary px-2 py-0.5 text-[11px] text-muted"
-                            >
-                              {skill}
+                        {(candidate.skills || []).length > 0 && (
+                          <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
+                            {(candidate.skills || []).slice(0, 3).map((skill, j) => (
+                              <span
+                                key={j}
+                                className="rounded-md border border-border bg-surface-secondary px-2 py-0.5 text-[11px] text-zinc-600 dark:text-zinc-300"
+                              >
+                                {skill}
+                              </span>
+                            ))}
+                            {(candidate.skills?.length || 0) > 3 && (
+                              <span className="text-[11px] text-muted">+{(candidate.skills?.length || 0) - 3}</span>
+                            )}
+                          </div>
+                        )}
+
+                        <div className="mt-2.5 flex flex-wrap items-center gap-x-3 gap-y-1">
+                          {candidate.total_experience_years != null && (
+                            <span className="flex items-center gap-1 text-[11px] text-muted">
+                              <Briefcase className="size-3" strokeWidth={1.5} />
+                              {candidate.total_experience_years}y exp
                             </span>
-                          ))}
-                          {(candidate.skills?.length || 0) > 3 && (
-                            <span className="text-[11px] text-faint">+{(candidate.skills?.length || 0) - 3}</span>
+                          )}
+                          {candidate.location && (
+                            <span className="flex items-center gap-1 text-[11px] text-muted">
+                              <MapPin className="size-3" strokeWidth={1.5} />
+                              {candidate.location}
+                            </span>
                           )}
                         </div>
-                      )}
-
-                      <div className="mt-2.5 flex items-center gap-3">
-                        {candidate.total_experience_years != null && (
-                          <span className="flex items-center gap-1 text-[11px] text-faint">
-                            <Briefcase className="size-3" strokeWidth={1.5} />
-                            {candidate.total_experience_years}y exp
-                          </span>
-                        )}
-                        {candidate.location && (
-                          <span className="flex items-center gap-1 text-[11px] text-faint">
-                            <MapPin className="size-3" strokeWidth={1.5} />
-                            {candidate.location}
-                          </span>
-                        )}
                       </div>
                     </div>
-                  </div>
 
-                  <div className="mt-4 flex items-center justify-between border-t border-border pt-3.5">
-                    <div className="flex min-w-0 items-center gap-2.5">
-                      <StatusDot status={candidate.current_status} />
-                      <span className="truncate text-[12px] text-muted">
-                        {candidate.current_status || "Applied"}
-                      </span>
-                      {candidate.flight_risk && (
-                        <span className={cn(
-                          "shrink-0 font-data text-[11px]",
-                          candidate.flight_risk === "High"
-                            ? "text-danger"
-                            : candidate.flight_risk === "Medium"
-                              ? "text-warning"
-                              : "text-success",
-                        )}>
-                          {candidate.flight_risk} risk
-                        </span>
-                      )}
-                    </div>
-
-                    <div className="flex shrink-0 items-center gap-2.5">
-                      <div className="text-right">
-                        <p className={cn("font-data text-[13px] font-medium", getScoreTone(candidate.match_score))}>
-                          {candidate.match_score !== undefined ? `${Math.round(candidate.match_score)}%` : "—"}
-                        </p>
-                        <p className="text-[10px] text-faint">{getScoreLabel(candidate.match_score)}</p>
-                      </div>
-                      <div className="h-1 w-12 overflow-hidden rounded-full bg-track">
-                        <div
-                          className="h-full rounded-full bg-info"
-                          style={{ width: `${Math.round(candidate.match_score ?? 0)}%` }}
+                    <div className="mt-4 flex items-center justify-between gap-3 border-t border-border pt-3.5">
+                      <div className="flex min-w-0 items-center gap-2">
+                        <span
+                          aria-hidden
+                          className={cn("size-1.5 shrink-0 rounded-full", STATUS_LINE[tone])}
                         />
+                        <span className={cn("truncate text-[12px] font-medium", STATUS_TEXT[tone])}>
+                          {candidate.current_status || "Applied"}
+                        </span>
+                        {candidate.flight_risk && (
+                          <span className={cn(
+                            "shrink-0 font-data text-[11px]",
+                            candidate.flight_risk === "High"
+                              ? "text-danger"
+                              : candidate.flight_risk === "Medium"
+                                ? "text-warning"
+                                : "text-success",
+                          )}>
+                            {candidate.flight_risk} risk
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="flex shrink-0 items-center gap-2.5">
+                        <div className="text-right">
+                          <p className={cn("font-data text-[13px] font-semibold", getScoreTone(candidate.match_score))}>
+                            {candidate.match_score !== undefined ? `${Math.round(candidate.match_score)}%` : "—"}
+                          </p>
+                          <p className="text-[10px] text-muted">{getScoreLabel(candidate.match_score)}</p>
+                        </div>
+                        <div className="h-1 w-12 overflow-hidden rounded-full bg-track">
+                          <div
+                            className="h-full rounded-full bg-info"
+                            style={{ width: `${Math.round(candidate.match_score ?? 0)}%` }}
+                          />
+                        </div>
                       </div>
                     </div>
-                  </div>
 
-                  <div className="mt-3 flex items-center gap-1 opacity-0 transition-opacity duration-150 group-hover:opacity-100">
-                    {candidate.resume_file_url && (
-                      <a
-                        href={candidate.resume_file_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        onClick={(e) => e.stopPropagation()}
-                        className="flex size-7 items-center justify-center rounded-md text-muted transition-colors duration-120 hover:bg-surface-secondary hover:text-ink"
-                        aria-label="Open resume"
-                      >
-                        <FileText className="size-3.5" strokeWidth={1.5} />
-                      </a>
-                    )}
-                    {candidate.current_status === "Offered" && (
+                    <div className="mt-3 flex items-center gap-1 opacity-100 transition-opacity duration-150 focus-within:opacity-100 lg:opacity-0 lg:group-hover:opacity-100">
+                      {candidate.resume_file_url && (
+                        <a
+                          href={candidate.resume_file_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={(e) => e.stopPropagation()}
+                          className="flex size-7 items-center justify-center rounded-md text-muted transition-colors duration-120 hover:bg-surface-secondary hover:text-ink"
+                          aria-label="Open resume"
+                        >
+                          <FileText className="size-3.5" strokeWidth={1.5} />
+                        </a>
+                      )}
+                      {candidate.current_status === "Offered" && (
+                        <button
+                          onClick={(e) => { e.stopPropagation(); handleHireClick(candidate) }}
+                          className="flex size-7 items-center justify-center rounded-md text-success transition-colors duration-120 hover:bg-success/10"
+                          aria-label="Mark as hired"
+                        >
+                          <BadgeCheck className="size-3.5" strokeWidth={1.5} />
+                        </button>
+                      )}
                       <button
-                        onClick={(e) => { e.stopPropagation(); handleHireClick(candidate) }}
-                        className="flex size-7 items-center justify-center rounded-md text-success transition-colors duration-120 hover:bg-success/10"
-                        aria-label="Mark as hired"
+                        onClick={(e) => { e.stopPropagation(); handleViewCandidate(candidate) }}
+                        className="ml-auto flex size-7 items-center justify-center rounded-md text-muted transition-colors duration-120 hover:bg-surface-secondary hover:text-ink"
+                        aria-label="View details"
                       >
-                        <BadgeCheck className="size-3.5" strokeWidth={1.5} />
+                        <Eye className="size-3.5" strokeWidth={1.5} />
                       </button>
-                    )}
-                    <button
-                      onClick={(e) => { e.stopPropagation(); handleViewCandidate(candidate) }}
-                      className="ml-auto flex size-7 items-center justify-center rounded-md text-muted transition-colors duration-120 hover:bg-surface-secondary hover:text-ink"
-                      aria-label="View details"
-                    >
-                      <Eye className="size-3.5" strokeWidth={1.5} />
-                    </button>
-                    <button
-                      onClick={(e) => { e.stopPropagation(); setEmailCandidate(candidate) }}
-                      disabled={!candidate.email}
-                      title={candidate.email ? `Send outreach to ${candidate.full_name || "candidate"}` : "No email on file"}
-                      className="flex size-7 items-center justify-center rounded-md text-muted transition-colors duration-120 hover:bg-surface-secondary hover:text-ink disabled:opacity-40"
-                      aria-label="Send email"
-                    >
-                      <GmailLogo className="size-3.5" />
-                    </button>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setEmailCandidate(candidate) }}
+                        disabled={!candidate.email}
+                        title={candidate.email ? `Send outreach to ${candidate.full_name || "candidate"}` : "No email on file"}
+                        className="flex size-7 items-center justify-center rounded-md text-muted transition-colors duration-120 hover:bg-surface-secondary hover:text-ink disabled:opacity-40"
+                        aria-label="Send email"
+                      >
+                        <GmailLogo className="size-3.5" />
+                      </button>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              )
+            })}
           </div>
 
           {/* Pagination */}

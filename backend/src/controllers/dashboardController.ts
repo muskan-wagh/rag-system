@@ -178,19 +178,28 @@ async function fetchAiRecommendations(supabase: ReturnType<typeof getSupabaseCli
 }
 
 async function fetchUpcomingInterviews(supabase: ReturnType<typeof getSupabaseClient>, recruiterId: string): Promise<UpcomingInterview[]> {
-  const todayStr = new Date().toISOString().split('T')[0];
-
+  // No lower bound on scheduled_date: interviews that are still `scheduled`
+  // but whose date has passed (overdue) must stay visible. Silently dropping
+  // them made the widget disagree with the candidate's Interview Scheduled
+  // status. Upcoming items come first, then most-recent overdue ones.
   const { data, error } = await supabase
     .from('interviews')
     .select('id, candidate_id, interview_type, scheduled_date, scheduled_time, status, meeting_link, candidates!inner(recruiter_id)')
     .eq('candidates.recruiter_id', recruiterId)
     .eq('status', 'scheduled')
-    .gte('scheduled_date', todayStr)
     .order('scheduled_date', { ascending: true })
     .order('scheduled_time', { ascending: true })
-    .limit(5);
+    .limit(20);
 
-  if (error || !data) return [];
+  if (error || !data) {
+    if (error) {
+      logger.error('Failed to fetch upcoming interviews', {
+        recruiterId,
+        error: error.message,
+      });
+    }
+    return [];
+  }
 
   const interviews = data as Array<Record<string, unknown>>;
   const candidateIds = interviews.map((i) => i.candidate_id as string).filter(Boolean);
@@ -201,6 +210,12 @@ async function fetchUpcomingInterviews(supabase: ReturnType<typeof getSupabaseCl
       .from('candidates')
       .select('id, full_name, current_title')
       .in('id', candidateIds);
+    if (res.error) {
+      logger.error('Failed to enrich upcoming interviews with candidate names', {
+        recruiterId,
+        error: res.error.message,
+      });
+    }
     candidatesData = res.data as Array<{ id: string; full_name: string | null; current_title: string | null }> | null;
   }
 
@@ -224,7 +239,17 @@ async function fetchUpcomingInterviews(supabase: ReturnType<typeof getSupabaseCl
       status: (i.status as string) || '',
       meeting_link: (i.meeting_link as string) || '',
     };
-  });
+  }).sort((a, b) => {
+    // Upcoming first (date ascending), then overdue (most recent first).
+    const todayStr = new Date().toISOString().split('T')[0];
+    const aOverdue = a.scheduled_date < todayStr;
+    const bOverdue = b.scheduled_date < todayStr;
+    if (aOverdue !== bOverdue) return aOverdue ? 1 : -1;
+    if (!aOverdue) {
+      return a.scheduled_date.localeCompare(b.scheduled_date) || a.scheduled_time.localeCompare(b.scheduled_time);
+    }
+    return b.scheduled_date.localeCompare(a.scheduled_date) || b.scheduled_time.localeCompare(a.scheduled_time);
+  }).slice(0, 5);
 }
 
 async function fetchRecentActivity(supabase: ReturnType<typeof getSupabaseClient>, recruiterId: string): Promise<RecentActivityItem[]> {
