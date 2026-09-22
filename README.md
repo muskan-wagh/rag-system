@@ -1,428 +1,227 @@
-# AI-Powered Candidate Discovery & Ranking Engine (RAG System)
+# AI-Powered Candidate Discovery & Ranking Engine
 
-A full-stack **Retrieval-Augmented Generation (RAG)** application built for the **INDIA RUNS Challenge**. Recruiters can paste a job description and get semantically matched, intelligently ranked candidate results with explainable scores.
+Recruiters paste a job description and get back semantically matched candidates —
+retrieved with vector search, scored across multiple signals, and returned ranked
+with LLM-generated explanations for every result.
 
----
+![Next.js](https://img.shields.io/badge/Next.js-16-black?logo=next.js)
+![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white)
+![Node.js](https://img.shields.io/badge/Node.js-18+-339933?logo=node.js&logoColor=white)
+![Qdrant](https://img.shields.io/badge/Qdrant-vector_search-DC244C)
+![RAG](https://img.shields.io/badge/RAG-pipeline-6E56CF)
+![OpenRouter](https://img.shields.io/badge/OpenRouter-LLM-7C3AED)
 
-## Table of Contents
+## Product Preview
 
-- [Architecture Overview](#architecture-overview)
-- [System Flow](#system-flow)
-- [Tech Stack](#tech-stack)
-- [Project Structure](#project-structure)
-- [Backend API](#backend-api)
-- [Scoring & Ranking System](#scoring--ranking-system)
-- [Setup & Installation](#setup--installation)
-- [Environment Variables](#environment-variables)
-- [Scripts](#scripts)
- 
----
+<p align="center">
+  <img src="./docs/images/home.png" width="48%" />
+  <img src="./docs/images/dashboard.png" width="48%" />
+</p>
+<p align="center"><em>Landing hero and the AI Hiring Workspace where JDs become ranked shortlists.</em></p>
 
-## Architecture Overview
+<p align="center">
+  <img src="./docs/images/features.png" width="48%" />
+  <img src="./docs/images/workflow.png" width="48%" />
+</p>
+<p align="center"><em>Platform capabilities and the resume-to-hire pipeline.</em></p>
 
-```
-┌─────────────────┐     ┌───────────────────────────────┐     ┌─────────────────┐
-│   Next.js 16    │────▶│   Express.js Backend (API)    │────▶│   Qdrant        │
-│   Frontend      │     │   :5000                       │     │   Vector DB      │
-│   :3000         │◀────│                               │◀────│   (Cloud)        │
-└─────────────────┘     │   ┌───────────────────┐       │     └─────────────────┘
-                        │   │  LLM Service       │◀────▶│  OpenRouter API
-                        │   │  (OpenRouter)      │       └────────────────────
-                        │   └───────────────────┘
-                        │   ┌───────────────────┐
-                        │   │  Ranking Engine    │
-                        │   │  (Skills 40%       │
-                        │   │   Exp     35%       │
-                        │   │   Edu     25%)      │
-                        │   └───────────────────┘
-                        │   ┌───────────────────┐
-                        │   │  In-Memory Cache   │
-                        │   │  (5 min TTL)       │
-                        │   └───────────────────┘
-                        └───────────────────────────────┘
-```
+## Why This Project?
 
-### RAG Pattern
+Keyword filters miss strong candidates who phrase experience differently.
+This engine retrieves by **meaning**, then grounds the order in structured
+evidence — skills, experience, education — and has the LLM show its reasoning,
+so a ranking is something a recruiter can trust and defend.
 
-1. **Retrieval**: Vector search against Qdrant using `Xenova/all-MiniLM-L6-v2` embeddings (384-d, cosine distance).
-2. **Augmentation**: Retrieved candidates are scored across 4 dimensions (semantic, skills, experience, education).
-3. **Generation**: LLM (OpenRouter) parses JDs, generates comparison analyses, and explains rankings.
+## Key Features
 
----
+- Job description parsing into structured requirements
+- Semantic candidate retrieval over Qdrant vector search
+- Skill, experience, and education matching alongside vector similarity
+- Explainable ranking with per-dimension score breakdowns
+- Side-by-side candidate comparison with JD-aware pros/cons
+- Candidate detail view with match analysis
+- Search filters (experience range, skills, education level)
+- LLM-powered analysis (parsing, comparison, explanations, bias scan)
+- 5-minute TTL caching for repeated JD and search requests
 
-## System Flow
+## Architecture
 
-### Candidate Search (Main User Journey)
+```mermaid
+flowchart LR
+    A[Recruiter] --> B[Next.js Frontend]
+    B --> C[Express API]
 
-```
-User pastes JD in UI
-        │
-        ▼
-[candidates/page.tsx]  ──POST──▶  /api/candidates/search
-                                        │
-                              ┌─────────┴──────────┐
-                              ▼                     ▼
-                        parseJD(jdText)      generateEmbedding(jdText)
-                              │                     │
-                        LLM extracts:          Local embedding
-                        title, skills,         (Xenova/all-MiniLM-L6-v2)
-                        experience,
-                        education, etc.
-                              │                     │
-                              └──────┬──────────────┘
-                                     ▼
-                           searchByEmbedding()
-                                     │
-                           Qdrant cosine similarity
-                           (with optional filters)
-                                     │
-                                     ▼
-                             rankCandidates()
-                                     │
-                     ┌───────────────┼───────────────┐
-                     ▼               ▼               ▼
-               skillMatcher  experienceMatcher  educationMatcher
-               (Jaccard +     (linear score     (level rank +
-                coverage)     within range)      field overlap)
-                     │               │               │
-                     └───────────────┼───────────────┘
-                                     ▼
-                            finalRanker (weighted sum)
-                            sem × 0.35 + skill × 0.30 + exp × 0.20 + edu × 0.15
-                                     │
-                                     ▼
-                         Cache result (5 min TTL)
-                                     │
-                                     ▼
-                    Return { results: RankingResult[], query: ParsedJD }
-                                     │
-                                     ▼
-                    UI displays ranked candidates with % match,
-                    skill breakdown, experience fit, education fit
+    C --> D[JD Parser]
+    C --> E[Embedding Model]
+
+    E --> F[Qdrant]
+    F --> G[Candidate Retrieval]
+
+    G --> H[Ranking Engine]
+    H --> I[LLM Explanation]
+    I --> J[Ranked Candidates]
+
+    C --> K[5-Minute Cache]
 ```
 
-### Compare Candidates
+The frontend is static/marketing plus the authenticated app; the Express API
+owns parsing, embedding, retrieval, ranking, and explanation. Workers handle
+resume ingestion asynchronously — the full staging topology is documented in
+[`docs/performance-optimization-report.md`](./docs/performance-optimization-report.md).
 
+## How It Works
+
+`JD text → parse → embed → Qdrant search → rank → explain → cache`
+
+### 1. Parse
+
+The LLM converts the raw job description into structured requirements —
+title, skills, experience range, education, responsibilities.
+
+### 2. Embed
+
+`Xenova/all-MiniLM-L6-v2` generates a 384-dimensional, L2-normalized embedding
+of the JD locally — no per-request embedding API cost.
+
+### 3. Retrieve
+
+Qdrant runs cosine-similarity vector search against the `candidates`
+collection, with optional payload filters (experience range, skills,
+education level).
+
+### 4. Rank
+
+Each retrieved candidate is scored across semantic similarity, skills,
+experience, and education, then blended into one weighted overall score.
+
+### 5. Explain
+
+The LLM generates per-candidate explanations and JD-aware comparisons with
+pros/cons and a recommendation.
+
+### 6. Cache
+
+Repeated JD parses and search requests are served from a 5-minute TTL cache
+instead of re-running LLM calls and vector search.
+
+## Ranking Engine
+
+Pure vector similarity is noisy on a small collection — scores cluster and the
+order stops meaning anything. Blending semantic similarity with structured
+candidate attributes keeps rankings stable and explainable.
+
+| Dimension           | Weight | Method                   |
+| ------------------- | -----: | ------------------------ |
+| Semantic similarity |    35% | Cosine similarity        |
+| Skills              |    30% | Jaccard + coverage       |
+| Experience          |    20% | Experience-range scoring |
+| Education           |    15% | Level + field matching   |
+
+```text
+Final Score =
+semantic × 0.35 +
+skills × 0.30 +
+experience × 0.20 +
+education × 0.15
 ```
-User enters JD text + candidate IDs
-        │
-        ▼
-[compare/page.tsx]  ──POST──▶  /api/candidates/compare
-                                        │
-                              parseJD(jdText)
-                              retrieveCandidatesByIds(ids)
-                                        │
-                              LLM generates comparison:
-                              - Per-candidate pros/cons/verdict
-                              - Overall recommendation
-                                        │
-                                        ▼
-                    Return { comparison: CompareResult, query: ParsedJD }
-```
 
----
+Skill scoring mixes Jaccard similarity with coverage of required skills;
+experience scores linearly within the JD's range (partial credit below the
+minimum, full credit above the maximum); education combines level rank
+(PhD > Master > Bachelor > Diploma) with field overlap.
 
-## Tech Stack
+## Candidate Comparison
 
-### Backend
-| Technology | Purpose |
+Select multiple candidates and get a JD-aware, LLM-generated analysis:
+per-candidate pros/cons and verdicts plus an overall recommendation with
+comparative reasoning across the shortlist.
+
+## Performance & Optimization
+
+Live dashboard: [View Performance Dashboard](https://hirestack-vert.vercel.app/performance)
+
+Three things are kept deliberately separate here: **measured results** from
+staging, **techniques** implemented in code, and general **design**. The numbers
+below come from the staging evaluation on 2026-09-12 (read-only against shared
+services; authed-endpoint timing was not measured — no test auth token exists).
+Details: [`docs/performance-optimization-report.md`](./docs/performance-optimization-report.md).
+
+**Measured (staging):**
+
+| Check | Result |
 |---|---|
-| **Node.js / Express.js** (v5) | REST API server |
-| **TypeScript** (v6) | Type-safe development |
-| **Qdrant** (js-client-rest) | Vector database (cloud) |
-| **OpenRouter API** | LLM inference |
-| **@xenova/transformers** | Local embeddings (all-MiniLM-L6-v2, 384-d) |
-| **Winston** | Structured logging |
-| **dotenv** | Environment configuration |
+| 5 concurrent resume jobs | 5/5 ok, 0 failures, 0 retries, flat memory |
+| API responsiveness under load | No degradation observed on public endpoints |
+| Embedding cache, repeat text | 0 ms on repeat (bounded LRU, 200 entries / 1 h) |
+| Stored-vector reuse | Identical bytes, zero inference per request |
 
-### Frontend
-| Technology | Purpose |
+**Techniques (all in code):**
+
+- Shared SWR key and smaller page size cut duplicate dashboard fetching and
+  overfetch (~84% fewer rows per load)
+- Redis 5-minute cache with stale-while-revalidate on dashboard and search paths
+- Calmer revalidation: 120 s polling, debounced/throttled WebSocket refetches,
+  hidden-tab skip, section skeletons instead of a full-screen loader
+- Single-flight embedding model loader plus LRU cache — one model instance per
+  process under concurrency
+- BullMQ safeguards: 180 s lock duration, processor timeouts, stable job IDs
+  for duplicate suppression, fail-fast on corrupt resumes
+
+**Design:** API and worker run as separate processes so embedding/CPU work
+never blocks request handling; novel-JD search still embeds on the API event
+loop (mitigated by cache) and first model load costs ~200 MB RSS one-time.
+
+## Technology Stack
+
+| Layer | Technologies |
 |---|---|
-| **Next.js** (v16, App Router) | React framework |
-| **React** (v19) | UI library |
-| **Tailwind CSS** (v4) | Utility-first styling |
-| **shadcn/ui** + **Base UI** | Component primitives |
-| **Lucide React** | Icon library |
+| Frontend | Next.js 16, React 19, Tailwind CSS 4, shadcn/ui, Base UI |
+| Backend | Node.js, Express.js 5, TypeScript |
+| AI / RAG | OpenRouter (Qwen), `Xenova/all-MiniLM-L6-v2`, RAG + LLM workflows |
+| Data | Qdrant (384-d, cosine), Supabase (Postgres + Storage) |
+| Infra | Redis + BullMQ worker, Clerk auth |
+| Engineering | Winston, dotenv, TTL caching, SWR/Zustand, REST APIs |
 
----
+## Engineering Decisions
 
-## Project Structure
+- **Local embeddings** — `all-MiniLM-L6-v2` runs in-process (quantized ONNX,
+  384-d), so search has no embedding-API latency or cost. Hosted alternatives
+  were evaluated and rejected: same-dimension models from other vendors live
+  in a different vector space and would require a full re-embed.
+- **Qdrant** — owns semantic retrieval: one 384-d cosine vector per candidate
+  plus searchable payload (skills, experience, education) for filtered search.
+- **Weighted ranking** — semantic similarity finds candidates who *mean* the
+  right thing; structured attributes decide the order. Either signal alone is
+  weaker than the blend.
+- **Caching** — LLM calls and search results share a 5-minute TTL cache
+  (Redis, with invalidation on mutations) because repeat JDs and dashboard
+  revisits are common and recomputation is expensive.
+- **Layered backend** — `Routes → Controllers → Services`, with async error
+  handling, structured `AppError`s, Winston logging, startup env validation,
+  and LLM retries with backoff.
 
-```
-rag-system/
-├── backend/
-│   ├── .env                          # Environment variables (API keys, config)
-│   ├── package.json                  # Dependencies and scripts
-│   ├── tsconfig.json                 # TypeScript configuration
-│   ├── start.js                      # Production startup (path alias register)
-│   └── src/
-│       ├── server.ts                 # Express entry point
-│       ├── config/
-│       │   └── index.ts              # Env config loader + validation
-│       ├── types/
-│       │   └── index.ts              # TypeScript interfaces
-│       ├── utils/
-│       │   ├── logger.ts             # Winston logger setup
-│       │   ├── asyncHandler.ts       # Async route error wrapper
-│       │   └── cache.ts              # In-memory TTL cache
-│       ├── middleware/
-│       │   ├── logger.ts             # Request logging middleware
-│       │   └── errorHandler.ts       # Global error handler + AppError
-│       ├── routes/
-│       │   ├── index.ts              # Route aggregator
-│       │   ├── jdRoutes.ts           # POST /api/jd/parse
-│       │   └── candidateRoutes.ts    # POST /search, /compare, /batch; GET /:id
-│       ├── controllers/
-│       │   ├── jdController.ts       # JD parsing orchestration
-│       │   └── candidateController.ts # Search/compare orchestration + caching
-│       └── services/
-│           ├── llm/
-│           │   ├── client.ts         # OpenAI/OpenRouter API client (retry logic)
-│           │   ├── parseJD.ts        # LLM-based JD text → structured fields
-│           │   ├── compareCandidates.ts # LLM-based candidate comparison
-│           │   └── explainRanking.ts # LLM-based ranking explanation
-│           ├── qdrant/
-│           │   ├── client.ts         # Qdrant DB client singleton
-│           │   ├── createCollection.ts # Auto-create collection + indexes
-│           │   ├── searchCandidates.ts # Vector search with filters
-│           │   └── retrieveCandidates.ts # Get candidates by ID
-│           └── ranking/
-│               ├── skillMatcher.ts       # Jaccard + coverage skill scoring
-│               ├── experienceMatcher.ts  # Years-of-experience scoring
-│               ├── educationMatcher.ts   # Education level + field scoring
-│               └── finalRanker.ts        # Weighted aggregation + sorting
-│
-├── frontend/
-│   ├── package.json                  # Dependencies and scripts
-│   ├── next.config.ts                # Next.js config (API proxy rewrites)
-│   ├── postcss.config.mjs            # PostCSS with Tailwind v4
-│   ├── eslint.config.mjs             # ESLint flat config
-│   ├── components.json               # shadcn/ui configuration
-│   └── src/
-│       ├── lib/
-│       │   ├── api.ts                # Backend API client functions
-│       │   ├── constants.ts          # Route constants + API base URL
-│       │   └── utils.ts              # cn() utility (clsx + tailwind-merge)
-│       ├── components/
-│       │   ├── nav-bar.tsx           # Top navigation bar
-│       │   └── ui/                   # shadcn/ui component primitives
-│       │       ├── badge.tsx
-│       │       ├── button.tsx
-│       │       ├── card.tsx
-│       │       ├── input.tsx
-│       │       ├── navigation-menu.tsx
-│       │       ├── scroll-area.tsx
-│       │       ├── select.tsx
-│       │       ├── separator.tsx
-│       │       ├── sheet.tsx
-│       │       └── skeleton.tsx
-│       └── app/
-│           ├── globals.css           # Tailwind v4 + CSS variables (dark/light)
-│           ├── layout.tsx            # Root layout (fonts, NavBar)
-│           ├── page.tsx              # Home page (feature cards)
-│           ├── candidates/
-│           │   ├── page.tsx          # JD search + ranked results
-│           │   └── [id]/
-│           │       └── page.tsx      # Candidate detail page
-│           └── compare/
-│               └── page.tsx          # Multi-candidate comparison
-│
-└── docs/                              # (empty — for future docs)
-```
+## Setup
 
----
-
-## Backend API
-
-All endpoints are prefixed with `/api`. The frontend proxies `/api/*` to `http://localhost:5000/api/*`.
-
-| Method | Endpoint | Description |
-|---|---|---|
-| `GET` | `/health` | Health check (`{ status, timestamp }`) |
-| `POST` | `/api/jd/parse` | Parse a JD into structured fields |
-| `POST` | `/api/candidates/search` | Search & rank candidates for a JD |
-| `POST` | `/api/candidates/compare` | Compare 2+ candidates for a JD |
-| `POST` | `/api/candidates/batch` | Get multiple candidates by IDs |
-| `GET` | `/api/candidates/:id` | Get a single candidate by ID |
-
-### Request/Response Examples
-
-**POST /api/candidates/search**
-```json
-{
-  "jdText": "We are looking for a Senior Software Engineer...",
-  "limit": 10,
-  "filters": {
-    "minExperience": 3,
-    "maxExperience": 10,
-    "skills": ["Python", "React"],
-    "educationLevel": "bachelor"
-  }
-}
-```
-```json
-{
-  "success": true,
-  "data": {
-    "results": [
-      {
-        "candidate": { "id": "c001", "name": "John Doe", ... },
-        "scores": { "skill": 0.85, "experience": 0.9, "education": 0.75, "overall": 0.8425 },
-        "explanation": "John has 85% skill overlap..."
-      }
-    ],
-    "query": {
-      "title": "Senior Software Engineer",
-      "skills": ["Python", "React", "AWS"],
-      "experience": { "min": 3, "max": 10 },
-      "education": { "level": "bachelor", "field": "computer science" },
-      "responsibilities": ["...", "..."],
-      "requirements": ["...", "..."],
-      "rawText": "..."
-    }
-  }
-}
-```
-
----
-
-## Scoring & Ranking System
-
-Candidates are scored across 4 dimensions, weighted and aggregated:
-
-| Dimension | Weight | Method |
-|---|---|---|
-| **Semantic** | 35% | Cosine similarity of vector embeddings (JD vs candidate) |
-| **Skills** | 30% | Jaccard similarity + coverage of required vs. candidate skills |
-| **Experience** | 20% | Linear scoring within the JD's experience range (penalty below min, bonus above max) |
-| **Education** | 15% | Level rank comparison (PhD > Master > Bachelor > Diploma) + field overlap bonus |
-
-**Final Score** = `semanticScore × 0.35 + skillScore × 0.30 + experienceScore × 0.20 + educationScore × 0.15`
-
-Each sub-score is 0–1, so the overall score is also 0–1.
-
----
-
-## Setup & Installation
-
-### Prerequisites
-
-- **Node.js** v18+
-- **npm**
-- **Qdrant Cloud** instance (URL + API key)
-- **OpenRouter** API key (or any OpenAI-compatible API)
-
-### Backend Setup
-
-```bash
-cd rag-system/backend
-
-# 1. Install dependencies
-npm install
-
-# 2. Configure environment
-cp .env.example .env
-# Edit .env with your keys:
-#   OPENAI_API_KEY=sk-or-v1-...
-#   QDRANT_URL=https://xxxx.aws.cloud.qdrant.io
-#   QDRANT_API_KEY=eyJhbGci...
-
-# 3. Development mode (hot-reload)
-npm run dev
-
-# 4. Production mode
-npm run build
-npm start
-```
-
-### Frontend Setup
-
-```bash
-cd rag-system/frontend
-
-# 1. Install dependencies
-npm install
-
-# 2. Run dev server
-npm run dev
-
-# 3. Open http://localhost:3000
-```
-
-Both servers must run simultaneously. The frontend proxies `/api/*` requests to the backend.
-
----
-
-## Environment Variables
-
-### Backend (`backend/.env`)
-
-| Variable | Default | Required | Description |
-|---|---|---|---|
-| `OPENAI_API_KEY` | — | ✅ | OpenRouter/OpenAI API key |
-| `OPENAI_MODEL` | `gpt-oss-120b` | | LLM model for chat completions |
-| `QDRANT_URL` | — | ✅ | Qdrant cloud instance URL |
-| `QDRANT_API_KEY` | — | ✅ | Qdrant API key |
-| `QDRANT_COLLECTION_NAME` | `candidates` | | Qdrant collection name |
-| `PORT` | `5000` | | Backend server port |
-| `NODE_ENV` | `development` | | `development` or `production` |
-| `CLIENT_URL` | `http://localhost:3000` | | Frontend URL (CORS origin) |
-
-### Hardcoded Configuration (`backend/src/config/index.ts`)
-
-| Setting | Value |
-|---|---|
-| LLM base URL | `https://openrouter.ai/api/v1` |
-| Embedding model | `Xenova/all-MiniLM-L6-v2` |
-| Embedding dimensions | 384 |
-| Vector distance | Cosine |
-| LLM temperature (parse) | 0.1 |
-| LLM temperature (compare) | 0.3 |
-| LLM max tokens | 4096 (default), 2048 (compare), 512 (explain) |
-| Cache TTL | 300000 ms (5 minutes) |
-| LLM retry attempts | 3 (exponential backoff) |
-
----
-
-## Scripts
+**Prerequisites:** Node.js 18+, npm, a Qdrant Cloud instance, and API keys
+(OpenRouter, Supabase, Redis, Clerk). Create `backend/.env` with your keys —
+required names and where to find each value are listed in
+`backend/src/config/index.ts`; the server refuses to start if any are missing.
 
 ### Backend
 
-| Script | Command | Description |
-|---|---|---|
-| `npm run dev` | `tsnd --respawn src/server.ts` | Dev server with hot-reload |
-| `npm run build` | `tsc` | Compile TypeScript → JavaScript |
-| `npm start` | `node start.js` | Run compiled production server |
+```bash
+cd backend
+npm install
+npm run dev
+```
+
 ### Frontend
 
-| Script | Command | Description |
-|---|---|---|
-| `npm run dev` | `next dev` | Dev server with Turbopack |
-| `npm run build` | `next build` | Production build |
-| `npm start` | `next start` | Start production server |
-| `npm run lint` | `next lint` | ESLint check |
+```bash
+cd frontend
+npm install
+npm run dev
+```
 
----
-
----
-
-## Caching
-
-The backend uses an in-memory **TTL cache** (`backend/src/utils/cache.ts`) to avoid redundant LLM calls:
-
-- **JD Parse results** are cached by MD5 hash of the raw JD text.
-- **Search results** are cached by MD5 hash of the search request.
-- **TTL**: 5 minutes (configurable via `CACHE_TTL_MS` in config).
-- Eviction: entries are lazily evicted on read when expired.
-
----
-
-## Key Design Decisions
-
-- **Layered architecture**: Routes → Controllers → Services (LLM / Qdrant / Ranking) — clear separation of concerns.
-- **Async error handling**: All async routes are wrapped with `asyncHandler` which forwards errors to the global error handler.
-- **Structured errors**: `AppError` class with HTTP status code, message, and optional `details` field.
-- **Structured logging**: Winston logger writes colorized console output in development and JSON + file output in production.
-- **Config validation**: Required env vars are validated at startup — the server refuses to start if any are missing.
-- **LLM retry logic**: 3 attempts with exponential backoff for rate-limited or failed LLM calls.
-- **Frontend proxy**: Next.js rewrites `/api/*` → backend, avoiding CORS issues in development.
+Run both together and open http://localhost:3000 — the frontend proxies
+`/api/*` to the backend.
