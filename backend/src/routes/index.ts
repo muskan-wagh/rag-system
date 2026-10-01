@@ -7,6 +7,9 @@ import biasRoutes from './biasRoutes';
 import dashboardRoutes from './dashboardRoutes';
 import historyRoutes from './historyRoutes';
 import gmailRoutes from './gmailRoutes';
+import integrationsGmailRoutes from './integrationsGmailRoutes';
+import assessmentRoutes from './assessmentRoutes';
+import jobRoutes from './jobRoutes';
 
 import {
   listSavedSearchesHandler,
@@ -27,6 +30,10 @@ const router = Router();
 
 router.use('/jd', jdRoutes);
 router.use('/candidates', candidateRoutes);
+router.use('/assessments', assessmentRoutes);
+router.use('/jobs', jobRoutes);
+// Canonical Gmail integration routes (spec) + legacy aliases for the outreach modal.
+router.use('/integrations/gmail', integrationsGmailRoutes);
 router.use('/gmail', gmailRoutes);
 
 // Root-level routers

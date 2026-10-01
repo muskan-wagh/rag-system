@@ -386,3 +386,98 @@ export interface PaginatedHistory {
 }
 
 export type StatusFilter = 'open' | 'screening' | 'offered' | 'hired' | 'rejected' | 'all'
+
+// === Recruiter Assessment Builder ===
+
+export type AssessmentStatus = 'draft' | 'published'
+export type AssessmentQuestionType = 'mcq' | 'coding' | 'sql' | 'subjective'
+
+export interface MinimalJob {
+  id: string
+  title: string
+  description?: string
+  upload_session_id?: string | null
+  created_at?: string
+}
+
+export interface AssessmentSettings {
+  randomize_questions?: boolean
+  allow_revisit?: boolean
+  auto_submit?: boolean
+}
+
+export interface McqOption {
+  id: string
+  text: string
+}
+
+export interface AssessmentQuestion {
+  id: string
+  assessment_id: string
+  type: AssessmentQuestionType
+  position: number
+  title: string
+  prompt: string
+  payload: Record<string, unknown>
+  marks: number
+  skill_tag: string
+  is_required: boolean
+  created_at?: string
+}
+
+export interface Assessment {
+  id: string
+  job_id: string | null
+  hiring_stage_id: string | null
+  name: string
+  description: string
+  instructions: string
+  duration_minutes: number
+  passing_score: number
+  skills: string[]
+  status: AssessmentStatus
+  settings: AssessmentSettings
+  available_from: string | null
+  available_until: string | null
+  totalQuestions: number
+  totalMarks: number
+  created_at?: string
+  updated_at?: string
+}
+
+export interface AssessmentDetail extends Assessment {
+  questions: AssessmentQuestion[]
+  job: { id: string; title: string } | null
+  inviteCount: number
+}
+
+export interface CandidateInviteState {
+  status: string
+  sent_at: string
+  last_sent_at: string
+  send_count: number
+}
+
+export interface EligibleCandidate extends CandidateRecord {
+  invite: CandidateInviteState | null
+}
+
+export interface AssessmentInvite {
+  id: string
+  candidate_id: string
+  email: string
+  status: string
+  available_from: string | null
+  available_until: string | null
+  sent_at: string
+  last_sent_at: string
+  send_count: number
+  created_at: string
+  candidates?: { full_name?: string; email?: string } | null
+}
+
+export interface InviteResult {
+  invited: Array<{ candidateId: string; email: string; link: string; sentAt: string }>
+  skippedAlreadyInvited: string[]
+  skippedMissingEmail: string[]
+}
