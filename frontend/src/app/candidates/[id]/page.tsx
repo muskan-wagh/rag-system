@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useCallback, useMemo } from "react"
+import { useState, useCallback, useMemo, useEffect } from "react"
 import { useParams } from "next/navigation"
 import Link from "next/link"
 import {
@@ -54,6 +54,8 @@ import {
   SimilarCandidatesBar,
 } from "@/components/candidate-brief"
 import { CandidateTimeline } from "@/components/candidate-timeline"
+import { HiringTab } from "@/components/hiring-tab"
+import { HiringProgressTracker } from "@/components/hiring-progress-tracker"
 import { ScheduleInterviewModal } from "@/components/schedule-interview-modal"
 import { RejectModal } from "@/components/reject-modal"
 import { MakeOfferModal } from "@/components/make-offer-modal"
@@ -61,6 +63,7 @@ import { toast } from "sonner"
 import { cn } from "@/lib/utils"
 
 const TABS = [
+  { id: "hiring", label: "Hiring", icon: BriefcaseBusiness },
   { id: "overview", label: "Overview", icon: LayoutGrid },
   { id: "ai-brief", label: "AI Brief", icon: Sparkles },
   { id: "skills", label: "Skills", icon: Tags },
@@ -414,6 +417,7 @@ export default function CandidateDetailPage() {
           {!record.email && (
             <p className="text-[11.5px] text-faint">No email on file — email outreach unavailable.</p>
           )}
+          <CandidateHeaderProgress candidateId={candidateId} />
         </div>
       </div>
 
@@ -435,6 +439,10 @@ export default function CandidateDetailPage() {
           </button>
         ))}
       </div>
+
+      {activeTab === "hiring" && (
+        <HiringTab candidateId={candidateId} />
+      )}
 
       {activeTab === "overview" && (
         <div className="grid items-start gap-4 lg:grid-cols-3 lg:gap-5">
@@ -926,6 +934,27 @@ export default function CandidateDetailPage() {
           mutate(briefKey)
         }}
       />
+    </div>
+  )
+}
+
+function CandidateHeaderProgress({ candidateId }: { candidateId: string }) {
+  const api = useApi()
+  const [stages, setStages] = useState<Array<{ stage: string; state: "completed" | "current" | "upcoming"; score: number | null }>>([])
+  useEffect(() => {
+    let alive = true
+    api.getHiringProgress(candidateId).then((res) => {
+      if (alive && res.success && res.data) setStages(res.data.stages as typeof stages)
+    }).catch(() => {})
+    return () => {
+      alive = false
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- header progress loads once per candidate
+  }, [candidateId])
+  if (stages.length === 0) return null
+  return (
+    <div className="mt-3 border-t border-border pt-3">
+      <HiringProgressTracker stages={stages} variant="recruiter" />
     </div>
   )
 }

@@ -226,3 +226,69 @@ export const eligibleQuerySchema = z.object({
   limit: z.string().optional(),
   search: z.string().max(200).optional(),
 });
+
+// === CANDIDATE ASSESSMENT (session-cookie auth; never trust body IDs) ===
+
+export const exchangeTokenSchema = z.object({
+  token: z.string().min(10, 'token is required').max(500),
+});
+
+export const candidateAttemptParamSchema = z.object({
+  attemptId: nonEmptyString,
+});
+
+export const saveAnswerSchema = z.object({
+  questionId: nonEmptyString,
+  answer: z.unknown().optional(),
+  language: z.string().max(50).optional(),
+  code: z.string().max(65536).optional(),
+});
+
+export const runCodeSchema = z.object({
+  questionId: nonEmptyString,
+  language: z.string().min(1).max(50),
+  sourceCode: z.string().min(1, 'sourceCode is required').max(65536),
+  stdin: z.string().max(16384).optional().default(''),
+});
+
+export const proctoringEventSchema = z.object({
+  eventType: z.enum([
+    'TAB_SWITCH',
+    'FULLSCREEN_EXIT',
+    'COPY',
+    'PASTE',
+    'CAMERA_DISABLED',
+    'MIC_DISABLED',
+    'NETWORK_DISCONNECTED',
+    'NETWORK_RECONNECTED',
+  ]),
+  metadata: z.record(z.string(), z.unknown()).optional().default({}),
+});
+
+export const screeningRunSchema = z.object({
+  candidateIds: z.array(z.string().min(1)).max(200).optional(),
+  jdText: z.string().min(1).max(20000).optional(),
+});
+
+export const screeningOverrideSchema = z.object({
+  advance: z.boolean(),
+  reason: z.string().max(2000).optional().default(''),
+});
+
+export const interviewEvaluationSchema = z.object({
+  technicalKnowledge: z.number().int().min(1).max(5).optional(),
+  problemSolving: z.number().int().min(1).max(5).optional(),
+  communication: z.number().int().min(1).max(5).optional(),
+  codeQuality: z.number().int().min(1).max(5).optional(),
+  overallRecommendation: z.enum(['strong_hire', 'hire', 'no_hire', 'strong_no_hire', 'hold']),
+  summary: z.string().max(5000).optional().default(''),
+  privateNotes: z.string().max(10000).optional().default(''),
+  interviewerName: z.string().max(200).optional().default(''),
+});
+
+export const scheduleStageInterviewSchema = z.object({
+  interviewerName: z.string().max(200).optional().default(''),
+  scheduledDate: z.string().min(1).optional(),
+  scheduledTime: z.string().min(1).optional(),
+  meetingLink: z.string().max(1000).optional().default(''),
+});

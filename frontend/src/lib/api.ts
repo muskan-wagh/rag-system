@@ -567,5 +567,73 @@ export function createApiClient(getToken: () => Promise<string | null>) {
           a,
         ),
       ),
+
+    // === Unified hiring workflow ===
+    runScreening: (jobId: string, data?: { candidateIds?: string[]; jdText?: string }) =>
+      withAuth((a) =>
+        request<{ queued: boolean }>(`/jobs/${jobId}/screening/run`, {
+          method: "POST",
+          body: JSON.stringify(data || {}),
+        }, a),
+      ),
+
+    listScreeningResults: (jobId: string) =>
+      withAuth((a) =>
+        request<Array<Record<string, unknown>>>(`/jobs/${jobId}/screening/results`, { method: "GET" }, a),
+      ),
+
+    getScreeningResult: (jobId: string, candidateId: string) =>
+      withAuth((a) =>
+        request<Record<string, unknown>>(`/jobs/${jobId}/screening/results/${candidateId}`, { method: "GET" }, a),
+      ),
+
+    overrideScreening: (jobId: string, candidateId: string, advance: boolean, reason?: string) =>
+      withAuth((a) =>
+        request<{ overridden: boolean }>(`/jobs/${jobId}/screening/${candidateId}/${advance ? "advance" : "reject"}`, {
+          method: "POST",
+          body: JSON.stringify({ advance, reason: reason || "" }),
+        }, a),
+      ),
+
+    getHiringProgress: (candidateId: string, jobId?: string) =>
+      withAuth((a) => {
+        const qs = jobId ? `?jobId=${encodeURIComponent(jobId)}` : "";
+        return request<{
+          stages: Array<{ stage: string; state: string; score: number | null; status: string | null }>;
+          currentStage: string | null;
+          timeline: Array<Record<string, unknown>>;
+        }>(`/candidates/${candidateId}/hiring-progress${qs}`, { method: "GET" }, a);
+      }),
+
+    getInterviewStage: (candidateId: string) =>
+      withAuth((a) =>
+        request<{ interviews: unknown[]; invites: unknown[]; evaluations: unknown[] }>(
+          `/candidates/${candidateId}/interview-stage`,
+          { method: "GET" },
+          a,
+        ),
+      ),
+
+    scheduleStageInterview: (candidateId: string, data: Record<string, unknown>) =>
+      withAuth((a) =>
+        request<{ interviewId: string; inviteLink: string }>(
+          `/candidates/${candidateId}/interview-stage/schedule`,
+          { method: "POST", body: JSON.stringify(data) },
+          a,
+        ),
+      ),
+
+    submitInterviewEvaluation: (interviewId: string, data: Record<string, unknown>) =>
+      withAuth((a) =>
+        request<{ saved: boolean }>(`/interviews/${interviewId}/evaluation`, {
+          method: "POST",
+          body: JSON.stringify(data),
+        }, a),
+      ),
+
+    listProctoring: (attemptId: string) =>
+      withAuth((a) =>
+        request<Array<Record<string, unknown>>>(`/proctoring/attempts/${attemptId}`, { method: "GET" }, a),
+      ),
   }
 }

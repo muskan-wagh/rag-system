@@ -124,6 +124,14 @@ export const config = Object.freeze({
     redirectUri: optional("GOOGLE_REDIRECT_URI", ""),
   },
 
+  gmailTokenEncryptionKey: optional("GMAIL_TOKEN_ENCRYPTION_KEY", ""),
+
+  judge0: {
+    baseUrl: optional("JUDGE0_BASE_URL", ""),
+    apiKey: optional("JUDGE0_API_KEY", ""),
+    timeoutMs: parseInt(optional("JUDGE0_TIMEOUT_MS", "10000"), 10),
+  },
+
   redis: {
     url: required("REDIS_URL"),
   },
