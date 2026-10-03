@@ -63,10 +63,18 @@ export function getGmailAuthUrl(recruiterId: string): string {
   });
 }
 
-export async function exchangeGmailCode(code: string): Promise<{
+export interface GmailExchangeResult {
   refreshToken: string;
   connectedEmail: string;
-}> {
+  /** @deprecated use connectedEmail */
+  email?: string;
+  accessToken: string | null;
+  expiry: Date | null;
+  googleAccountId: string;
+  scopes: string[];
+}
+
+export async function exchangeGmailCode(code: string): Promise<GmailExchangeResult> {
   const client = getOAuthClient();
   const { tokens } = await client.getToken(code);
   if (!tokens.refresh_token) {
@@ -77,16 +85,67 @@ export async function exchangeGmailCode(code: string): Promise<{
   const { data } = await oauth2.userinfo.get();
   const email = data.email || '';
   if (!email) throw new Error('Could not determine the connected Gmail address.');
+  const googleAccountId = (data as { id?: string }).id || '';
+  const expiry = tokens.expiry_date ? new Date(tokens.expiry_date) : null;
   logger.info('Gmail OAuth connected');
-  return { refreshToken: tokens.refresh_token, connectedEmail: email };
+  return {
+    refreshToken: tokens.refresh_token,
+    connectedEmail: email,
+    email,
+    accessToken: tokens.access_token || null,
+    expiry,
+    googleAccountId,
+    scopes: [...GMAIL_SCOPES],
+  };
 }
 
 export async function getGmailAccessToken(refreshToken: string): Promise<string> {
+  const { accessToken } = await refreshGmailAccessToken(refreshToken);
+  return accessToken;
+}
+
+/**
+ * Refresh using the stored refresh token. Returns access token + expiry.
+ * Caller decides when to refresh (expired or <5 min to expiry) — never
+ * refresh-on-every-send from the service layer.
+ */
+export async function refreshGmailAccessToken(refreshToken: string): Promise<{
+  accessToken: string;
+  expiry: Date | null;
+}> {
   const client = getOAuthClient();
   client.setCredentials({ refresh_token: refreshToken });
-  const { token } = await client.getAccessToken();
+  const { token, res } = await client.getAccessToken();
   if (!token) throw new Error('Could not refresh Gmail access token. Reconnect Gmail.');
-  return token;
+  // google-auth-library returns expiry in res.data.expires_in (seconds).
+  let expiry: Date | null = null;
+  try {
+    const seconds = (res?.data as { expires_in?: number } | undefined)?.expires_in;
+    if (typeof seconds === 'number' && Number.isFinite(seconds)) {
+      expiry = new Date(Date.now() + seconds * 1000);
+    }
+  } catch {
+    expiry = null;
+  }
+  return { accessToken: token, expiry };
+}
+
+/** Best-effort Google token revocation on disconnect. Never throws. */
+export async function revokeGoogleToken(token: string): Promise<void> {
+  try {
+    const client = getOAuthClient();
+    await client.revokeToken(token);
+  } catch (err) {
+    logger.warn('Google token revocation failed (non-fatal)', {
+      error: err instanceof Error ? err.message : String(err),
+    });
+  }
+}
+
+/** True when the cached access token is missing/expired/close to expiry. */
+export function isAccessTokenStale(accessToken: string | null, expiry: Date | null): boolean {
+  if (!accessToken || !expiry) return true;
+  return expiry.getTime() - Date.now() < 5 * 60 * 1000;
 }
 
 export async function getGmailProfileEmail(refreshToken: string): Promise<string> {
