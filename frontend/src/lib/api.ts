@@ -571,10 +571,24 @@ export function createApiClient(getToken: () => Promise<string | null>) {
     // === Unified hiring workflow ===
     runScreening: (jobId: string, data?: { candidateIds?: string[]; jdText?: string }) =>
       withAuth((a) =>
-        request<{ queued: boolean }>(`/jobs/${jobId}/screening/run`, {
+        request<{ queued: boolean; deduplicated: boolean }>(`/jobs/${jobId}/screening/run`, {
           method: "POST",
           body: JSON.stringify(data || {}),
         }, a),
+      ),
+
+    getScreeningStatus: (jobId: string) =>
+      withAuth((a) =>
+        request<{
+          queueState: string;
+          screened: number;
+          passed: number;
+          failed: number;
+          overridden: number;
+          pending: number;
+          totalCandidates: number;
+          lastUpdated: string | null;
+        }>(`/jobs/${jobId}/screening/status`, { method: "GET" }, a),
       ),
 
     listScreeningResults: (jobId: string) =>

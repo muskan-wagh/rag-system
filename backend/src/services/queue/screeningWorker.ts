@@ -29,12 +29,26 @@ export async function processScreeningJob(job: Job<ScreeningJobData>): Promise<v
       .order('created_at', { ascending: false })
       .limit(50);
     ids = ((cands || []) as Array<{ id: string }>).map((c) => c.id);
+  } else {
+    // Defense in depth (req 9): explicit ids are re-scoped to the
+    // recruiter's own candidates — foreign ids are silently dropped.
+    const { data: owned } = await supabase
+      .from('candidates')
+      .select('id')
+      .eq('recruiter_id', recruiterId)
+      .in('id', ids);
+    const allowed = new Set(((owned || []) as Array<{ id: string }>).map((c) => c.id));
+    const dropped = ids.length - allowed.size;
+    if (dropped > 0) {
+      logger.warn('[screening-worker] dropped non-owned candidate ids', { jobId, dropped });
+    }
+    ids = ids.filter((id) => allowed.has(id));
   }
 
   logger.info('[screening-worker] bulk screening started', { jobId, count: ids.length });
   for (const candidateId of ids.slice(0, 200)) {
     try {
-      await runScreeningForCandidate(jobId, candidateId, jd);
+      await runScreeningForCandidate(jobId, candidateId, jd, 60, recruiterId);
     } catch (err) {
       logger.warn('[screening-worker] candidate failed (continuing)', {
         candidateId,

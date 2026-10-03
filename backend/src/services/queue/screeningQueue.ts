@@ -40,17 +40,29 @@ export function screeningJobId(jobId: string): string {
   return `screen-${jobId}`.replace(/[^a-zA-Z0-9-_]/g, '').slice(0, 200);
 }
 
-export async function enqueueScreeningJob(data: ScreeningJobData): Promise<{ jobId: string | undefined }> {
+export async function enqueueScreeningJob(data: ScreeningJobData): Promise<{ jobId: string | undefined; deduplicated: boolean }> {
   const q = await getScreeningQueue();
   const jobId = screeningJobId(data.jobId);
+  const existing = await q.getJob(jobId).catch(() => null);
+  if (existing) {
+    const state = await existing.getState().catch(() => 'unknown');
+    // Live job (waiting/active/delayed/prioritized): collapse duplicate.
+    if (state === 'active' || state === 'waiting' || state === 'delayed' || state === 'prioritized') {
+      logger.info('Screening job already queued — duplicate suppressed', { jobId, state });
+      return { jobId: existing.id, deduplicated: true };
+    }
+    // Terminal stub (completed/failed): allow explicit re-run/retry by
+    // removing the stub so a fresh run is enqueued (req 8 + 13).
+    await existing.remove().catch(() => {});
+  }
   try {
     const added = await q.add('screen-job', data, { jobId });
-    return { jobId: added.id };
+    return { jobId: added.id, deduplicated: false };
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
     if (/already exists|duplicate|JobExists/i.test(message)) {
-      logger.info('Screening job already queued — duplicate suppressed', { jobId });
-      return { jobId };
+      logger.info('Screening job raced — duplicate suppressed', { jobId });
+      return { jobId, deduplicated: true };
     }
     throw err;
   }

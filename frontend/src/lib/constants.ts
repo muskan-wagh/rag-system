@@ -17,12 +17,15 @@ export const ROUTES = {
   assessments: "/assessments",
   assessmentNew: "/assessments/new",
   assessmentDetail: (id: string) => `/assessments/${id}`,
+  jobs: "/jobs",
+  jobScreening: (id: string) => `/jobs/${id}/screening`,
 } as const
 
 export const NAV_ITEMS = [
   { href: "/dashboard", label: "Dashboard" },
   { href: "/candidates", label: "Candidates" },
   { href: "/candidates/search", label: "Search" },
+  { href: "/jobs", label: "Jobs" },
   { href: "/pools", label: "Pools" },
   { href: "/compare", label: "Compare" },
   { href: "/interview", label: "Interviews" },
