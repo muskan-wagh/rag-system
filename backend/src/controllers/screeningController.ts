@@ -3,7 +3,7 @@ import { asyncHandler } from '@/utils/asyncHandler';
 import { getSupabaseClient } from '@/services/supabase/client';
 import { AppError } from '@/middleware/errorHandler';
 import { ErrorCodes } from '@/middleware/errorCodes';
-import { enqueueScreeningJob } from '@/services/queue/screeningQueue';
+import { enqueueScreeningJob, getScreeningQueue, screeningJobId } from '@/services/queue/screeningQueue';
 import { parseJD } from '@/services/llm/parseJD';
 import { generateEmbedding } from '@/services/embedding';
 import { searchByEmbedding } from '@/services/qdrant/searchCandidates';
@@ -24,7 +24,7 @@ async function computeScreening(jobId: string, candidateId: string, jdText: stri
   const supabase = getSupabaseClient();
   const { data: candidate } = await supabase
     .from('candidates')
-    .select('id, full_name, total_experience_years, parsed_json, raw_resume_text')
+    .select('id, full_name, total_experience_years, parsed_json, raw_resume_text, recruiter_id, current_status')
     .eq('id', candidateId)
     .maybeSingle();
   if (!candidate) throw new Error('Candidate not found');
@@ -90,8 +90,26 @@ async function computeScreening(jobId: string, candidateId: string, jdText: stri
   return { semantic, skills, experience, education, overall, matched, missing, explanation };
 }
 
-export async function runScreeningForCandidate(jobId: string, candidateId: string, jdText: string, passThreshold = 60) {
+export async function runScreeningForCandidate(
+  jobId: string,
+  candidateId: string,
+  jdText: string,
+  passThreshold = 60,
+  recruiterId?: string,
+) {
   const supabase = getSupabaseClient();
+
+  // Ownership: only the recruiter's own candidates may be screened.
+  if (recruiterId) {
+    const { data: owner } = await supabase
+      .from('candidates')
+      .select('id, recruiter_id')
+      .eq('id', candidateId)
+      .eq('recruiter_id', recruiterId)
+      .maybeSingle();
+    if (!owner) throw new Error('Candidate not found or not owned by recruiter');
+  }
+
   const r = await computeScreening(jobId, candidateId, jdText);
   const aiStatus = r.overall >= passThreshold ? 'passed' : 'failed';
   const { error } = await supabase.from('screening_results').upsert(
@@ -115,6 +133,33 @@ export async function runScreeningForCandidate(jobId: string, candidateId: strin
     { onConflict: 'job_id,candidate_id' },
   );
   if (error) throw new Error(`Failed to persist screening: ${error.message}`);
+
+  // Pass -> Assessment-eligible (req 10). Status advance only — the
+  // assessment invitation email stays strictly recruiter-controlled
+  // (req 11): nothing here enqueues or sends any email.
+  // Never downgrade a candidate already past Screening.
+  if (aiStatus === 'passed') {
+    const { data: current } = await supabase
+      .from('candidates')
+      .select('current_status')
+      .eq('id', candidateId)
+      .maybeSingle();
+    const cur = String((current as { current_status?: string } | null)?.current_status || 'Applied');
+    if (['Applied', 'Shortlisted'].includes(cur)) {
+      await supabase.from('candidates').update({ current_status: 'Screening' }).eq('id', candidateId);
+      await supabase.from('candidate_status_log').insert({
+        candidate_id: candidateId,
+        status: 'Screening',
+        details: {
+          action: 'screening_passed',
+          job_id: jobId,
+          ai_overall: r.overall,
+          threshold: passThreshold,
+        },
+      });
+    }
+  }
+
   return { candidateId, ...r, aiStatus };
 }
 
@@ -133,7 +178,7 @@ export const runScreeningHandler = asyncHandler(async (req: Request, res: Respon
   const jd = String(jdText || (job as { description?: string }).description || (job as { title?: string }).title || '');
   if (!jd.trim()) throw new AppError('jdText or job description is required', 400, ErrorCodes.VALIDATION_ERROR);
 
-  const { jobId: queuedId } = await enqueueScreeningJob({
+  const { jobId: queuedId, deduplicated } = await enqueueScreeningJob({
     jobId,
     recruiterId: recruiter.id,
     candidateIds: Array.isArray(candidateIds) ? candidateIds : undefined,
@@ -146,7 +191,55 @@ export const runScreeningHandler = asyncHandler(async (req: Request, res: Respon
     { onConflict: 'job_id,stage_type' },
   );
 
-  res.status(202).json({ success: true, data: { queued: true, bullmqJobId: queuedId } });
+  res.status(202).json({ success: true, data: { queued: true, deduplicated, bullmqJobId: queuedId } });
+});
+
+// GET /jobs/:jobId/screening/status — run state + counts for
+// loading/progress/failure/retry UI (req 13).
+export const getScreeningStatusHandler = asyncHandler(async (req: Request, res: Response) => {
+  const recruiter = req.recruiter;
+  if (!recruiter) throw new AppError('Unauthorized', 401, ErrorCodes.NOT_FOUND);
+  const jobId = String((req.params as Record<string, unknown>).jobId || "");
+  const supabase = getSupabaseClient();
+  const { data: job } = await supabase.from('jobs').select('id, recruiter_id').eq('id', jobId).maybeSingle();
+  if (!job || (job as { recruiter_id: string }).recruiter_id !== recruiter.id) {
+    throw new AppError('Job not found', 404, ErrorCodes.NOT_FOUND);
+  }
+
+  let queueState: string = 'none';
+  try {
+    const q = await getScreeningQueue();
+    const bullJob = await q.getJob(screeningJobId(jobId));
+    queueState = bullJob ? await bullJob.getState().catch(() => 'unknown') : 'none';
+  } catch {
+    queueState = 'unavailable';
+  }
+
+  const { data: rows } = await supabase.from('screening_results').select('status, updated_at').eq('job_id', jobId);
+  const list = (rows || []) as Array<{ status: string; updated_at: string }>;
+  const count = (s: string) => list.filter((r) => r.status === s).length;
+  const { count: totalCandidates } = await supabase
+    .from('candidates')
+    .select('id', { count: 'exact', head: true })
+    .eq('recruiter_id', recruiter.id);
+  const lastUpdated = list.reduce<string | null>(
+    (max, r) => (!max || r.updated_at > max ? r.updated_at : max),
+    null,
+  );
+
+  res.json({
+    success: true,
+    data: {
+      queueState,
+      screened: list.length,
+      passed: count('passed'),
+      failed: count('failed'),
+      overridden: count('overridden'),
+      pending: count('pending'),
+      totalCandidates: totalCandidates || 0,
+      lastUpdated,
+    },
+  });
 });
 
 // GET /jobs/:jobId/screening/results
@@ -198,6 +291,14 @@ async function overrideScreening(req: Request, res: Response, advance: boolean) 
   if (!job || (job as { recruiter_id: string }).recruiter_id !== recruiter.id) {
     throw new AppError('Job not found', 404, ErrorCodes.NOT_FOUND);
   }
+  // Candidate must belong to the recruiter (req 9).
+  const { data: owned } = await supabase
+    .from('candidates')
+    .select('id')
+    .eq('id', candidateId)
+    .eq('recruiter_id', recruiter.id)
+    .maybeSingle();
+  if (!owned) throw new AppError('Candidate not found', 404, ErrorCodes.NOT_FOUND);
   const { data: current } = await supabase
     .from('screening_results')
     .select('*')

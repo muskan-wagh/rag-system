@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import {
   runScreeningHandler,
+  getScreeningStatusHandler,
   listScreeningResultsHandler,
   getScreeningResultHandler,
   advanceScreeningHandler,
@@ -11,6 +12,7 @@ import { validate, screeningRunSchema, screeningOverrideSchema } from '@/middlew
 const router = Router();
 
 router.post('/:jobId/screening/run', validate(screeningRunSchema), runScreeningHandler);
+router.get('/:jobId/screening/status', getScreeningStatusHandler);
 router.get('/:jobId/screening/results', listScreeningResultsHandler);
 router.get('/:jobId/screening/results/:candidateId', getScreeningResultHandler);
 router.post('/:jobId/screening/:candidateId/advance', validate(screeningOverrideSchema), advanceScreeningHandler);
