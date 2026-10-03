@@ -106,4 +106,17 @@ export const candidateApi = {
     }>("/candidate/interview/exchange", { method: "POST", body: JSON.stringify({ token }) }),
   getInterview: () =>
     candidateRequest<Record<string, unknown>>("/candidate/interview", { method: "GET" }),
+  getInterviewCodingSession: () =>
+    candidateRequest<Record<string, unknown>>("/candidate/interview/coding-session", { method: "GET" }),
+  updateInterviewCode: (code: string, version: number) =>
+    candidateRequest<{ version: number; deduplicated?: boolean }>("/candidate/interview/coding-session/code", {
+      method: "PATCH",
+      body: JSON.stringify({ code, version }),
+    }),
+  runInterviewCode: () =>
+    candidateRequest<Record<string, unknown>>("/candidate/interview/coding-session/run", {
+      method: "POST",
+      body: JSON.stringify({}),
+    }),
+  getMyReport: () => candidateRequest<Record<string, unknown>>("/candidate/report", { method: "GET" }),
 };

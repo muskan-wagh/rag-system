@@ -12,7 +12,8 @@ import assessmentRoutes from './assessmentRoutes';
 import jobRoutes from './jobRoutes';
 import candidateAssessmentRoutes from './candidateAssessmentRoutes';
 import screeningRoutes from './screeningRoutes';
-import { interviewEvaluationRouter, interviewCandidateRouter } from './interviewFlowRoutes';
+import { interviewEvaluationRouter, interviewCandidateRouter, interviewLiveRecruiterRouter } from './interviewFlowRoutes';
+import { candidateReportRouter } from './reportRoutes';
 import { getCandidateProgressHandler, getHiringProgressHandler } from '@/controllers/progressController';
 import { candidateAuthMiddleware } from '@/middleware/candidateAuth';
 import { logProctoringHandler, listProctoringHandler } from '@/controllers/proctoringController';
@@ -43,6 +44,7 @@ router.use('/jobs', screeningRoutes);
 // Candidate public + session-authed routes (authMiddleware allows /api/candidate; session checked inside).
 router.use('/candidate', candidateAssessmentRoutes);
 router.use('/candidate', interviewCandidateRouter);
+router.use('/candidate', candidateReportRouter);
 router.get('/candidate/progress', candidateAuthMiddleware, getCandidateProgressHandler);
 router.post(
   '/candidate/attempts/:attemptId/proctoring',
@@ -50,8 +52,9 @@ router.post(
   validate(proctoringEventSchema),
   logProctoringHandler,
 );
-// Recruiter interview evaluations + proctoring review.
+// Recruiter interview evaluations + lifecycle + live coding + proctoring review.
 router.use('/interviews', interviewEvaluationRouter);
+router.use('/interviews', interviewLiveRecruiterRouter);
 router.get('/proctoring/attempts/:attemptId', listProctoringHandler);
 // Canonical Gmail integration routes (spec) + legacy aliases for the outreach modal.
 router.use('/integrations/gmail', integrationsGmailRoutes);

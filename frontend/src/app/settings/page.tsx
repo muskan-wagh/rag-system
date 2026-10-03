@@ -3,6 +3,7 @@
 import Link from "next/link"
 import { Bell, Key, Users, Palette, ChevronRight } from "lucide-react"
 import { PageHeader } from "@/components/ui/page-header"
+import { GmailSettingsCard } from "@/components/gmail-settings-card"
 
 const settingsSections = [
   {
@@ -38,6 +39,10 @@ export default function SettingsPage() {
         title="Settings"
         description="Manage your account and application settings"
       />
+
+      <div className="grid max-w-2xl gap-3">
+        <GmailSettingsCard />
+      </div>
 
       <div className="grid max-w-2xl gap-3">
         {settingsSections.map((section) => (

@@ -30,6 +30,14 @@ import {
   scheduleStageInterviewHandler,
 } from '@/controllers/interviewFlowController';
 import {
+  listReportsHandler,
+  generateReportHandler,
+  getReportHandler,
+  downloadReportHandler,
+  sendReportHandler,
+  finalDecisionHandler,
+} from '@/controllers/reportController';
+import {
   validate,
   searchSchema,
   compareSchema,
@@ -43,6 +51,9 @@ import {
   makeOfferSchema,
   sendGmailOutreachSchema,
   scheduleStageInterviewSchema,
+  generateReportSchema,
+  sendReportSchema,
+  finalDecisionSchema,
 } from '@/middleware/validate';
 
 const router = Router();
@@ -79,6 +90,29 @@ router.post(
   validate(idParamSchema, 'params'),
   validate(scheduleStageInterviewSchema),
   scheduleStageInterviewHandler,
+);
+// Candidate hiring reports + final decision (progressionService stays the progression truth;
+// final-decision persists first, report/email fan-out is idempotent + failure-isolated).
+router.get('/:id/reports', validate(idParamSchema, 'params'), listReportsHandler);
+router.post(
+  '/:id/reports/generate',
+  validate(idParamSchema, 'params'),
+  validate(generateReportSchema),
+  generateReportHandler,
+);
+router.get('/:id/reports/:reportId', validate(idParamSchema, 'params'), getReportHandler);
+router.get('/:id/reports/:reportId/download', validate(idParamSchema, 'params'), downloadReportHandler);
+router.post(
+  '/:id/reports/:reportId/send',
+  validate(idParamSchema, 'params'),
+  validate(sendReportSchema),
+  sendReportHandler,
+);
+router.post(
+  '/:id/final-decision',
+  validate(idParamSchema, 'params'),
+  validate(finalDecisionSchema),
+  finalDecisionHandler,
 );
 
 export default router;

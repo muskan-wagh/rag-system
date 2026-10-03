@@ -37,14 +37,15 @@ import { generateExplanations } from '@/services/llm/explainability';
 import { generateInterviewEmail } from '@/services/llm/emailTemplate';
 import { generateOutreachEmail } from '@/services/llm/outreachEmail';
 import { isGmailConfigured } from '@/services/gmail/oauth';
-import { isValidEmail, sendGmailMessage } from '@/services/gmail/send';
+import { isValidEmail } from '@/services/gmail/send';
+import { sendGmailEmail } from '@/services/gmail/gmailEmailService';
 import {
   getRecruiterGmailState,
-  getRecruiterGmailRefreshToken,
 } from '@/services/supabase/database';
 import { broadcast } from '@/services/websocket';
 import { logActivity } from '@/services/activity';
 import { enqueueEmail } from '@/services/queue/emailQueue';
+import { requestCandidateReportAfterDecision } from '@/services/reports/finalDecision';
 
 async function invalidateDashboard(req: Request): Promise<void> {
   const recruiterId = req.recruiter?.id;
@@ -500,6 +501,10 @@ export const acceptOfferHandler = asyncHandler(async (req: Request, res: Respons
 
   await invalidateDashboard(req);
   broadcast('candidate:status_changed', { candidateId: id, status: CANDIDATE_STATUS.HIRED });
+  // Final decision → candidate report + email. Failure-isolated: never fails the hire.
+  if (req.recruiter) {
+    void requestCandidateReportAfterDecision({ candidateId: id, recruiterId: req.recruiter.id, decision: 'Hired' });
+  }
   res.status(200).json({ success: true, data: { message: 'Candidate marked as hired' } });
 });
 
@@ -511,6 +516,10 @@ export const rejectCandidateHandler = asyncHandler(async (req: Request, res: Res
 
   await invalidateDashboard(req);
   broadcast('candidate:status_changed', { candidateId: id, status: CANDIDATE_STATUS.REJECTED });
+  // Final decision → candidate report + email. Failure-isolated: never fails the rejection.
+  if (req.recruiter) {
+    void requestCandidateReportAfterDecision({ candidateId: id, recruiterId: req.recruiter.id, decision: 'Rejected' });
+  }
   const r3 = req.recruiter;
   if (r3) {
     logActivity({
@@ -582,6 +591,27 @@ export const sendInterviewEmailHandler = asyncHandler(async (req: Request, res: 
 
   const emailSubject = subject || 'Interview Confirmation';
   const emailBody = body || `Dear Candidate,\n\nYour interview has been confirmed.\n\nDate: ${interview.scheduled_date}\nTime: ${interview.scheduled_time}\nType: ${interview.interview_type}\n${interview.meeting_link ? `Link: ${interview.meeting_link}\n` : ''}\n\nBest regards,\nHireStack Team`;
+
+  // Deliver through Resend (fire-and-forget queue; the email worker sends it).
+  // Previously this handler only logged + returned the draft, so the email
+  // never left the server despite the "sent" message.
+  const { data: emailCandidate } = await getSupabaseClient()
+    .from('candidates')
+    .select('email')
+    .eq('id', id)
+    .single();
+  const recipient = (emailCandidate as { email?: string } | null)?.email || '';
+  if (recipient) {
+    const escaped = emailBody
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+    enqueueEmail({
+      to: recipient,
+      subject: emailSubject,
+      html: `<div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 560px; margin: 0 auto; padding: 32px;"><p style="font-size: 16px; line-height: 1.6; color: #374151; white-space: pre-line;">${escaped}</p></div>`,
+    });
+  }
 
   await logEmail(id, 'interview_email', emailSubject, emailBody);
 
@@ -860,21 +890,18 @@ export const sendGmailOutreachHandler = asyncHandler(async (req: Request, res: R
     throw new AppError('Gmail is not configured on the server.', 503, ErrorCodes.INTERNAL_ERROR);
   }
 
-  const { to, subject, body } = req.body as { to?: string; subject?: string; body?: string };
+  const { to, subject, body, html, replyTo, idempotencyKey } = req.body as {
+    to?: string; subject?: string; body?: string; html?: string; replyTo?: string; idempotencyKey?: string;
+  };
   if (!to || !isValidEmail(String(to))) {
     throw new AppError('A valid recipient email is required.', 400, ErrorCodes.VALIDATION_ERROR);
   }
-  if (!subject?.trim() || !body?.trim()) {
+  if (!subject?.trim() || (!body?.trim() && !(html as string)?.trim())) {
     throw new AppError('Subject and body are required.', 400, ErrorCodes.VALIDATION_ERROR);
   }
 
   const gmailState = await getRecruiterGmailState(recruiter.id);
   if (!gmailState.connected) {
-    res.status(409).json({ success: false, code: 'GMAIL_NOT_CONNECTED', error: 'Gmail is not connected. Please connect Gmail first.' });
-    return;
-  }
-  const refreshToken = await getRecruiterGmailRefreshToken(recruiter.id);
-  if (!refreshToken) {
     res.status(409).json({ success: false, code: 'GMAIL_NOT_CONNECTED', error: 'Gmail is not connected. Please connect Gmail first.' });
     return;
   }
@@ -890,14 +917,21 @@ export const sendGmailOutreachHandler = asyncHandler(async (req: Request, res: R
   }
 
   try {
-    const { messageId } = await sendGmailMessage({
-      refreshToken,
+    // Central service handles token refresh, multipart MIME, idempotency + logging.
+    // idempotencyKey is event-specific and optional: same key suppresses
+    // accidental double-sends; absent key means each request is a new event
+    // (legitimate repeats with identical content still send).
+    const { messageId } = await sendGmailEmail({
+      recruiterId: recruiter.id,
       to: String(to),
       subject: String(subject),
-      textBody: String(body),
+      text: String(body || ''),
+      html: typeof html === 'string' && html.trim() ? String(html) : undefined,
+      replyTo: typeof replyTo === 'string' && replyTo.trim() ? String(replyTo) : undefined,
+      candidateId: id,
+      emailType: 'gmail_outreach',
+      idempotencyKey: typeof idempotencyKey === 'string' && idempotencyKey.trim() ? idempotencyKey.trim() : undefined,
     });
-
-    await logEmail(id, 'gmail_outreach', String(subject), String(body));
     logActivity({
       recruiterId: recruiter.id,
       actionType: 'email_sent',

@@ -14,6 +14,7 @@ import { runStartupRecovery } from '@/services/recovery';
 import { startEmailWorker } from '@/services/queue/emailWorker';
 import { startProgressionWorker } from '@/services/queue/progressionWorker';
 import { startScreeningWorker } from '@/services/queue/screeningWorker';
+import { startReportWorker } from '@/services/queue/reportWorker';
 
 // Job safeguards (concurrency stays 5 — see Worker opts below):
 // - lockDuration 180s: real jobs take 30-120s (2× LLM calls with 45s
@@ -246,6 +247,7 @@ async function startWorker(): Promise<void> {
   // hiring_progression_events idempotency + stable job ids.
   const progressionWorker = startProgressionWorker(connection);
   const screeningWorker = startScreeningWorker(connection);
+  const reportWorker = startReportWorker(connection);
 
   // Startup recovery: evaluate stuck candidates using the application's queue singleton
   await runStartupRecovery();
@@ -256,6 +258,7 @@ async function startWorker(): Promise<void> {
     await emailWorker.close();
     await progressionWorker.close();
     await screeningWorker.close();
+    await reportWorker.close();
     await worker.close();
     shutdownRedis();
     process.exit(0);
