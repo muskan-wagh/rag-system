@@ -11,6 +11,9 @@ import { calculateFlightRisk } from '@/services/llm/flightRisk';
 import { getQdrantClient } from '@/services/qdrant/client';
 import { publishEvent } from '@/services/events';
 import { runStartupRecovery } from '@/services/recovery';
+import { startEmailWorker } from '@/services/queue/emailWorker';
+import { startProgressionWorker } from '@/services/queue/progressionWorker';
+import { startScreeningWorker } from '@/services/queue/screeningWorker';
 
 // Job safeguards (concurrency stays 5 — see Worker opts below):
 // - lockDuration 180s: real jobs take 30-120s (2× LLM calls with 45s
@@ -233,12 +236,26 @@ async function startWorker(): Promise<void> {
 
   logger.info('BullMQ worker started and listening on queue: resume-processing');
 
+  // Email delivery for the `email-sending` queue (rejection/offer/interview
+  // via Resend). Separate Worker instance on the same connection — tiny
+  // one-shot HTTPS jobs, no impact on resume-processing concurrency.
+  const emailWorker = startEmailWorker(connection);
+
+  // Hiring progression (Assessment -> Technical -> HR) + bulk screening.
+  // Separate Worker instances on the same connection; retry-safe via
+  // hiring_progression_events idempotency + stable job ids.
+  const progressionWorker = startProgressionWorker(connection);
+  const screeningWorker = startScreeningWorker(connection);
+
   // Startup recovery: evaluate stuck candidates using the application's queue singleton
   await runStartupRecovery();
 
   // Graceful shutdown
   const shutdown = async () => {
     logger.info('Worker shutting down...');
+    await emailWorker.close();
+    await progressionWorker.close();
+    await screeningWorker.close();
     await worker.close();
     shutdownRedis();
     process.exit(0);

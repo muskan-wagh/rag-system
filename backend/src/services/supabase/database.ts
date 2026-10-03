@@ -845,22 +845,66 @@ export async function getCandidateTimeline(candidateId: string): Promise<Timelin
   return (data || []) as TimelineEntry[];
 }
 
+export interface LogEmailOptions {
+  recruiterId?: string;
+  provider?: string;
+  gmailMessageId?: string;
+  status?: string;
+  error?: string;
+  idempotencyKey?: string;
+}
+
+/** Reused email log. New columns are optional so old callers keep working. */
 export async function logEmail(
   candidateId: string,
   emailType: string,
   subject: string,
-  body: string
+  body: string,
+  options?: LogEmailOptions,
 ): Promise<void> {
   const supabase = getSupabaseClient();
-  const { error } = await supabase.from('email_logs').insert({
-    candidate_id: candidateId,
+  const row: Record<string, unknown> = {
+    candidate_id: candidateId || null,
     email_type: emailType,
     subject,
     body,
-  });
+  };
+  if (options?.recruiterId !== undefined) row.recruiter_id = options.recruiterId;
+  if (options?.provider !== undefined) row.provider = options.provider;
+  if (options?.gmailMessageId !== undefined) row.gmail_message_id = options.gmailMessageId;
+  if (options?.status !== undefined) row.status = options.status;
+  if (options?.error !== undefined) row.error = options.error;
+  if (options?.idempotencyKey !== undefined) row.idempotency_key = options.idempotencyKey;
+  const { error } = await supabase.from('email_logs').insert(row);
   if (error) {
+    // Idempotency races (same event key twice) are expected — don't error loudly.
+    if (error.code === '23505') {
+      logger.info('email log duplicate suppressed by idempotency key');
+      return;
+    }
     logger.error('Failed to log email', { error: error.message });
   }
+}
+
+/** Event-keyed lookup for Gmail idempotency (same recruiter + same event key). */
+export async function findSentEmailByIdempotencyKey(
+  recruiterId: string,
+  idempotencyKey: string,
+): Promise<{ gmail_message_id: string | null } | null> {
+  const supabase = getSupabaseClient();
+  const { data, error } = await supabase
+    .from('email_logs')
+    .select('gmail_message_id, status')
+    .eq('recruiter_id', recruiterId)
+    .eq('idempotency_key', idempotencyKey)
+    .eq('status', 'sent')
+    .limit(1)
+    .maybeSingle();
+  if (error) {
+    logger.warn('idempotency lookup failed', { error: error.message });
+    return null;
+  }
+  return (data as { gmail_message_id: string | null } | null) || null;
 }
 
 export async function getNewSessionStats(sessionId: string): Promise<NewSessionStats> {
@@ -1054,7 +1098,12 @@ export async function getStuckCandidates(): Promise<CandidateRecord[]> {
   return (data || []) as CandidateRecord[];
 }
 
-// === GMAIL OAUTH (per-recruiter, server-side refresh tokens only) ===
+// === GMAIL OAUTH (canonical store: gmail_connections, encrypted) ===
+// Legacy recruiters.gmail_* helpers below are thin backward-compatible
+// wrappers over services/gmail/store.ts. New code must import from
+// '@/services/gmail/store' directly. The store lazily migrates any legacy
+// plaintext token into the encrypted table then NULLs the legacy columns,
+// so no duplicate active storage remains.
 
 export interface RecruiterGmailState {
   connected: boolean;
@@ -1062,63 +1111,28 @@ export interface RecruiterGmailState {
 }
 
 export async function getRecruiterGmailState(recruiterId: string): Promise<RecruiterGmailState> {
-  const supabase = getSupabaseClient();
-  const { data, error } = await supabase
-    .from('recruiters')
-    .select('gmail_connected_email, gmail_refresh_token')
-    .eq('id', recruiterId)
-    .maybeSingle();
-  if (error) {
-    throw new AppError('Failed to get Gmail status', 500, ErrorCodes.DATABASE_ERROR);
-  }
-  const row = data as { gmail_connected_email?: string | null; gmail_refresh_token?: string | null } | null;
-  const connected = Boolean(row?.gmail_refresh_token && row?.gmail_connected_email);
-  return { connected, email: connected ? String(row?.gmail_connected_email) : '' };
+  const { getGmailConnection } = await import('@/services/gmail/store');
+  const state = await getGmailConnection(recruiterId);
+  return { connected: state.connected, email: state.email };
 }
 
 export async function getRecruiterGmailRefreshToken(recruiterId: string): Promise<string | null> {
-  const supabase = getSupabaseClient();
-  const { data, error } = await supabase
-    .from('recruiters')
-    .select('gmail_refresh_token')
-    .eq('id', recruiterId)
-    .maybeSingle();
-  if (error) {
-    throw new AppError('Failed to get Gmail credentials', 500, ErrorCodes.DATABASE_ERROR);
-  }
-  const token = (data as { gmail_refresh_token?: string | null } | null)?.gmail_refresh_token;
-  return token || null;
+  const { getGmailCredentials } = await import('@/services/gmail/store');
+  const creds = await getGmailCredentials(recruiterId);
+  return creds?.refreshToken || null;
 }
 
 export async function setRecruiterGmail(recruiterId: string, connectedEmail: string, refreshToken: string): Promise<void> {
-  const supabase = getSupabaseClient();
-  const { error } = await supabase
-    .from('recruiters')
-    .update({
-      gmail_connected_email: connectedEmail,
-      gmail_refresh_token: refreshToken,
-      gmail_connected_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    })
-    .eq('id', recruiterId);
-  if (error) {
-    throw new AppError('Failed to save Gmail connection', 500, ErrorCodes.DATABASE_ERROR);
-  }
+  const { upsertGmailConnection } = await import('@/services/gmail/store');
+  await upsertGmailConnection({
+    recruiterId, googleAccountId: '', email: connectedEmail, refreshToken,
+    scopes: ['https://www.googleapis.com/auth/gmail.send'],
+  });
 }
 
 export async function clearRecruiterGmail(recruiterId: string): Promise<void> {
-  const supabase = getSupabaseClient();
-  const { error } = await supabase
-    .from('recruiters')
-    .update({
-      gmail_connected_email: null,
-      gmail_refresh_token: null,
-      updated_at: new Date().toISOString(),
-    })
-    .eq('id', recruiterId);
-  if (error) {
-    throw new AppError('Failed to disconnect Gmail', 500, ErrorCodes.DATABASE_ERROR);
-  }
+  const { deleteGmailConnection } = await import('@/services/gmail/store');
+  await deleteGmailConnection(recruiterId);
 }
 
 

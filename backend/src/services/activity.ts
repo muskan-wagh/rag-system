@@ -14,7 +14,10 @@ export type ActionType =
   | 'note_added'
   | 'saved_search_created'
   | 'talent_pool_created'
-  | 'candidate_added_to_pool';
+  | 'candidate_added_to_pool'
+  | 'assessment_created'
+  | 'assessment_published'
+  | 'assessment_invite_sent';
 
 export async function logActivity(params: {
   recruiterId: string;

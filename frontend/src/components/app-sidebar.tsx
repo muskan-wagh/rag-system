@@ -15,6 +15,7 @@ import {
   History,
   Settings,
   LogOut,
+  ClipboardList,
 } from "lucide-react"
 import { BrandLogo } from "@/components/brand"
 
@@ -28,6 +29,7 @@ const navSections = [
       { href: "/compare", label: "Compare", icon: GitCompareArrows, iconClass: "text-warning" },
       { href: "/pools", label: "Pools", icon: Layers, iconClass: "text-info" },
       { href: "/interview", label: "Interviews", icon: CalendarDays, iconClass: "text-success" },
+      { href: "/assessments", label: "Assessments", icon: ClipboardList, iconClass: "text-warning" },
     ],
   },
   {

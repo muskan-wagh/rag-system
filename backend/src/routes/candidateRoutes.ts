@@ -24,6 +24,11 @@ import {
   getCandidateTimelineHandler,
   getCandidateBriefHandler,
 } from '@/controllers/candidateController';
+import { getHiringProgressHandler } from '@/controllers/progressController';
+import {
+  getInterviewStageHandler,
+  scheduleStageInterviewHandler,
+} from '@/controllers/interviewFlowController';
 import {
   validate,
   searchSchema,
@@ -37,6 +42,7 @@ import {
   rejectCandidateSchema,
   makeOfferSchema,
   sendGmailOutreachSchema,
+  scheduleStageInterviewSchema,
 } from '@/middleware/validate';
 
 const router = Router();
@@ -65,5 +71,14 @@ router.post('/:id/send-gmail', validate(idParamSchema, 'params'), validate(sendG
 router.get('/:id/timeline', validate(idParamSchema, 'params'), getCandidateTimelineHandler);
 router.get('/:id/similar', validate(idParamSchema, 'params'), getSimilarCandidatesHandler);
 router.get('/:id/brief', validate(idParamSchema, 'params'), getCandidateBriefHandler);
+// Unified hiring workflow (progression service is source of truth).
+router.get('/:id/hiring-progress', validate(idParamSchema, 'params'), getHiringProgressHandler);
+router.get('/:id/interview-stage', validate(idParamSchema, 'params'), getInterviewStageHandler);
+router.post(
+  '/:id/interview-stage/schedule',
+  validate(idParamSchema, 'params'),
+  validate(scheduleStageInterviewSchema),
+  scheduleStageInterviewHandler,
+);
 
 export default router;

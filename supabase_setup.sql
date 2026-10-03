@@ -480,10 +480,194 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- ============================================================
--- 16. Gmail OAuth (per-recruiter, server-side refresh tokens)
--- Tokens are read/written with the service_role key only.
--- Never expose gmail_refresh_token to the browser.
+-- 16. Gmail OAuth (LEGACY plaintext columns — DEPRECATED)
+-- New code uses gmail_connections (section 17) with AES-256-GCM
+-- encrypted tokens. Legacy columns are migrated lazily then NULLED.
+-- Do NOT write to these from new code.
 -- ============================================================
 ALTER TABLE recruiters ADD COLUMN IF NOT EXISTS gmail_connected_email TEXT DEFAULT '';
 ALTER TABLE recruiters ADD COLUMN IF NOT EXISTS gmail_refresh_token TEXT DEFAULT '';
 ALTER TABLE recruiters ADD COLUMN IF NOT EXISTS gmail_connected_at TIMESTAMPTZ;
+
+-- ============================================================
+-- 17. Gmail connections (canonical, encrypted token store)
+-- Tokens are read/written with the service_role key only.
+-- Never expose *_encrypted columns to the browser.
+-- ============================================================
+CREATE TABLE IF NOT EXISTS gmail_connections (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  recruiter_id UUID NOT NULL REFERENCES recruiters(id) ON DELETE CASCADE,
+  google_account_id TEXT NOT NULL DEFAULT '',
+  email TEXT NOT NULL,
+  access_token_encrypted TEXT,
+  refresh_token_encrypted TEXT NOT NULL,
+  token_expiry TIMESTAMPTZ,
+  scopes TEXT[] NOT NULL DEFAULT '{}',
+  status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active','revoked','error')),
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  last_used_at TIMESTAMPTZ
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS uq_gmail_conn_recruiter_account
+  ON gmail_connections(recruiter_id, google_account_id);
+CREATE UNIQUE INDEX IF NOT EXISTS uq_gmail_conn_recruiter_email
+  ON gmail_connections(recruiter_id, email);
+CREATE INDEX IF NOT EXISTS idx_gmail_conn_recruiter ON gmail_connections(recruiter_id);
+CREATE INDEX IF NOT EXISTS idx_gmail_conn_status ON gmail_connections(recruiter_id, status);
+
+-- email_logs extensions (provider-aware, event-keyed idempotency)
+ALTER TABLE email_logs ADD COLUMN IF NOT EXISTS recruiter_id UUID REFERENCES recruiters(id) ON DELETE SET NULL;
+ALTER TABLE email_logs ADD COLUMN IF NOT EXISTS provider TEXT DEFAULT 'resend';
+ALTER TABLE email_logs ADD COLUMN IF NOT EXISTS gmail_message_id TEXT;
+ALTER TABLE email_logs ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'sent';
+ALTER TABLE email_logs ADD COLUMN IF NOT EXISTS error TEXT;
+ALTER TABLE email_logs ADD COLUMN IF NOT EXISTS idempotency_key TEXT;
+
+CREATE UNIQUE INDEX IF NOT EXISTS uq_email_logs_recruiter_idem
+  ON email_logs(recruiter_id, idempotency_key)
+  WHERE idempotency_key IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_email_logs_recruiter_provider
+  ON email_logs(recruiter_id, provider);
+
+-- ============================================================
+-- 18. Recruiter Assessment Builder (2026-10-01) — RECRUITER SIDE ONLY
+-- Job -> Hiring Stage -> Assessment -> Questions + Invites
+-- (mirrors backend/supabase/migrations/20261001_assessments.sql)
+--
+-- FRESH INSTALLS ONLY. If your database already contains legacy
+-- assessment tables (jobs, assessments, assessment_questions,
+-- assessment_invites, hiring_rounds from the RAG pipeline), do NOT
+-- run this block — run backend/supabase/migrations/
+-- 20261001_assessments.sql instead (reconciliation v2, ADD COLUMN
+-- based, preserves data). Running the plain CREATEs below against
+-- such a DB fails (e.g. 42703 on missing columns) because
+-- CREATE TABLE IF NOT EXISTS skips tables whose schema differs.
+-- ============================================================
+
+-- Minimal jobs (upload_session_id is an OPTIONAL legacy bridge, never required)
+CREATE TABLE IF NOT EXISTS jobs (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  recruiter_id UUID NOT NULL REFERENCES recruiters(id) ON DELETE CASCADE,
+  upload_session_id UUID REFERENCES upload_sessions(id) ON DELETE SET NULL,
+  title TEXT NOT NULL,
+  description TEXT DEFAULT '',
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_jobs_recruiter
+  ON jobs(recruiter_id);
+
+-- Hiring stages: one row per (job, stage_type); API reuses existing rows
+CREATE TABLE IF NOT EXISTS hiring_stages (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  job_id UUID NOT NULL REFERENCES jobs(id) ON DELETE CASCADE,
+  recruiter_id UUID NOT NULL REFERENCES recruiters(id) ON DELETE CASCADE,
+  stage_type TEXT NOT NULL
+    CHECK (stage_type IN ('Screening','Assessment','Interview','Offer','Hired')),
+  position INT NOT NULL DEFAULT 0,
+  config JSONB NOT NULL DEFAULT '{}',
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(job_id, stage_type)
+);
+
+CREATE INDEX IF NOT EXISTS idx_hiring_stages_job
+  ON hiring_stages(job_id);
+
+-- Assessments (settings are config-only this phase; not enforced candidate-side)
+CREATE TABLE IF NOT EXISTS assessments (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  recruiter_id UUID NOT NULL REFERENCES recruiters(id) ON DELETE CASCADE,
+  job_id UUID REFERENCES jobs(id) ON DELETE SET NULL,
+  hiring_stage_id UUID REFERENCES hiring_stages(id) ON DELETE SET NULL,
+  name TEXT NOT NULL,
+  description TEXT DEFAULT '',
+  instructions TEXT DEFAULT '',
+  duration_minutes INT NOT NULL DEFAULT 60 CHECK (duration_minutes > 0),
+  passing_score NUMERIC NOT NULL DEFAULT 0 CHECK (passing_score >= 0),
+  skills TEXT[] NOT NULL DEFAULT '{}',
+  status TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('draft','published')),
+  settings JSONB NOT NULL DEFAULT '{"randomize_questions":false,"allow_revisit":true,"auto_submit":true}',
+  available_from TIMESTAMPTZ,
+  available_until TIMESTAMPTZ,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_assessments_recruiter
+  ON assessments(recruiter_id);
+CREATE INDEX IF NOT EXISTS idx_assessments_job
+  ON assessments(job_id);
+CREATE INDEX IF NOT EXISTS idx_assessments_hiring_stage
+  ON assessments(hiring_stage_id);
+
+-- Questions (single table, type-discriminated payload)
+CREATE TABLE IF NOT EXISTS assessment_questions (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  assessment_id UUID NOT NULL REFERENCES assessments(id) ON DELETE CASCADE,
+  type TEXT NOT NULL CHECK (type IN ('mcq','coding','sql','subjective')),
+  position INT NOT NULL DEFAULT 0,
+  title TEXT NOT NULL DEFAULT '',
+  prompt TEXT NOT NULL DEFAULT '',
+  payload JSONB NOT NULL DEFAULT '{}',
+  marks NUMERIC NOT NULL DEFAULT 1 CHECK (marks >= 0),
+  skill_tag TEXT DEFAULT '',
+  is_required BOOLEAN NOT NULL DEFAULT TRUE,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_assessment_questions_assessment_position
+  ON assessment_questions(assessment_id, position);
+
+-- Invites (canonical token system; only sent/revoked used recruiter-side;
+-- opened/started/expired reserved for the future candidate phase)
+CREATE TABLE IF NOT EXISTS assessment_invites (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  assessment_id UUID NOT NULL REFERENCES assessments(id) ON DELETE CASCADE,
+  candidate_id UUID NOT NULL REFERENCES candidates(id) ON DELETE CASCADE,
+  recruiter_id UUID NOT NULL REFERENCES recruiters(id) ON DELETE CASCADE,
+  email TEXT NOT NULL DEFAULT '',
+  token_hash TEXT NOT NULL UNIQUE,
+  -- Encrypted copy of the opaque token (AES-256-GCM, key derived from the
+  -- server's service_role key — no new env vars). Needed so Resend can reuse
+  -- the SAME token/link without generating a new one.
+  token_encrypted TEXT,
+  status TEXT NOT NULL DEFAULT 'sent'
+    CHECK (status IN ('sent','opened','started','expired','revoked')),
+  available_from TIMESTAMPTZ,
+  available_until TIMESTAMPTZ,
+  sent_at TIMESTAMPTZ DEFAULT NOW(),
+  last_sent_at TIMESTAMPTZ DEFAULT NOW(),
+  send_count INT NOT NULL DEFAULT 1 CHECK (send_count >= 1),
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(assessment_id, candidate_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_assessment_invites_assessment_candidate
+  ON assessment_invites(assessment_id, candidate_id);
+CREATE INDEX IF NOT EXISTS idx_assessment_invites_recruiter
+  ON assessment_invites(recruiter_id);
+CREATE INDEX IF NOT EXISTS idx_assessment_invites_candidate
+  ON assessment_invites(candidate_id);
+
+ALTER TABLE jobs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE hiring_stages ENABLE ROW LEVEL SECURITY;
+ALTER TABLE assessments ENABLE ROW LEVEL SECURITY;
+ALTER TABLE assessment_questions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE assessment_invites ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "service_role_all_jobs" ON jobs;
+CREATE POLICY "service_role_all_jobs" ON jobs FOR ALL TO service_role USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "service_role_all_hiring_stages" ON hiring_stages;
+CREATE POLICY "service_role_all_hiring_stages" ON hiring_stages FOR ALL TO service_role USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "service_role_all_assessments" ON assessments;
+CREATE POLICY "service_role_all_assessments" ON assessments FOR ALL TO service_role USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "service_role_all_assessment_questions" ON assessment_questions;
+CREATE POLICY "service_role_all_assessment_questions" ON assessment_questions FOR ALL TO service_role USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "service_role_all_assessment_invites" ON assessment_invites;
+CREATE POLICY "service_role_all_assessment_invites" ON assessment_invites FOR ALL TO service_role USING (true) WITH CHECK (true);

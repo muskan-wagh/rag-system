@@ -14,6 +14,9 @@ export const ROUTES = {
   history: "/history",
   howItWorks: "/how-it-works",
   upload: (uuid: string) => `/upload/${uuid}`,
+  assessments: "/assessments",
+  assessmentNew: "/assessments/new",
+  assessmentDetail: (id: string) => `/assessments/${id}`,
 } as const
 
 export const NAV_ITEMS = [

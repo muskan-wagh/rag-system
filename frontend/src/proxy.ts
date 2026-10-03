@@ -1,6 +1,6 @@
 import { clerkMiddleware } from "@clerk/nextjs/server"
 
-const PUBLIC_PREFIXES = ["/upload", "/sign-in", "/sign-up", "/api"]
+const PUBLIC_PREFIXES = ["/upload", "/sign-in", "/sign-up", "/api", "/assessments/take", "/interview/join", "/hr-interview/join"]
 
 const isPublicPath = (pathname: string): boolean => {
   if (pathname === "/" || pathname === "/how-it-works") return true

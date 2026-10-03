@@ -239,6 +239,7 @@ export function createApiClient(getToken: () => Promise<string | null>) {
         }, a),
       ),
 
+    // Legacy Gmail endpoints (kept for the outreach modal — do not remove).
     getGmailStatus: () =>
       withAuth((a) =>
         request<{ connected: boolean; email: string; configured: boolean }>("/gmail/status", { method: "GET" }, a),
@@ -254,12 +255,38 @@ export function createApiClient(getToken: () => Promise<string | null>) {
         request<{ message: string }>("/gmail/disconnect", { method: "POST" }, a),
       ),
 
+    // Canonical Gmail integration endpoints (Settings UI uses these).
+    getGmailIntegration: () =>
+      withAuth((a) =>
+        request<{
+          connected: boolean;
+          email?: string;
+          status?: string;
+          connectedAt?: string | null;
+          lastUsedAt?: string | null;
+          configured: boolean;
+        }>("/integrations/gmail", { method: "GET" }, a),
+      ),
+
+    getGmailIntegrationAuthUrl: () =>
+      withAuth((a) =>
+        request<{ url: string }>("/integrations/gmail/auth-url", { method: "GET" }, a),
+      ),
+
+    disconnectGmailIntegration: () =>
+      withAuth((a) =>
+        request<{ message: string; connected: boolean }>("/integrations/gmail", { method: "DELETE" }, a),
+      ),
+
     generateOutreachEmail: (candidateId: string) =>
       withAuth((a) =>
         request<{ to: string; subject: string; body: string }>(`/candidates/${candidateId}/outreach-email`, { method: "POST" }, a),
       ),
 
-    sendGmailOutreach: (candidateId: string, data: { to: string; subject: string; body: string }) =>
+    sendGmailOutreach: (
+      candidateId: string,
+      data: { to: string; subject: string; body: string; html?: string; replyTo?: string; idempotencyKey?: string },
+    ) =>
       withAuth((a) =>
         request<{ message: string; messageId?: string; from?: string }>(`/candidates/${candidateId}/send-gmail`, {
           method: "POST",
@@ -394,6 +421,219 @@ export function createApiClient(getToken: () => Promise<string | null>) {
           method: "PATCH",
           body: JSON.stringify({ status: CANDIDATE_STATUS.HIRED }),
         }, a),
+      ),
+
+    // === Recruiter Assessment Builder ===
+    listJobs: () =>
+      withAuth((a) =>
+        request<import("./types").MinimalJob[]>("/jobs", { method: "GET" }, a),
+      ),
+
+    createJob: (data: { title: string; description?: string; upload_session_id?: string }) =>
+      withAuth((a) =>
+        request<import("./types").MinimalJob>("/jobs", {
+          method: "POST",
+          body: JSON.stringify(data),
+        }, a),
+      ),
+
+    listAssessments: (params: { jobId?: string; status?: string } = {}) =>
+      withAuth((a) => {
+        const sp = new URLSearchParams()
+        if (params.jobId) sp.set("jobId", params.jobId)
+        if (params.status) sp.set("status", params.status)
+        const qs = sp.toString()
+        return request<import("./types").Assessment[]>(`/assessments${qs ? `?${qs}` : ""}`, { method: "GET" }, a)
+      }),
+
+    createAssessment: (data: Record<string, unknown>) =>
+      withAuth((a) =>
+        request<import("./types").Assessment>("/assessments", {
+          method: "POST",
+          body: JSON.stringify(data),
+        }, a),
+      ),
+
+    getAssessment: (id: string) =>
+      withAuth((a) =>
+        request<import("./types").AssessmentDetail>(`/assessments/${id}`, { method: "GET" }, a),
+      ),
+
+    saveAssessmentDraft: (id: string, data: Record<string, unknown>) =>
+      withAuth((a) =>
+        request<import("./types").Assessment>(`/assessments/${id}`, {
+          method: "PATCH",
+          body: JSON.stringify(data),
+        }, a),
+      ),
+
+    publishAssessment: (id: string) =>
+      withAuth((a) =>
+        request<import("./types").Assessment>(`/assessments/${id}/publish`, { method: "POST" }, a),
+      ),
+
+    unpublishAssessment: (id: string) =>
+      withAuth((a) =>
+        request<import("./types").Assessment>(`/assessments/${id}/unpublish`, { method: "POST" }, a),
+      ),
+
+    deleteAssessment: (id: string) =>
+      withAuth((a) =>
+        request<{ message: string }>(`/assessments/${id}`, { method: "DELETE" }, a),
+      ),
+
+    addQuestion: (assessmentId: string, data: Record<string, unknown>) =>
+      withAuth((a) =>
+        request<import("./types").AssessmentQuestion>(`/assessments/${assessmentId}/questions`, {
+          method: "POST",
+          body: JSON.stringify(data),
+        }, a),
+      ),
+
+    updateQuestion: (assessmentId: string, questionId: string, data: Record<string, unknown>) =>
+      withAuth((a) =>
+        request<import("./types").AssessmentQuestion>(`/assessments/${assessmentId}/questions/${questionId}`, {
+          method: "PATCH",
+          body: JSON.stringify(data),
+        }, a),
+      ),
+
+    deleteQuestion: (assessmentId: string, questionId: string) =>
+      withAuth((a) =>
+        request<{ message: string }>(`/assessments/${assessmentId}/questions/${questionId}`, {
+          method: "DELETE",
+        }, a),
+      ),
+
+    duplicateQuestion: (assessmentId: string, questionId: string) =>
+      withAuth((a) =>
+        request<import("./types").AssessmentQuestion>(
+          `/assessments/${assessmentId}/questions/${questionId}/duplicate`,
+          { method: "POST" },
+          a,
+        ),
+      ),
+
+    reorderQuestions: (assessmentId: string, orderedIds: string[]) =>
+      withAuth((a) =>
+        request<import("./types").AssessmentQuestion[]>(`/assessments/${assessmentId}/questions/reorder`, {
+          method: "PUT",
+          body: JSON.stringify({ orderedIds }),
+        }, a),
+      ),
+
+    getEligibleCandidates: (assessmentId: string, params: {
+      filter?: "eligible" | "all"; page?: number; limit?: number; search?: string;
+    } = {}) =>
+      withAuth((a) => {
+        const sp = new URLSearchParams()
+        sp.set("filter", params.filter || "eligible")
+        if (params.page) sp.set("page", String(params.page))
+        if (params.limit) sp.set("limit", String(params.limit))
+        if (params.search) sp.set("search", params.search)
+        return request<{
+          candidates: import("./types").EligibleCandidate[];
+          total: number; page: number; limit: number; totalPages: number; filter: string;
+        }>(`/assessments/${assessmentId}/eligible-candidates?${sp.toString()}`, { method: "GET" }, a)
+      }),
+
+    listInvites: (assessmentId: string) =>
+      withAuth((a) =>
+        request<import("./types").AssessmentInvite[]>(`/assessments/${assessmentId}/invites`, { method: "GET" }, a),
+      ),
+
+    sendInvites: (assessmentId: string, candidateIds: string[]) =>
+      withAuth((a) =>
+        request<import("./types").InviteResult>(`/assessments/${assessmentId}/invites`, {
+          method: "POST",
+          body: JSON.stringify({ candidateIds }),
+        }, a),
+      ),
+
+    resendInvite: (assessmentId: string, candidateId: string) =>
+      withAuth((a) =>
+        request<{ message: string; sendCount: number; lastSentAt: string }>(
+          `/assessments/${assessmentId}/invites/${candidateId}/resend`,
+          { method: "POST" },
+          a,
+        ),
+      ),
+
+    revokeInvite: (assessmentId: string, candidateId: string) =>
+      withAuth((a) =>
+        request<{ message: string }>(
+          `/assessments/${assessmentId}/invites/${candidateId}/revoke`,
+          { method: "POST" },
+          a,
+        ),
+      ),
+
+    // === Unified hiring workflow ===
+    runScreening: (jobId: string, data?: { candidateIds?: string[]; jdText?: string }) =>
+      withAuth((a) =>
+        request<{ queued: boolean }>(`/jobs/${jobId}/screening/run`, {
+          method: "POST",
+          body: JSON.stringify(data || {}),
+        }, a),
+      ),
+
+    listScreeningResults: (jobId: string) =>
+      withAuth((a) =>
+        request<Array<Record<string, unknown>>>(`/jobs/${jobId}/screening/results`, { method: "GET" }, a),
+      ),
+
+    getScreeningResult: (jobId: string, candidateId: string) =>
+      withAuth((a) =>
+        request<Record<string, unknown>>(`/jobs/${jobId}/screening/results/${candidateId}`, { method: "GET" }, a),
+      ),
+
+    overrideScreening: (jobId: string, candidateId: string, advance: boolean, reason?: string) =>
+      withAuth((a) =>
+        request<{ overridden: boolean }>(`/jobs/${jobId}/screening/${candidateId}/${advance ? "advance" : "reject"}`, {
+          method: "POST",
+          body: JSON.stringify({ advance, reason: reason || "" }),
+        }, a),
+      ),
+
+    getHiringProgress: (candidateId: string, jobId?: string) =>
+      withAuth((a) => {
+        const qs = jobId ? `?jobId=${encodeURIComponent(jobId)}` : "";
+        return request<{
+          stages: Array<{ stage: string; state: string; score: number | null; status: string | null }>;
+          currentStage: string | null;
+          timeline: Array<Record<string, unknown>>;
+        }>(`/candidates/${candidateId}/hiring-progress${qs}`, { method: "GET" }, a);
+      }),
+
+    getInterviewStage: (candidateId: string) =>
+      withAuth((a) =>
+        request<{ interviews: unknown[]; invites: unknown[]; evaluations: unknown[] }>(
+          `/candidates/${candidateId}/interview-stage`,
+          { method: "GET" },
+          a,
+        ),
+      ),
+
+    scheduleStageInterview: (candidateId: string, data: Record<string, unknown>) =>
+      withAuth((a) =>
+        request<{ interviewId: string; inviteLink: string }>(
+          `/candidates/${candidateId}/interview-stage/schedule`,
+          { method: "POST", body: JSON.stringify(data) },
+          a,
+        ),
+      ),
+
+    submitInterviewEvaluation: (interviewId: string, data: Record<string, unknown>) =>
+      withAuth((a) =>
+        request<{ saved: boolean }>(`/interviews/${interviewId}/evaluation`, {
+          method: "POST",
+          body: JSON.stringify(data),
+        }, a),
+      ),
+
+    listProctoring: (attemptId: string) =>
+      withAuth((a) =>
+        request<Array<Record<string, unknown>>>(`/proctoring/attempts/${attemptId}`, { method: "GET" }, a),
       ),
   }
 }

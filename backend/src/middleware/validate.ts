@@ -95,6 +95,11 @@ export const sendGmailOutreachSchema = z.object({
   to: z.string().email('Invalid recipient email address'),
   subject: z.string().min(1, 'Subject is required').max(200),
   body: z.string().min(1, 'Email body is required').max(10000),
+  html: z.string().max(50000).optional(),
+  replyTo: z.string().email('Invalid Reply-To email address').optional(),
+  // Event-specific idempotency key (optional). Same key + same recruiter =
+  // one send; omit for each-send-is-a-new-event semantics.
+  idempotencyKey: z.string().min(8).max(200).optional(),
 });
 
 const ALLOWED_MIME_TYPES = [
@@ -143,3 +148,147 @@ export function validateUploadedFile(req: Request, res: Response, next: NextFunc
 
   next();
 }
+
+// === RECRUITER ASSESSMENT BUILDER (shapes only — semantic rules live in
+// services/assessments/validation.ts so publish gates share one source) ===
+
+export const questionTypeEnum = z.enum(['mcq', 'coding', 'sql', 'subjective']);
+
+const assessmentSettingsSchema = z.object({
+  randomize_questions: z.boolean().optional(),
+  allow_revisit: z.boolean().optional(),
+  auto_submit: z.boolean().optional(),
+}).optional();
+
+const newJobSchema = z.object({
+  title: z.string().min(1, 'Job title is required').max(200),
+  description: z.string().max(5000).optional().default(''),
+}).optional();
+
+const assessmentFieldsSchema = z.object({
+  name: z.string().max(200).optional().default(''),
+  description: z.string().max(10000).optional().default(''),
+  instructions: z.string().max(20000).optional().default(''),
+  duration_minutes: z.number().int().positive('Duration must be a positive number of minutes').max(1440).optional(),
+  passing_score: z.number().min(0, 'Passing score must be >= 0').optional(),
+  skills: z.array(z.string().max(100)).max(50).optional(),
+  settings: assessmentSettingsSchema,
+  available_from: z.string().max(100).optional(),
+  available_until: z.string().max(100).optional(),
+});
+
+export const createJobSchema = z.object({
+  title: z.string().min(1, 'Job title is required').max(200),
+  description: z.string().max(5000).optional().default(''),
+  upload_session_id: z.string().min(1).optional(),
+});
+
+export const createAssessmentSchema = assessmentFieldsSchema.extend({
+  job_id: z.string().min(1).optional(),
+  new_job: newJobSchema,
+});
+
+export const updateAssessmentSchema = assessmentFieldsSchema.extend({
+  job_id: z.string().min(1).nullable().optional(),
+  new_job: newJobSchema,
+});
+
+export const assessmentIdParamSchema = z.object({
+  assessmentId: nonEmptyString,
+});
+
+export const assessmentQuestionParamSchema = z.object({
+  assessmentId: nonEmptyString,
+  questionId: nonEmptyString,
+});
+
+export const questionPayloadSchema = z.object({
+  type: questionTypeEnum,
+  title: z.string().max(500).optional().default(''),
+  prompt: z.string().max(20000).optional().default(''),
+  payload: z.record(z.string(), z.unknown()).optional().default({}),
+  marks: z.number().optional().default(1),
+  skill_tag: z.string().max(100).optional().default(''),
+  is_required: z.boolean().optional().default(true),
+});
+
+export const reorderQuestionsSchema = z.object({
+  orderedIds: z.array(z.string().min(1)).min(1, 'orderedIds must list every question ID').max(500),
+});
+
+export const createInvitesSchema = z.object({
+  candidateIds: z.array(z.string().min(1)).min(1, 'Select at least one candidate').max(100),
+});
+
+export const eligibleQuerySchema = z.object({
+  filter: z.enum(['eligible', 'all']).optional().default('eligible'),
+  page: z.string().optional(),
+  limit: z.string().optional(),
+  search: z.string().max(200).optional(),
+});
+
+// === CANDIDATE ASSESSMENT (session-cookie auth; never trust body IDs) ===
+
+export const exchangeTokenSchema = z.object({
+  token: z.string().min(10, 'token is required').max(500),
+});
+
+export const candidateAttemptParamSchema = z.object({
+  attemptId: nonEmptyString,
+});
+
+export const saveAnswerSchema = z.object({
+  questionId: nonEmptyString,
+  answer: z.unknown().optional(),
+  language: z.string().max(50).optional(),
+  code: z.string().max(65536).optional(),
+});
+
+export const runCodeSchema = z.object({
+  questionId: nonEmptyString,
+  language: z.string().min(1).max(50),
+  sourceCode: z.string().min(1, 'sourceCode is required').max(65536),
+  stdin: z.string().max(16384).optional().default(''),
+});
+
+export const proctoringEventSchema = z.object({
+  eventType: z.enum([
+    'TAB_SWITCH',
+    'FULLSCREEN_EXIT',
+    'COPY',
+    'PASTE',
+    'CAMERA_DISABLED',
+    'MIC_DISABLED',
+    'NETWORK_DISCONNECTED',
+    'NETWORK_RECONNECTED',
+  ]),
+  metadata: z.record(z.string(), z.unknown()).optional().default({}),
+});
+
+export const screeningRunSchema = z.object({
+  candidateIds: z.array(z.string().min(1)).max(200).optional(),
+  jdText: z.string().min(1).max(20000).optional(),
+});
+
+export const screeningOverrideSchema = z.object({
+  advance: z.boolean(),
+  reason: z.string().max(2000).optional().default(''),
+});
+
+export const interviewEvaluationSchema = z.object({
+  technicalKnowledge: z.number().int().min(1).max(5).optional(),
+  problemSolving: z.number().int().min(1).max(5).optional(),
+  communication: z.number().int().min(1).max(5).optional(),
+  codeQuality: z.number().int().min(1).max(5).optional(),
+  overallRecommendation: z.enum(['strong_hire', 'hire', 'no_hire', 'strong_no_hire', 'hold']),
+  summary: z.string().max(5000).optional().default(''),
+  privateNotes: z.string().max(10000).optional().default(''),
+  interviewerName: z.string().max(200).optional().default(''),
+});
+
+export const scheduleStageInterviewSchema = z.object({
+  interviewerName: z.string().max(200).optional().default(''),
+  scheduledDate: z.string().min(1).optional(),
+  scheduledTime: z.string().min(1).optional(),
+  meetingLink: z.string().max(1000).optional().default(''),
+});

@@ -4,6 +4,7 @@
   "main": "index.js",
   "scripts": {
     "build": "tsc",
+    "test": "vitest run",
     "start": "node start.js",
     "start:worker": "node start-worker.js",
     "start:all": "node start-all.js",
@@ -28,6 +29,7 @@
     "ioredis": "^5.11.1",
     "mammoth": "^1.12.0",
     "multer": "^2.2.0",
+    "nodemailer": "^10.0.11",
     "pdf-parse": "^2.4.5",
     "resend": "^6.17.2",
     "tsconfig-paths": "^4.2.0",
@@ -40,8 +42,12 @@
     "@types/express": "^5.0.6",
     "@types/multer": "^2.2.0",
     "@types/node": "^25.9.3",
+    "@types/nodemailer": "^8.0.2",
+    "@types/supertest": "^7.2.1",
     "@types/ws": "^8.18.1",
+    "supertest": "^7.3.0",
     "ts-node-dev": "^2.0.0",
-    "typescript": "^6.0.3"
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.11"
   }
 }
