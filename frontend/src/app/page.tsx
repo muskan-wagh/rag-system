@@ -10,7 +10,6 @@ import { WhyHireStack } from "@/components/landing/why-hirestack"
 import { WorkflowSection } from "@/components/landing/workflow-section"
 import { Testimonials } from "@/components/landing/testimonials"
 import { SecuritySection } from "@/components/landing/security-section"
-import { PricingSection } from "@/components/landing/pricing-section"
 import { FAQSection } from "@/components/landing/faq-section"
 import { CTASection } from "@/components/landing/cta-section"
 
@@ -26,7 +25,6 @@ export default function Home() {
       <WorkflowSection />
       <Testimonials />
       <SecuritySection />
-      <PricingSection />
       <FAQSection />
       <CTASection />
     </MarketingLayout>

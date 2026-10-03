@@ -11,7 +11,6 @@ const navItems = [
   { href: "/#features", label: "Features" },
   { href: "/#how-it-works", label: "How It Works" },
   { href: "/performance", label: "Performance" },
-  { href: "/#pricing", label: "Pricing" },
   { href: "/#faq", label: "FAQ" },
 ]
 
