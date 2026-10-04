@@ -645,6 +645,118 @@ export function createApiClient(getToken: () => Promise<string | null>) {
         }, a),
       ),
 
+    rescheduleStageInterview: (interviewId: string, data: Record<string, unknown>) =>
+      withAuth((a) =>
+        request<{ interviewId: string; version: number; inviteLink: string }>(
+          `/interviews/${interviewId}/schedule`,
+          { method: "PATCH", body: JSON.stringify(data) },
+          a,
+        ),
+      ),
+
+    cancelInterview: (interviewId: string) =>
+      withAuth((a) =>
+        request<{ cancelled: boolean }>(`/interviews/${interviewId}/cancel`, { method: "POST" }, a),
+      ),
+
+    resendInterviewInvite: (interviewId: string) =>
+      withAuth((a) =>
+        request<{ resent: boolean; inviteLink: string }>(`/interviews/${interviewId}/resend`, { method: "POST" }, a),
+      ),
+
+    updateInterviewStatus: (interviewId: string, status: string) =>
+      withAuth((a) =>
+        request<{ status: string }>(`/interviews/${interviewId}/status`, {
+          method: "PATCH",
+          body: JSON.stringify({ status }),
+        }, a),
+      ),
+
+    listInterviewProblems: () =>
+      withAuth((a) => request<Array<Record<string, unknown>>>(`/interviews/problems`, { method: "GET" }, a)),
+
+    getCodingSession: (interviewId: string) =>
+      withAuth((a) =>
+        request<Record<string, unknown>>(`/interviews/${interviewId}/coding-session`, { method: "GET" }, a),
+      ),
+
+    pushCodingProblem: (interviewId: string, problemId: string) =>
+      withAuth((a) =>
+        request<{ version: number }>(`/interviews/${interviewId}/coding-session/problem`, {
+          method: "POST",
+          body: JSON.stringify({ problemId }),
+        }, a),
+      ),
+
+    resetCodingSession: (interviewId: string) =>
+      withAuth((a) =>
+        request<{ version: number }>(`/interviews/${interviewId}/coding-session/reset`, { method: "POST" }, a),
+      ),
+
+    runCodingSession: (interviewId: string) =>
+      withAuth((a) =>
+        request<Record<string, unknown>>(`/interviews/${interviewId}/coding-session/run`, {
+          method: "POST",
+          body: JSON.stringify({}),
+        }, a),
+      ),
+
+    endInterview: (interviewId: string) =>
+      withAuth((a) =>
+        request<{ ended: boolean }>(`/interviews/${interviewId}/end`, { method: "POST" }, a),
+      ),
+
+    getLivekitToken: (interviewId: string) =>
+      withAuth((a) =>
+        request<{
+          videoEnabled: boolean;
+          token?: string;
+          url?: string;
+          room?: string;
+          identity?: string;
+          expiresIn?: number;
+        }>(`/interviews/${interviewId}/livekit-token`, { method: "POST", body: JSON.stringify({}) }, a),
+      ),
+
+    listReports: (candidateId: string) =>
+      withAuth((a) =>
+        request<Array<Record<string, unknown>>>(`/candidates/${candidateId}/reports`, { method: "GET" }, a),
+      ),
+
+    generateReport: (candidateId: string, data: Record<string, unknown>) =>
+      withAuth((a) =>
+        request<{ reportId: string; version: number }>(`/candidates/${candidateId}/reports/generate`, {
+          method: "POST",
+          body: JSON.stringify(data),
+        }, a),
+      ),
+
+    sendReport: (candidateId: string, reportId: string, resend?: boolean) =>
+      withAuth((a) =>
+        request<{ queued: boolean }>(`/candidates/${candidateId}/reports/${reportId}/send`, {
+          method: "POST",
+          body: JSON.stringify({ resend: resend === true }),
+        }, a),
+      ),
+
+    finalDecision: (candidateId: string, data: Record<string, unknown>) =>
+      withAuth((a) =>
+        request<{ decision: string; report: Record<string, unknown> }>(`/candidates/${candidateId}/final-decision`, {
+          method: "POST",
+          body: JSON.stringify(data),
+        }, a),
+      ),
+
+    downloadReport: async (candidateId: string, reportId: string): Promise<Blob> => {
+      const token = await getToken()
+      const res = await apiFetch(`${API_BASE}/candidates/${candidateId}/reports/${reportId}/download`, {
+        method: "GET",
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      })
+      if (!res.ok) throw new Error("Download failed")
+      return res.blob()
+    },
+
     listProctoring: (attemptId: string) =>
       withAuth((a) =>
         request<Array<Record<string, unknown>>>(`/proctoring/attempts/${attemptId}`, { method: "GET" }, a),

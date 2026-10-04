@@ -1,17 +1,79 @@
 import { config } from '@/config';
 import { logger } from '@/utils/logger';
+import { Resend } from 'resend';
 
-let resendClient: any = null;
+let resendClient: InstanceType<typeof Resend> | null = null;
 
 function getResend() {
   if (!config.resend.apiKey) {
     return null;
   }
   if (!resendClient) {
-    const { Resend } = require('resend');
     resendClient = new Resend(config.resend.apiKey);
   }
   return resendClient;
+}
+
+/** Test-only: reset the cached client between test cases. */
+export function __resetResendClientForTests(): void {
+  resendClient = null;
+}
+
+/** Email provider selector. Resend is the default; Gmail is opt-in per recruiter. */
+export type EmailProvider = 'resend' | 'gmail';
+
+/**
+ * Minimal provider dispatcher so callers can select resend|gmail without
+ * duplicating email logic. Resend path is byte-identical to before; Gmail
+ * path delegates to the centralized gmailEmailService (lazy import to avoid
+ * circulars and to keep Resend working when Google env is absent).
+ */
+export async function sendEmailByProvider(
+  provider: EmailProvider,
+  params: {
+    to: string;
+    subject: string;
+    html: string;
+    text?: string;
+    from?: string;
+    replyTo?: string;
+    recruiterId?: string;
+    candidateId?: string;
+    emailType?: string;
+    idempotencyKey?: string;
+  },
+): Promise<{ success: boolean; error?: string; messageId?: string }> {
+  if (provider === 'gmail') {
+    if (!params.recruiterId) {
+      return { success: false, error: 'recruiterId is required for Gmail sends' };
+    }
+    try {
+      const { sendGmailEmail } = await import('@/services/gmail/gmailEmailService');
+      const { messageId } = await sendGmailEmail({
+        recruiterId: params.recruiterId,
+        to: params.to,
+        subject: params.subject,
+        html: params.html,
+        text: params.text,
+        replyTo: params.replyTo,
+        candidateId: params.candidateId,
+        emailType: params.emailType,
+        idempotencyKey: params.idempotencyKey,
+      });
+      return { success: true, messageId };
+    } catch (err) {
+      return { success: false, error: err instanceof Error ? err.message : 'Gmail send failed' };
+    }
+  }
+  const res = await sendEmail({ to: params.to, subject: params.subject, html: params.html, from: params.from });
+  return res;
+}
+
+export interface EmailAttachment {
+  filename: string;
+  /** base64-encoded file content */
+  content: string;
+  contentType?: string;
 }
 
 export async function sendEmail(params: {
@@ -19,7 +81,8 @@ export async function sendEmail(params: {
   subject: string;
   html: string;
   from?: string;
-}): Promise<{ success: boolean; error?: string }> {
+  attachments?: EmailAttachment[];
+}): Promise<{ success: boolean; error?: string; messageId?: string }> {
   const resend = getResend();
   if (!resend) {
     logger.warn('Resend not configured — email not sent', { to: params.to, subject: params.subject });
@@ -34,6 +97,11 @@ export async function sendEmail(params: {
       to: params.to,
       subject: params.subject,
       html: params.html,
+      attachments: (params.attachments || []).map((a) => ({
+        filename: a.filename,
+        content: a.content,
+        contentType: a.contentType || 'application/pdf',
+      })),
     });
 
     if (error) {
@@ -42,7 +110,7 @@ export async function sendEmail(params: {
     }
 
     logger.info('Email sent successfully', { to: params.to, subject: params.subject, id: data?.id });
-    return { success: true };
+    return { success: true, messageId: data?.id };
   } catch (err: any) {
     logger.error('Failed to send email (exception)', { error: err.message, to: params.to });
     return { success: false, error: err.message };

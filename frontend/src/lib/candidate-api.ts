@@ -106,4 +106,31 @@ export const candidateApi = {
     }>("/candidate/interview/exchange", { method: "POST", body: JSON.stringify({ token }) }),
   getInterview: () =>
     candidateRequest<Record<string, unknown>>("/candidate/interview", { method: "GET" }),
+  getInterviewCodingSession: () =>
+    candidateRequest<Record<string, unknown>>("/candidate/interview/coding-session", { method: "GET" }),
+  updateInterviewCode: (code: string, version: number) =>
+    candidateRequest<{ version: number; deduplicated?: boolean }>("/candidate/interview/coding-session/code", {
+      method: "PATCH",
+      body: JSON.stringify({ code, version }),
+    }),
+  runInterviewCode: () =>
+    candidateRequest<Record<string, unknown>>("/candidate/interview/coding-session/run", {
+      method: "POST",
+      body: JSON.stringify({}),
+    }),
+  getMyReport: () => candidateRequest<Record<string, unknown>>("/candidate/report", { method: "GET" }),
+  getLivekitToken: () =>
+    candidateRequest<{
+      videoEnabled: boolean;
+      token?: string;
+      url?: string;
+      room?: string;
+      identity?: string;
+      expiresIn?: number;
+    }>("/candidate/interview/livekit-token", { method: "POST", body: JSON.stringify({}) }),
+  logVideoEvent: (type: "camera_disabled" | "mic_disabled" | "camera_enabled" | "mic_enabled") =>
+    candidateRequest<{ logged: boolean }>("/candidate/interview/video-event", {
+      method: "POST",
+      body: JSON.stringify({ type }),
+    }),
 };

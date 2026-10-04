@@ -292,3 +292,47 @@ export const scheduleStageInterviewSchema = z.object({
   scheduledTime: z.string().min(1).optional(),
   meetingLink: z.string().max(1000).optional().default(''),
 });
+
+export const rescheduleInterviewSchema = z.object({
+  scheduledDate: z.string().min(1).optional(),
+  scheduledTime: z.string().min(1).optional(),
+  meetingLink: z.string().max(1000).optional(),
+  interviewerName: z.string().max(200).optional(),
+});
+
+export const interviewStatusSchema = z.object({
+  status: z.enum(['scheduled', 'joined', 'in_progress', 'completed', 'cancelled', 'no_show']),
+});
+
+export const pushCodingProblemSchema = z.object({
+  problemId: nonEmptyString,
+});
+
+export const updateLiveCodeSchema = z.object({
+  code: z.string().max(65536),
+  version: z.number().int().min(0).optional().default(0),
+});
+
+export const runLiveCodeSchema = z.object({
+  stdin: z.string().max(16384).optional().default(''),
+});
+
+export const videoEventSchema = z.object({
+  type: z.enum(['camera_disabled', 'mic_disabled', 'camera_enabled', 'mic_enabled']),
+});
+
+export const generateReportSchema = z.object({
+  reportType: z.enum(['internal', 'candidate']).optional().default('candidate'),
+  jobId: z.string().min(1).nullable().optional(),
+  sendEmail: z.boolean().optional().default(false),
+});
+
+export const sendReportSchema = z.object({
+  resend: z.boolean().optional().default(false),
+});
+
+export const finalDecisionSchema = z.object({
+  decision: z.enum(['Hired', 'Rejected', 'Hold']),
+  jobId: z.string().min(1).nullable().optional(),
+  sendEmail: z.boolean().optional().default(true),
+});

@@ -132,6 +132,16 @@ export const config = Object.freeze({
     timeoutMs: parseInt(optional("JUDGE0_TIMEOUT_MS", "10000"), 10),
   },
 
+  // LiveKit video/audio for technical interviews (optional — video layer only).
+  // When unset, interviews fall back to the external meeting_link and the
+  // token endpoints report videoEnabled:false instead of failing.
+  // Secrets never leave the server (tokens are minted here, never stored).
+  livekit: {
+    url: optional("LIVEKIT_URL", ""),
+    apiKey: optional("LIVEKIT_API_KEY", ""),
+    apiSecret: optional("LIVEKIT_API_SECRET", ""),
+  },
+
   redis: {
     url: required("REDIS_URL"),
   },
