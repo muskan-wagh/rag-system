@@ -706,6 +706,18 @@ export function createApiClient(getToken: () => Promise<string | null>) {
         request<{ ended: boolean }>(`/interviews/${interviewId}/end`, { method: "POST" }, a),
       ),
 
+    getLivekitToken: (interviewId: string) =>
+      withAuth((a) =>
+        request<{
+          videoEnabled: boolean;
+          token?: string;
+          url?: string;
+          room?: string;
+          identity?: string;
+          expiresIn?: number;
+        }>(`/interviews/${interviewId}/livekit-token`, { method: "POST", body: JSON.stringify({}) }, a),
+      ),
+
     listReports: (candidateId: string) =>
       withAuth((a) =>
         request<Array<Record<string, unknown>>>(`/candidates/${candidateId}/reports`, { method: "GET" }, a),

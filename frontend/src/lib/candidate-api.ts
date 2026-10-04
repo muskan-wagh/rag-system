@@ -119,4 +119,18 @@ export const candidateApi = {
       body: JSON.stringify({}),
     }),
   getMyReport: () => candidateRequest<Record<string, unknown>>("/candidate/report", { method: "GET" }),
+  getLivekitToken: () =>
+    candidateRequest<{
+      videoEnabled: boolean;
+      token?: string;
+      url?: string;
+      room?: string;
+      identity?: string;
+      expiresIn?: number;
+    }>("/candidate/interview/livekit-token", { method: "POST", body: JSON.stringify({}) }),
+  logVideoEvent: (type: "camera_disabled" | "mic_disabled" | "camera_enabled" | "mic_enabled") =>
+    candidateRequest<{ logged: boolean }>("/candidate/interview/video-event", {
+      method: "POST",
+      body: JSON.stringify({ type }),
+    }),
 };

@@ -21,7 +21,9 @@ export function useInterviewRealtime(opts: {
   const [connected, setConnected] = useState(false)
   const [unauthorized, setUnauthorized] = useState(false)
   const cbRef = useRef({ onCodingEvent, onInterviewUpdated })
-  cbRef.current = { onCodingEvent, onInterviewUpdated }
+  useEffect(() => {
+    cbRef.current = { onCodingEvent, onInterviewUpdated }
+  }, [onCodingEvent, onInterviewUpdated])
 
   useEffect(() => {
     if (enabled === false || !interviewId) return

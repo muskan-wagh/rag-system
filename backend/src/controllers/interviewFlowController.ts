@@ -10,6 +10,7 @@ import { enqueueEmail } from '@/services/queue/emailQueue';
 import { logEmail } from '@/services/supabase/database';
 import { buildTechnicalInterviewEmail, technicalInterviewSubject, technicalInterviewEmailKey } from '@/services/email/technicalInvite';
 import { broadcast } from '@/services/websocket';
+import { stampVideoEnd } from '@/controllers/interviewVideoController';
 
 /**
  * Human-led Technical + Managerial/HR interviews (correction #10, #14).
@@ -289,6 +290,8 @@ export const cancelInterviewHandler = asyncHandler(async (req: Request, res: Res
   await supabase.from('interviews').update({ status: 'cancelled' }).eq('id', interviewId);
   if (invite) await supabase.from('interview_invites').update({ status: 'revoked' }).eq('id', invite.id);
   await supabase.from('interview_coding_sessions').update({ session_state: 'ended' }).eq('interview_id', interviewId);
+  // Video audit end stamp — separate best-effort write, never blocks cancellation.
+  await stampVideoEnd(interviewId);
 
   const stage = invite?.stage || 'Technical Interview';
   const { data: cand } = await supabase.from('candidates').select('email, full_name').eq('id', interview.candidate_id).maybeSingle();
@@ -364,6 +367,8 @@ export const updateInterviewStatusHandler = asyncHandler(async (req: Request, re
   await supabase.from('interviews').update({ status: next }).eq('id', interviewId);
   if (next === 'completed' || next === 'cancelled') {
     await supabase.from('interview_coding_sessions').update({ session_state: 'ended' }).eq('interview_id', interviewId);
+    // Video audit end stamp — separate best-effort write, never blocks transition.
+    await stampVideoEnd(interviewId);
   }
   try { broadcast('interview:updated', { interviewId, status: next }); } catch { /* best-effort */ }
   res.json({ success: true, data: { status: next } });

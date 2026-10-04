@@ -81,6 +81,9 @@ export function generateReportPdf(report: HiringReport): Promise<Buffer> {
         );
         if (t.recommendation) kv('Recommendation', t.recommendation);
         if (t.summary) body(`Feedback: ${t.summary.slice(0, 800)}`);
+        if (t.video?.durationSeconds !== null && t.video?.durationSeconds !== undefined) {
+          kv('Video session duration', `${Math.floor(t.video.durationSeconds / 60)} min ${t.video.durationSeconds % 60} sec`);
+        }
       }
 
       if (report.hrInterview) {

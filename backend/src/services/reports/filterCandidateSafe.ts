@@ -68,6 +68,7 @@ export function toCandidateSafeReport(internal: HiringReport): HiringReport {
           codeQuality: internal.technicalInterview.codeQuality,
           recommendation: candidateVisibleRecommendation(internal.technicalInterview.recommendation),
           summary: candidateVisibleSummary(internal.technicalInterview.summary),
+          video: internal.technicalInterview.video || null,
           // privateNotes / coding internals omitted
         }
       : null,

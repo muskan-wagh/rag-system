@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react"
 import { useApi } from "@/hooks/use-api"
 import { useAuth } from "@clerk/nextjs"
 import { CodingEditor } from "@/components/assessment-take/coding-editor"
+import { VideoRoom, type VideoConnection } from "@/components/interview/video-room"
 import { useInterviewRealtime } from "@/hooks/use-interview-realtime"
 import { toast } from "sonner"
 
@@ -20,6 +21,9 @@ export function InterviewerLiveCoding({ interviewId }: { interviewId: string }) 
   const [selected, setSelected] = useState("")
   const [busy, setBusy] = useState(false)
   const [wsQuery, setWsQuery] = useState("")
+  const [videoConn, setVideoConn] = useState<VideoConnection | null>(null)
+  const [videoUnavailable, setVideoUnavailable] = useState(false)
+  const [joiningVideo, setJoiningVideo] = useState(false)
 
   const refresh = useCallback(async () => {
     const res = await api.getCodingSession(interviewId)
@@ -31,13 +35,16 @@ export function InterviewerLiveCoding({ interviewId }: { interviewId: string }) 
   }, [api, interviewId])
 
   useEffect(() => {
-    refresh()
+    // Deferred to a microtask: the effect only kicks off async work, state
+    // updates happen in async callbacks (react-hooks/set-state-in-effect).
+    queueMicrotask(() => {
+      void refresh()
+    })
     api.listInterviewProblems().then((r) => {
       if (r.success && Array.isArray(r.data)) setProblems(r.data as Array<Record<string, unknown>>)
     }).catch(() => {})
     getToken().then((t) => setWsQuery(`role=recruiter&token=${encodeURIComponent(t || "")}`)).catch(() => {})
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount per interview
-  }, [interviewId])
+  }, [api, getToken, interviewId, refresh])
 
   // Polling fallback keeps the mirror fresh when WS is unavailable.
   useEffect(() => {
@@ -86,6 +93,25 @@ export function InterviewerLiveCoding({ interviewId }: { interviewId: string }) 
     }
   }
 
+  async function joinVideo() {
+    setJoiningVideo(true)
+    try {
+      const res = await api.getLivekitToken(interviewId)
+      if (res.success && res.data && res.data.videoEnabled && res.data.token && res.data.url) {
+        setVideoConn({ url: String(res.data.url), token: String(res.data.token) })
+        setVideoUnavailable(false)
+      } else {
+        setVideoUnavailable(true)
+        toast.error("Video service is not configured — use the meeting link.")
+      }
+    } catch (e) {
+      // Expired/cancelled/ended interviews land here.
+      toast.error(e instanceof Error ? e.message : "Could not join video.")
+    } finally {
+      setJoiningVideo(false)
+    }
+  }
+
   async function end() {
     if (!confirm("End this interview? The coding workspace will lock.")) return
     setBusy(true)
@@ -108,6 +134,25 @@ export function InterviewerLiveCoding({ interviewId }: { interviewId: string }) 
 
   return (
     <div className="space-y-3 rounded-lg border border-border p-3">
+      {videoConn && !ended ? (
+        <VideoRoom
+          key={videoConn.token.slice(-12)}
+          connection={videoConn}
+          localLabel="You (interviewer)"
+          remoteLabel="Candidate"
+          onLeave={() => setVideoConn(null)}
+          onRejoin={joinVideo}
+        />
+      ) : (
+        <div className="flex flex-wrap items-center gap-2">
+          <button onClick={joinVideo} disabled={joiningVideo || ended} className="rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground disabled:opacity-50">
+            {joiningVideo ? "Joining video…" : "Join video"}
+          </button>
+          {videoUnavailable ? (
+            <span className="text-xs text-muted-foreground">Video service is not configured — use the meeting link.</span>
+          ) : null}
+        </div>
+      )}
       <div className="flex flex-wrap items-center gap-2">
         <select
           aria-label="Coding problem"

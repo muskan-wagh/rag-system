@@ -317,6 +317,10 @@ export const runLiveCodeSchema = z.object({
   stdin: z.string().max(16384).optional().default(''),
 });
 
+export const videoEventSchema = z.object({
+  type: z.enum(['camera_disabled', 'mic_disabled', 'camera_enabled', 'mic_enabled']),
+});
+
 export const generateReportSchema = z.object({
   reportType: z.enum(['internal', 'candidate']).optional().default('candidate'),
   jobId: z.string().min(1).nullable().optional(),

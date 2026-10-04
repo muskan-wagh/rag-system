@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 import { useApi } from "@/hooks/use-api"
 import { HiringProgressTracker } from "@/components/hiring-progress-tracker"
 import { InterviewerLiveCoding } from "@/components/interview/interviewer-live-coding"
@@ -27,24 +27,26 @@ export function HiringTab({ candidateId }: { candidateId: string }) {
   const [acting, setActing] = useState<string | null>(null);
   const [liveFor, setLiveFor] = useState<string | null>(null);
 
-  async function reload() {
-    const [p, s] = await Promise.all([api.getHiringProgress(candidateId), api.getInterviewStage(candidateId)]);
-    if (p.success && p.data) setProgress(p.data as typeof progress);
-    if (s.success && s.data) setInterviewStage(s.data as typeof interviewStage);
-  }
+  const reload = useCallback(
+    async (id: string = candidateId) => {
+      const [p, s] = await Promise.all([api.getHiringProgress(id), api.getInterviewStage(id)]);
+      if (p.success && p.data) setProgress(p.data as typeof progress);
+      if (s.success && s.data) setInterviewStage(s.data as typeof interviewStage);
+    },
+    [api, candidateId],
+  );
 
   useEffect(() => {
-    let alive = true;
-    reload()
-      .catch(() => {})
-      .finally(() => {
-        if (alive) setLoading(false);
-      });
-    return () => {
-      alive = false;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- fetch once per candidate
-  }, [candidateId]);
+    // Deferred to a microtask: the effect only kicks off the fetch, state
+    // updates happen in the async callback (react-hooks/set-state-in-effect).
+    queueMicrotask(() => {
+      reload(candidateId)
+        .catch(() => {})
+        .finally(() => {
+          setLoading(false);
+        });
+    });
+  }, [candidateId, reload]);
 
   async function submitEvaluation(interviewId: string) {
     const rec = evalForm[`${interviewId}:rec`] || "hold";

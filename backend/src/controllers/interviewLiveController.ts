@@ -7,6 +7,7 @@ import { runVisibleCode, executionMode } from '@/services/codeExecution';
 import { validateRunInput } from '@/services/codeExecution/types';
 import { normalizeLanguage } from '@/services/codeExecution/languages';
 import { broadcast } from '@/services/websocket';
+import { stampVideoEnd } from '@/controllers/interviewVideoController';
 
 async function requireOwnedInterview(recruiterId: string, interviewId: string) {
   const supabase = getSupabaseClient();
@@ -195,6 +196,9 @@ export const endInterviewHandler = asyncHandler(async (req: Request, res: Respon
   const supabase = getSupabaseClient();
   await supabase.from('interviews').update({ status: 'completed' }).eq('id', interviewId);
   await supabase.from('interview_coding_sessions').update({ session_state: 'ended', updated_at: new Date().toISOString() }).eq('interview_id', interviewId);
+  // Video audit end stamp — separate best-effort write so pre-migration DBs
+  // (without video columns) can never break interview completion.
+  await stampVideoEnd(interviewId);
   try {
     broadcast('interview:coding', { interviewId, type: 'ended' });
     broadcast('interview:updated', { interviewId, status: 'completed' });
