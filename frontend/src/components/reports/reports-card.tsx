@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 import { useApi } from "@/hooks/use-api"
 import { toast } from "sonner"
 
@@ -15,15 +15,21 @@ export function ReportsCard({ candidateId }: { candidateId: string }) {
   const [busy, setBusy] = useState(false)
   const [decision, setDecision] = useState("Hired")
 
-  async function refresh() {
-    const res = await api.listReports(candidateId)
-    if (res.success && Array.isArray(res.data)) setReports(res.data as Array<Record<string, unknown>>)
-  }
+  const refresh = useCallback(
+    async (id: string = candidateId) => {
+      const res = await api.listReports(id)
+      if (res.success && Array.isArray(res.data)) setReports(res.data as Array<Record<string, unknown>>)
+    },
+    [api, candidateId],
+  )
 
   useEffect(() => {
-    refresh().catch(() => {})
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- per candidate
-  }, [candidateId])
+    // Deferred to a microtask: the effect only kicks off the fetch, state
+    // updates happen in the async callback (react-hooks/set-state-in-effect).
+    queueMicrotask(() => {
+      refresh(candidateId).catch(() => {})
+    })
+  }, [candidateId, refresh])
 
   async function generate(reportType: "internal" | "candidate", sendEmail: boolean) {
     setBusy(true)

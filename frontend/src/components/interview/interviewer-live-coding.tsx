@@ -31,13 +31,16 @@ export function InterviewerLiveCoding({ interviewId }: { interviewId: string }) 
   }, [api, interviewId])
 
   useEffect(() => {
-    refresh()
+    // Deferred to a microtask: the effect only kicks off async work, state
+    // updates happen in async callbacks (react-hooks/set-state-in-effect).
+    queueMicrotask(() => {
+      void refresh()
+    })
     api.listInterviewProblems().then((r) => {
       if (r.success && Array.isArray(r.data)) setProblems(r.data as Array<Record<string, unknown>>)
     }).catch(() => {})
     getToken().then((t) => setWsQuery(`role=recruiter&token=${encodeURIComponent(t || "")}`)).catch(() => {})
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount per interview
-  }, [interviewId])
+  }, [api, getToken, interviewId, refresh])
 
   // Polling fallback keeps the mirror fresh when WS is unavailable.
   useEffect(() => {

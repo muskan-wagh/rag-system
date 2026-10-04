@@ -60,11 +60,16 @@ export function GmailSettingsCard() {
   }, [api])
 
   useEffect(() => {
-    refresh()
+    // Deferred to a microtask: the effect only kicks off the fetch and
+    // subscribes, state updates happen in async callbacks
+    // (react-hooks/set-state-in-effect).
+    queueMicrotask(() => {
+      void refresh()
+    })
     const onMessage = (e: MessageEvent) => {
       if (typeof e.data === "object" && e.data?.type === "hirestack-gmail-connected") {
         if (e.data.ok) {
-          refresh()
+          void refresh()
           toast.success("Gmail connected")
         } else {
           toast.error("Gmail connection failed. Please try again.")
