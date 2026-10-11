@@ -58,7 +58,7 @@ export function RecentActivity({ items }: { items: RecentActivityItem[] }) {
       <PanelHeader
         title="Recent Activity"
         description="Latest recruiter actions"
-        className="mb-2"
+        className="mb-2.5"
         action={
           items.length > 0 ? (
             <Link
@@ -71,7 +71,7 @@ export function RecentActivity({ items }: { items: RecentActivityItem[] }) {
           ) : undefined
         }
       />
-      <div className="overflow-hidden rounded-md border border-border bg-surface">
+      <div className="overflow-hidden rounded-xl border border-border bg-surface shadow-xs">
         {items.length === 0 ? (
           <EmptyState
             icon={History}

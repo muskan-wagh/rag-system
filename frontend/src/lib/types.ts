@@ -245,11 +245,26 @@ export interface SessionStats {
   open: number
   applied: number
   screening: number
+  /** Candidates currently in the Assessment stage. */
+  assessment: number
+  /** Candidates currently in the Technical Interview stage. */
+  technical: number
+  /** Candidates currently in the Managerial/HR stage. */
+  hr: number
+  /** Candidates currently awaiting a final hiring decision. */
+  finalDecision: number
+  /** Backwards-compatible aggregate of `technical + hr`. */
   interview: number
   interviewsToday: number
   offered: number
   hired: number
   rejected: number
+  /** Candidates parked on Hold or Withdrawn. */
+  onHold: number
+  /** Historical screening outcomes — event-based, NOT current stage. */
+  screeningPassed: number
+  screeningFailed: number
+  screeningTotal: number
   totalCandidates: number
   uploadedToday: number
   activeSessions: number
@@ -460,6 +475,7 @@ export interface CandidateInviteState {
 
 export interface EligibleCandidate extends CandidateRecord {
   invite: CandidateInviteState | null
+  screening: { status: string; overall: number } | null
 }
 
 export interface AssessmentInvite {

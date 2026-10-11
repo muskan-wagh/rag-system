@@ -27,6 +27,13 @@ import {
   inviteEmailKey,
 } from '@/services/assessments/inviteCrypto';
 import {
+  generateAssessmentQuestions,
+  totalRequestedCount,
+  type GenerationRequest,
+  type GenerationQuestionType,
+  type NormalizedGeneratedQuestion,
+} from '@/services/assessments/generationService';
+import {
   buildAssessmentInviteEmail,
   assessmentInviteSubject,
 } from '@/services/email/assessmentInvite';
@@ -568,8 +575,32 @@ export const unpublishAssessmentHandler = asyncHandler(async (req: Request, res:
 export const deleteAssessmentHandler = asyncHandler(async (req: Request, res: Response) => {
   const recruiterId = req.recruiter?.id as string;
   const assessmentId = req.params.assessmentId as string;
-  await requireAssessment(recruiterId, assessmentId);
+  const assessment = await requireAssessment(recruiterId, assessmentId);
   const supabase = getSupabaseClient();
+
+  // `assessment_attempts.candidate_id -> assessment_id` is ON DELETE CASCADE, so
+  // deleting a published assessment used to destroy live candidate attempts,
+  // their saved answers, and their scores. Never delete something a candidate is
+  // currently sitting in; unpublish instead.
+  if ((assessment as { status?: string }).status === 'published') {
+    throw new AppError(
+      'Unpublish this assessment before deleting it — candidates may be mid-attempt.',
+      409,
+      ErrorCodes.VALIDATION_ERROR,
+    );
+  }
+  const { count } = await supabase
+    .from('assessment_attempts')
+    .select('id', { count: 'exact', head: true })
+    .eq('assessment_id', assessmentId);
+  if ((count || 0) > 0) {
+    throw new AppError(
+      `This assessment has ${count} candidate attempt(s) and cannot be deleted. Unpublish it instead.`,
+      409,
+      ErrorCodes.VALIDATION_ERROR,
+    );
+  }
+
   const { error } = await supabase
     .from('assessments')
     .delete()
@@ -824,7 +855,7 @@ export const reorderQuestionsHandler = asyncHandler(async (req: Request, res: Re
 export const eligibleCandidatesHandler = asyncHandler(async (req: Request, res: Response) => {
   const recruiterId = req.recruiter?.id as string;
   const assessmentId = req.params.assessmentId as string;
-  await requireAssessment(recruiterId, assessmentId);
+  const assessment = await requireAssessment(recruiterId, assessmentId);
 
   const filter = req.query.filter === 'all' ? 'all' : 'eligible';
   const page = Math.max(1, parseInt(String(req.query.page || '1'), 10) || 1);
@@ -833,19 +864,57 @@ export const eligibleCandidatesHandler = asyncHandler(async (req: Request, res: 
     ? req.query.search.trim()
     : undefined;
 
-  // Default scope: Shortlisted + Screening (comma syntax is supported by the
-  // shared status filter). `all` lifts the gate — the recruiter picks manually.
+  const supabase = getSupabaseClient();
+
+  // Eligibility source of truth: screening_results for the assessment's job.
+  // passed -> eligible; overridden -> eligible unless the recruiter rejected
+  // (rejection sets candidates.current_status='Rejected'). `all` lifts the
+  // gate so the recruiter can pick manually.
+  let eligibleIds: string[] | undefined;
+  const screeningByCandidate = new Map<string, { status: string; overall: number }>();
+  if (filter === 'eligible' && assessment.job_id) {
+    const { data: rows } = await supabase
+      .from('screening_results')
+      .select('candidate_id, status, overall')
+      .eq('job_id', assessment.job_id);
+    const passed = ((rows || []) as Array<{ candidate_id: string; status: string; overall: number }>)
+      .filter((r) => r.status === 'passed');
+    const overridden = ((rows || []) as Array<{ candidate_id: string; status: string; overall: number }>)
+      .filter((r) => r.status === 'overridden');
+    for (const r of [...passed, ...overridden]) {
+      screeningByCandidate.set(r.candidate_id, { status: r.status, overall: Number(r.overall) || 0 });
+    }
+    let candidates = [...passed, ...overridden].map((r) => r.candidate_id);
+    if (overridden.length > 0) {
+      // Exclude recruiter-rejected overrides (current_status='Rejected').
+      const { data: rejected } = await supabase
+        .from('candidates')
+        .select('id')
+        .in('id', overridden.map((r) => r.candidate_id))
+        .eq('current_status', 'Rejected');
+      const rejectedSet = new Set(((rejected || []) as Array<{ id: string }>).map((r) => r.id));
+      candidates = candidates.filter((id) => {
+        const s = screeningByCandidate.get(id)?.status;
+        return s === 'passed' || !rejectedSet.has(id);
+      });
+      for (const id of rejectedSet) screeningByCandidate.delete(id);
+    }
+    eligibleIds = candidates;
+  }
+
+  // No job link (legacy standalone assessment): keep the previous
+  // shortlisted/screening status gate. `all` lifts every gate.
   const result = await getAllCandidatesPaginated({
     page,
     limit,
     search,
     sortBy: 'created_at',
     sortOrder: 'desc',
-    status: filter === 'eligible' ? 'shortlisted,screening' : undefined,
+    status: filter === 'eligible' && !assessment.job_id ? 'shortlisted,screening' : undefined,
+    interviewCandidateIds: eligibleIds,
     recruiterId,
   });
 
-  const supabase = getSupabaseClient();
   const { data: invites } = await supabase
     .from('assessment_invites')
     .select('candidate_id, status, sent_at, last_sent_at, send_count')
@@ -863,12 +932,17 @@ export const eligibleCandidatesHandler = asyncHandler(async (req: Request, res: 
   res.status(200).json({
     success: true,
     data: {
-      candidates: result.candidates.map((c) => ({ ...c, invite: inviteMap.get(c.id) || null })),
+      candidates: result.candidates.map((c) => ({
+        ...c,
+        invite: inviteMap.get(c.id) || null,
+        screening: screeningByCandidate.get(c.id) || null,
+      })),
       total: result.total,
       page: result.page,
       limit: result.limit,
       totalPages: result.totalPages,
       filter,
+      jobId: assessment.job_id,
     },
   });
 });
@@ -1178,6 +1252,285 @@ export const revokeInviteHandler = asyncHandler(async (req: Request, res: Respon
     throw new AppError('No invitation found for this candidate.', 404, ErrorCodes.NOT_FOUND);
   }
   res.status(200).json({ success: true, data: { message: 'Invitation revoked' } });
+});
+
+// ---------- AI assessment generation (job-specific, draft-only) ----------
+
+const GENERATION_TYPES = ['mcq', 'coding', 'sql', 'subjective'] as const;
+
+function parseTypeCounts(raw: unknown): Partial<Record<GenerationQuestionType, number>> {
+  const rec =
+    typeof raw === 'object' && raw !== null && !Array.isArray(raw)
+      ? (raw as Record<string, unknown>)
+      : {};
+  const out: Partial<Record<GenerationQuestionType, number>> = {};
+  for (const t of GENERATION_TYPES) {
+    const n = Number(rec[t]);
+    if (Number.isFinite(n) && n > 0) out[t] = Math.min(30, Math.floor(n));
+  }
+  return out;
+}
+
+/**
+ * Build the generation context server-side from the Job + real
+ * screening/RAG insights (frequent matched skills = required,
+ * frequent missing skills = preferred focus). Recruiter-supplied
+ * skill lists are treated as hints only.
+ */
+async function buildGenerationContext(
+  recruiterId: string,
+  jobId: string,
+  body: Record<string, unknown>,
+): Promise<{ request: GenerationRequest; title: string; description: string }> {
+  const supabase = getSupabaseClient();
+  const { data: job } = await supabase
+    .from('jobs')
+    .select('id, title, description')
+    .eq('id', jobId)
+    .eq('recruiter_id', recruiterId)
+    .maybeSingle();
+  if (!job) {
+    throw new AppError('Job not found', 404, ErrorCodes.NOT_FOUND);
+  }
+  const jobRow = job as { id: string; title: string; description: string | null };
+
+  const { data: screened } = await supabase
+    .from('screening_results')
+    .select('matched_skills, missing_skills')
+    .eq('job_id', jobId)
+    .limit(50);
+  const matchedFreq = new Map<string, number>();
+  const missingFreq = new Map<string, number>();
+  for (const r of (screened || []) as Array<{ matched_skills: string[]; missing_skills: string[] }>) {
+    for (const s of r.matched_skills || []) matchedFreq.set(s, (matchedFreq.get(s) || 0) + 1);
+    for (const s of r.missing_skills || []) missingFreq.set(s, (missingFreq.get(s) || 0) + 1);
+  }
+  const top = (m: Map<string, number>, n: number) =>
+    [...m.entries()].sort((a, b) => b[1] - a[1]).slice(0, n).map(([s]) => s);
+  const hinted = Array.isArray(body.skills) ? (body.skills as unknown[]).map(String) : [];
+
+  const questionTypes = parseTypeCounts(body.question_types);
+  if (totalRequestedCount({ questionTypes } as GenerationRequest) === 0) {
+    throw new AppError(
+      'question_types must request at least 1 question across mcq/coding/sql/subjective.',
+      400,
+      ErrorCodes.VALIDATION_ERROR,
+    );
+  }
+  const difficultyRaw = String(body.difficulty || 'mixed');
+  const difficulty = (['easy', 'medium', 'hard', 'mixed'] as const).includes(difficultyRaw as 'mixed')
+    ? (difficultyRaw as GenerationRequest['difficulty'])
+    : 'mixed';
+
+  return {
+    request: {
+      jobTitle: jobRow.title,
+      jobDescription: jobRow.description || '',
+      requiredSkills: [...new Set([...top(matchedFreq, 15), ...hinted])].slice(0, 20),
+      preferredSkills: top(missingFreq, 10),
+      experienceLevel: typeof body.experience_level === 'string' ? body.experience_level : '',
+      educationRequirements: typeof body.education === 'string' ? body.education : '',
+      questionTypes,
+      difficulty,
+      defaultMarks: typeof body.marks_per_question === 'number' && body.marks_per_question > 0
+        ? Math.min(20, Math.floor(Number(body.marks_per_question)))
+        : 2,
+    },
+    title: jobRow.title,
+    description: jobRow.description || '',
+  };
+}
+
+async function insertGeneratedQuestions(
+  assessmentId: string,
+  questions: NormalizedGeneratedQuestion[],
+  startPosition: number,
+) {
+  const supabase = getSupabaseClient();
+  const rows = questions.map((q, index) => ({
+    assessment_id: assessmentId,
+    type: q.type,
+    position: startPosition + index,
+    title: q.title,
+    prompt: q.prompt,
+    payload: q.payload,
+    marks: q.marks,
+    skill_tag: q.skill_tag,
+    is_required: q.is_required,
+  }));
+  const { data, error } = await supabase
+    .from('assessment_questions')
+    .insert(rows)
+    .select('*');
+  if (error || !data) {
+    throw new AppError(`Failed to save generated questions: ${error?.message}`, 500, ErrorCodes.DATABASE_ERROR);
+  }
+  return data;
+}
+
+/**
+ * POST /assessments/generate — AI-draft an assessment for a JOB.
+ * Reuses the job's existing draft template when present (one template
+ * per job); otherwise creates it. Output is ALWAYS draft for recruiter
+ * review — never published, never sent.
+ */
+export const generateAssessmentHandler = asyncHandler(async (req: Request, res: Response) => {
+  const recruiterId = req.recruiter?.id as string;
+  const body = (req.body || {}) as Record<string, unknown>;
+  const jobId = String(body.job_id || '').trim();
+  if (!jobId) {
+    throw new AppError('job_id is required.', 400, ErrorCodes.VALIDATION_ERROR);
+  }
+  const { request, title } = await buildGenerationContext(recruiterId, jobId, body);
+
+  let generated;
+  try {
+    generated = await generateAssessmentQuestions(request);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Assessment generation failed.';
+    throw new AppError(message, 502, ErrorCodes.AI_ERROR);
+  }
+
+  const supabase = getSupabaseClient();
+  const stageId = await ensureAssessmentStage(recruiterId, jobId);
+
+  // One template per job: reuse the most recent draft without sent invites.
+  let assessmentId: string | null = null;
+  const { data: drafts } = await supabase
+    .from('assessments')
+    .select('id')
+    .eq('recruiter_id', recruiterId)
+    .eq('job_id', jobId)
+    .eq('status', 'draft')
+    .order('updated_at', { ascending: false })
+    .limit(5);
+  for (const d of (drafts || []) as Array<{ id: string }>) {
+    const { count } = await supabase
+      .from('assessment_invites')
+      .select('id', { count: 'exact', head: true })
+      .eq('assessment_id', d.id);
+    if (!count) {
+      assessmentId = d.id;
+      break;
+    }
+  }
+  if (!assessmentId) {
+    const duration = typeof body.duration_minutes === 'number' && body.duration_minutes > 0
+      ? Math.min(480, Math.floor(Number(body.duration_minutes)))
+      : 60;
+    const passing = typeof body.passing_score === 'number' && body.passing_score >= 0
+      ? Number(body.passing_score)
+      : 60;
+    const { data: created, error: createError } = await supabase
+      .from('assessments')
+      .insert({
+        recruiter_id: recruiterId,
+        job_id: jobId,
+        hiring_stage_id: stageId,
+        name: `${title} — Assessment`,
+        description: 'AI-generated draft. Review and edit before publishing.',
+        instructions: '',
+        duration_minutes: duration,
+        passing_score: passing,
+        skills: request.requiredSkills,
+        status: 'draft',
+        settings: DEFAULT_SETTINGS,
+      })
+      .select('id')
+      .single();
+    if (createError || !created) {
+      throw new AppError(`Failed to create draft assessment: ${createError?.message}`, 500, ErrorCodes.DATABASE_ERROR);
+    }
+    assessmentId = (created as { id: string }).id;
+  }
+
+  const existing = await getQuestions(assessmentId);
+  const startPosition = existing.length === 0 ? 0 : Math.max(...existing.map((q) => q.position)) + 1;
+  const saved = await insertGeneratedQuestions(assessmentId, generated.questions, startPosition);
+
+  await supabase
+    .from('assessments')
+    .update({ updated_at: new Date().toISOString() })
+    .eq('id', assessmentId);
+  broadcast('assessment:updated', { assessmentId });
+  logActivity({
+    recruiterId,
+    actionType: 'assessment_generated',
+    description: `AI generated ${saved.length} draft questions for "${title}"`,
+    metadata: { assessmentId, jobId, model: generated.model, dropped: generated.dropped },
+  }).catch(() => {});
+
+  res.status(201).json({
+    success: true,
+    data: { assessmentId, questions: saved, model: generated.model, dropped: generated.dropped },
+  });
+});
+
+/**
+ * POST /assessments/:assessmentId/questions/:questionId/regenerate —
+ * replace one draft question with a freshly generated one of the same
+ * (or requested) type. Draft-only; publish gate unchanged.
+ */
+export const regenerateQuestionHandler = asyncHandler(async (req: Request, res: Response) => {
+  const recruiterId = req.recruiter?.id as string;
+  const assessmentId = req.params.assessmentId as string;
+  const questionId = req.params.questionId as string;
+  const assessment = await requireAssessment(recruiterId, assessmentId);
+  requireDraft(assessment);
+  if (!assessment.job_id) {
+    throw new AppError('Link this assessment to a job before regenerating with AI.', 400, ErrorCodes.VALIDATION_ERROR);
+  }
+
+  const supabase = getSupabaseClient();
+  const { data: current } = await supabase
+    .from('assessment_questions')
+    .select('*')
+    .eq('id', questionId)
+    .eq('assessment_id', assessmentId)
+    .maybeSingle();
+  if (!current) {
+    throw new AppError('Question not found', 404, ErrorCodes.NOT_FOUND);
+  }
+  const row = current as QuestionRow;
+
+  const requestedType = String((req.body as Record<string, unknown>)?.type || row.type);
+  if (!(GENERATION_TYPES as readonly string[]).includes(requestedType)) {
+    throw new AppError('Invalid question type for regeneration.', 400, ErrorCodes.VALIDATION_ERROR);
+  }
+
+  const { request } = await buildGenerationContext(recruiterId, assessment.job_id, {
+    question_types: { [requestedType]: 1 },
+    difficulty: 'mixed',
+    marks_per_question: row.marks,
+  });
+  let generated;
+  try {
+    generated = await generateAssessmentQuestions(request);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Question regeneration failed.';
+    throw new AppError(message, 502, ErrorCodes.AI_ERROR);
+  }
+  const fresh = generated.questions[0];
+
+  const { data: updated, error } = await supabase
+    .from('assessment_questions')
+    .update({
+      type: fresh.type,
+      title: fresh.title,
+      prompt: fresh.prompt,
+      payload: fresh.payload,
+      marks: fresh.marks,
+      skill_tag: fresh.skill_tag || row.skill_tag,
+    })
+    .eq('id', questionId)
+    .eq('assessment_id', assessmentId)
+    .select('*')
+    .single();
+  if (error || !updated) {
+    throw new AppError(`Failed to save regenerated question: ${error?.message}`, 500, ErrorCodes.DATABASE_ERROR);
+  }
+  broadcast('assessment:updated', { assessmentId });
+  res.status(200).json({ success: true, data: updated });
 });
 
 // Re-exported for tests (pure helpers stay importable without Express).

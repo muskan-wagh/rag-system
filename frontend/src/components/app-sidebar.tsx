@@ -16,38 +16,55 @@ import {
   Settings,
   LogOut,
   ClipboardList,
+  Briefcase,
 } from "lucide-react"
 import { BrandLogo } from "@/components/brand"
+import { Tooltip } from "@/components/ui/tooltip"
 
-const navSections = [
+interface NavItem {
+  href: string
+  label: string
+  icon: typeof LayoutDashboard
+  /** Tokenised accent so every icon reads correctly in light and dark. */
+  tone: string
+}
+
+const navSections: Array<{ label: string; items: NavItem[] }> = [
   {
-    label: "Main",
+    label: "Overview",
     items: [
-      { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, iconClass: "text-indigo-500 dark:text-indigo-400" },
-      { href: "/candidates", label: "Candidates", icon: Users, iconClass: "text-info" },
-      { href: "/candidates/search", label: "Search", icon: Search, iconClass: "text-success" },
-      { href: "/compare", label: "Compare", icon: GitCompareArrows, iconClass: "text-warning" },
-      { href: "/pools", label: "Pools", icon: Layers, iconClass: "text-info" },
-      { href: "/interview", label: "Interviews", icon: CalendarDays, iconClass: "text-success" },
-      { href: "/assessments", label: "Assessments", icon: ClipboardList, iconClass: "text-warning" },
+      { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, tone: "text-accent" },
+      { href: "/interview", label: "Interviews", icon: CalendarDays, tone: "text-success" },
     ],
   },
   {
-    label: "Workspace",
+    label: "Hiring",
     items: [
-      { href: "/search", label: "Saved Searches", icon: Bookmark, iconClass: "text-warning" },
-      { href: "/history", label: "History", icon: History, iconClass: "text-info" },
+      { href: "/jobs", label: "Jobs", icon: Briefcase, tone: "text-ink" },
+      { href: "/candidates", label: "Candidates", icon: Users, tone: "text-ink" },
+      { href: "/candidates/search", label: "AI search", icon: Search, tone: "text-accent" },
+      { href: "/compare", label: "Compare", icon: GitCompareArrows, tone: "text-ink" },
+      { href: "/assessments", label: "Assessments", icon: ClipboardList, tone: "text-ink" },
     ],
   },
   {
-    label: "System",
-    items: [{ href: "/settings", label: "Settings", icon: Settings, iconClass: "text-muted" }],
+    label: "Library",
+    items: [
+      { href: "/pools", label: "Talent pools", icon: Layers, tone: "text-ink" },
+      { href: "/search", label: "Saved searches", icon: Bookmark, tone: "text-ink" },
+      { href: "/history", label: "Activity", icon: History, tone: "text-ink" },
+    ],
   },
-] as const
+  {
+    label: "Account",
+    items: [{ href: "/settings", label: "Settings", icon: Settings, tone: "text-muted" }],
+  },
+]
 
 export function isNavActive(href: string, pathname: string): boolean {
   if (href === "/dashboard") return pathname === "/dashboard"
-  if (href === "/candidates") return pathname === "/candidates" || /^\/candidates\/[^/]+$/.test(pathname)
+  if (href === "/candidates")
+    return pathname === "/candidates" || /^\/candidates\/[^/]+$/.test(pathname)
   if (href === "/candidates/search") return pathname.startsWith("/candidates/search")
   return pathname === href || pathname.startsWith(`${href}/`)
 }
@@ -55,9 +72,9 @@ export function isNavActive(href: string, pathname: string): boolean {
 function NavItems({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname()
   return (
-    <nav className="flex-1 overflow-y-auto px-3 pb-3" aria-label="Main navigation">
+    <nav className="flex-1 overflow-y-auto px-3 pb-3" aria-label="Main">
       {navSections.map((section) => (
-        <div key={section.label} className="pt-4 first:pt-3">
+        <div key={section.label} className="pt-5 first:pt-4">
           <p className="px-2 pb-1.5 text-[10.5px] font-medium uppercase tracking-[0.08em] text-faint">
             {section.label}
           </p>
@@ -71,17 +88,25 @@ function NavItems({ onNavigate }: { onNavigate?: () => void }) {
                     onClick={onNavigate}
                     aria-current={active ? "page" : undefined}
                     className={cn(
-                      "group flex h-8 items-center gap-2.5 rounded-md px-2.5 text-[13px] transition-colors duration-120",
+                      "group relative flex h-8 items-center gap-2.5 rounded-md px-2.5 text-[13px] transition-colors duration-120",
                       active
-                        ? "bg-surface-secondary font-medium text-ink ring-1 ring-inset ring-border"
+                        ? "bg-surface-secondary font-medium text-ink"
                         : "font-normal text-muted hover:bg-hover-tone hover:text-ink",
                     )}
                   >
+                    {/* Active marker doubles as the non-colour affordance. */}
+                    <span
+                      aria-hidden
+                      className={cn(
+                        "absolute left-0 top-1/2 h-4 w-[2px] -translate-y-1/2 rounded-r-full bg-ink transition-opacity duration-150",
+                        active ? "opacity-100" : "opacity-0",
+                      )}
+                    />
                     <item.icon
                       className={cn(
-                        "size-4 shrink-0 transition-all duration-120",
-                        item.iconClass,
-                        active ? "opacity-100" : "opacity-75 group-hover:opacity-100",
+                        "size-4 shrink-0 transition-opacity duration-120",
+                        item.tone,
+                        active ? "opacity-100" : "opacity-70 group-hover:opacity-100",
                       )}
                       strokeWidth={active ? 2 : 1.75}
                       aria-hidden
@@ -101,34 +126,32 @@ function NavItems({ onNavigate }: { onNavigate?: () => void }) {
 function SidebarFooter() {
   const { user } = useUser()
   const { signOut } = useAuth()
-  const initials = (
-    user?.firstName?.[0] ||
-    user?.primaryEmailAddress?.emailAddress?.[0] ||
-    "U"
-  ).toUpperCase()
+  const name = user?.firstName || user?.fullName || "Recruiter"
+  const email = user?.primaryEmailAddress?.emailAddress || ""
+  const initials = (user?.firstName?.[0] || email[0] || "U").toUpperCase()
 
   return (
-    <div className="shrink-0 border-t border-border/70 px-3 py-3">
+    <div className="shrink-0 border-t border-border/70 p-3">
       <div className="flex items-center gap-2.5 rounded-lg px-1.5 py-1">
-        <div className="flex size-7 shrink-0 items-center justify-center rounded-full bg-soft text-[10.5px] font-medium text-muted ring-1 ring-inset ring-border">
+        <div className="flex size-7 shrink-0 items-center justify-center rounded-full bg-soft font-data text-[10.5px] font-medium text-muted ring-1 ring-inset ring-border">
           {initials}
         </div>
         <div className="min-w-0 flex-1">
-          <p className="truncate text-[12.5px] font-medium leading-tight text-ink">
-            {user?.firstName || "Recruiter"}
-          </p>
-          <p className="truncate text-[11px] leading-tight text-faint">
-            {user?.primaryEmailAddress?.emailAddress || ""}
-          </p>
+          <p className="truncate text-[12.5px] font-medium leading-tight text-ink">{name}</p>
+          {email && (
+            <p className="truncate text-[11px] leading-tight text-faint">{email}</p>
+          )}
         </div>
-        <button
-          onClick={() => signOut({ redirectUrl: "/" })}
-          className="flex size-7 shrink-0 items-center justify-center rounded-md text-faint transition-colors duration-120 hover:bg-hover-tone hover:text-danger"
-          aria-label="Sign out"
-          title="Sign out"
-        >
-          <LogOut className="size-3.5" strokeWidth={1.75} />
-        </button>
+        <Tooltip label="Sign out" side="top">
+          <button
+            type="button"
+            onClick={() => signOut({ redirectUrl: "/" })}
+            className="flex size-7 shrink-0 items-center justify-center rounded-md text-faint transition-colors duration-120 hover:bg-hover-tone hover:text-danger"
+            aria-label="Sign out"
+          >
+            <LogOut className="size-3.5" strokeWidth={1.75} aria-hidden />
+          </button>
+        </Tooltip>
       </div>
     </div>
   )
@@ -137,8 +160,10 @@ function SidebarFooter() {
 export function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
   return (
     <div className="flex h-full flex-col bg-surface">
-      <div className="flex h-[57px] shrink-0 items-center border-b border-border/60 px-4">
-        <BrandLogo />
+      <div className="flex h-[56px] shrink-0 items-center border-b border-border/60 px-4">
+        <Link href="/dashboard" onClick={onNavigate} aria-label="HireStack dashboard">
+          <BrandLogo size={26} />
+        </Link>
       </div>
       <NavItems onNavigate={onNavigate} />
       <SidebarFooter />
@@ -148,7 +173,7 @@ export function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
 
 export function AppSidebar() {
   return (
-    <aside className="fixed bottom-2 left-2 top-2 z-30 hidden w-[220px] flex-col overflow-hidden rounded-xl border border-border/80 bg-surface lg:flex">
+    <aside className="fixed bottom-2 left-2 top-2 z-30 hidden w-[228px] flex-col overflow-hidden rounded-xl border border-border bg-surface lg:flex">
       <SidebarContent />
     </aside>
   )

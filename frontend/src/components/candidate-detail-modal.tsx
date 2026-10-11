@@ -338,7 +338,7 @@ export function CandidateDetailModal({ open, onClose, candidate, onStatusChange 
               size="sm"
               onClick={handleShortlist}
               disabled={shortlisting || isTerminal || currentStatus === 'Screening'}
-              className="border-amber-200 text-amber-700 hover:bg-amber-50 hover:text-amber-800"
+              className="border-warning text-warning hover:bg-warning/10 hover:text-warning"
             >
               {shortlisting ? (
                 <Loader2 className="size-3.5 animate-spin" strokeWidth={1.75} />
@@ -352,7 +352,7 @@ export function CandidateDetailModal({ open, onClose, candidate, onStatusChange 
               size="sm"
               onClick={() => setShowScheduleModal(true)}
               disabled={isTerminal}
-              className="border-blue-200 text-blue-700 hover:bg-blue-50 hover:text-blue-800"
+              className="border-info text-info hover:bg-info/10 hover:text-info"
             >
               <Calendar className="size-3.5" strokeWidth={1.75} />
               Schedule Interview
@@ -361,7 +361,7 @@ export function CandidateDetailModal({ open, onClose, candidate, onStatusChange 
               size="sm"
               onClick={() => setShowOfferModal(true)}
               disabled={isTerminal || isHired}
-              className="bg-green-600 text-white hover:bg-green-700"
+              className="bg-success text-white hover:bg-success"
             >
               <CircleCheck className="size-3.5" strokeWidth={1.75} />
               Hire
@@ -371,7 +371,7 @@ export function CandidateDetailModal({ open, onClose, candidate, onStatusChange 
               size="sm"
               onClick={() => setShowRejectModal(true)}
               disabled={isTerminal}
-              className="border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
+              className="border-danger/25 text-danger hover:bg-danger/8 hover:text-danger"
             >
               <CircleX className="size-3.5" strokeWidth={1.75} />
               Reject
@@ -717,7 +717,7 @@ export function CandidateDetailModal({ open, onClose, candidate, onStatusChange 
 
             {!loadingNotes && notes.length === 0 && (
               <div className="py-8 text-center">
-                <FileText className="mx-auto mb-3 size-8 text-muted-foreground/40" strokeWidth={1.5} />
+                <FileText className="mx-auto mb-3 size-8 text-muted/40" strokeWidth={1.5} />
                 <p className="text-[12.5px] text-muted">No notes yet. Add one above.</p>
               </div>
             )}
@@ -730,7 +730,7 @@ export function CandidateDetailModal({ open, onClose, candidate, onStatusChange 
                     className="rounded-lg border-l-4 border-primary/30 bg-muted/30 p-3 text-[13px]"
                   >
                     <p>{note.note_text}</p>
-                    <p className="mt-2 text-[10px] text-muted-foreground">
+                    <p className="mt-2 text-[10px] text-muted">
                       {formatDate(note.created_at)}
                     </p>
                   </div>
@@ -780,14 +780,14 @@ export function CandidateDetailModal({ open, onClose, candidate, onStatusChange 
                     key={i}
                     className="flex items-start gap-3 rounded-lg border border-border bg-muted/30 p-3"
                   >
-                    <span className="mt-0.5 shrink-0 font-mono text-[11px] text-muted-foreground">
+                    <span className="mt-0.5 shrink-0 font-mono text-[11px] text-muted">
                       #{i + 1}
                     </span>
                     <div className="min-w-0">
                       <p className="text-[13px]">{q.question}</p>
                       <div className="mt-1 flex flex-wrap items-center gap-2">
                         <Badge variant="outline" className="text-[10px]">{q.focus_area}</Badge>
-                        <span className="text-[10px] text-muted-foreground">{q.why_this_matters}</span>
+                        <span className="text-[10px] text-muted">{q.why_this_matters}</span>
                       </div>
                     </div>
                   </div>
@@ -797,7 +797,7 @@ export function CandidateDetailModal({ open, onClose, candidate, onStatusChange 
 
             {!screeningQuestions && !loadingQuestions && !questionsError && (
               <div className="py-12 text-center">
-                <MessageSquare className="mx-auto mb-3 size-10 text-muted-foreground/30" strokeWidth={1.5} />
+                <MessageSquare className="mx-auto mb-3 size-10 text-muted/30" strokeWidth={1.5} />
                 <p className="text-[12.5px] text-muted">
                   Click Generate to create AI-powered screening questions.
                 </p>
@@ -840,33 +840,33 @@ export function CandidateDetailModal({ open, onClose, candidate, onStatusChange 
 
             {closingStrategy && !loadingStrategy && (
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <div className="rounded-lg border border-border bg-green-50/50 p-4 dark:bg-green-950/10">
-                  <h4 className="mb-3 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-green-600">
+                <div className="rounded-lg border border-border bg-success/10/50 p-4 dark:bg-success/10/10">
+                  <h4 className="mb-3 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-success">
                     <ThumbsUp className="size-3.5" strokeWidth={1.75} />
                     Selling Points
                   </h4>
                   <ul className="space-y-2">
                     {closingStrategy.selling_points.map((sp, i) => (
                       <li key={i} className="flex items-start gap-2 text-[13px]">
-                        <CircleCheck className="mt-0.5 size-4 shrink-0 text-green-500" strokeWidth={1.75} />
+                        <CircleCheck className="mt-0.5 size-4 shrink-0 text-success" strokeWidth={1.75} />
                         <div>
-                          <p className="font-medium text-green-800">{sp.point}</p>
-                          <p className="text-[11.5px] text-green-600">{sp.detail}</p>
+                          <p className="font-medium text-success">{sp.point}</p>
+                          <p className="text-[11.5px] text-success">{sp.detail}</p>
                         </div>
                       </li>
                     ))}
                   </ul>
                 </div>
-                <div className="rounded-lg border border-border bg-amber-50/50 p-4 dark:bg-amber-950/10">
-                  <h4 className="mb-3 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-amber-600">
+                <div className="rounded-lg border border-border bg-warning/10/50 p-4 dark:bg-warning/10/10">
+                  <h4 className="mb-3 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-warning">
                     <AlertTriangle className="size-3.5" strokeWidth={1.75} />
                     Objection to Overcome
                   </h4>
                   <p className="mt-1 flex items-start gap-2 text-[13px]">
-                    <AlertTriangle className="mt-0.5 size-4 shrink-0 text-amber-500" strokeWidth={1.75} />
-                    <span className="font-medium text-amber-800">{closingStrategy.major_objection.objection}</span>
+                    <AlertTriangle className="mt-0.5 size-4 shrink-0 text-warning" strokeWidth={1.75} />
+                    <span className="font-medium text-warning">{closingStrategy.major_objection.objection}</span>
                   </p>
-                  <p className="ml-6 mt-2 flex items-start gap-1.5 text-[11.5px] text-amber-600">
+                  <p className="ml-6 mt-2 flex items-start gap-1.5 text-[11.5px] text-warning">
                     <ArrowRight className="mt-0.5 size-3 shrink-0" strokeWidth={1.75} />
                     {closingStrategy.major_objection.overcome_strategy}
                   </p>
@@ -876,7 +876,7 @@ export function CandidateDetailModal({ open, onClose, candidate, onStatusChange 
 
             {!closingStrategy && !loadingStrategy && !strategyError && (
               <div className="py-12 text-center">
-                <Target className="mx-auto mb-3 size-10 text-muted-foreground/30" strokeWidth={1.5} />
+                <Target className="mx-auto mb-3 size-10 text-muted/30" strokeWidth={1.5} />
                 <p className="text-[12.5px] text-muted">
                   Click Get Strategy to generate selling points and objection handling.
                 </p>

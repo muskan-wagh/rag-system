@@ -78,7 +78,7 @@ export function AssessmentPreview({ assessment }: { assessment: AssessmentDetail
   const questions = assessment.questions || []
   return (
     <div className="space-y-4">
-      <div className="rounded-lg border border-border bg-surface p-4 sm:p-5">
+      <div className="rounded-xl border border-border bg-surface p-4 shadow-xs sm:p-5">
         <div className="flex flex-wrap items-center gap-2">
           <h3 className="text-base font-medium text-ink">{assessment.name || "Untitled assessment"}</h3>
           <Badge variant={assessment.status === "published" ? "success" : "warning"}>{assessment.status}</Badge>
@@ -105,7 +105,7 @@ export function AssessmentPreview({ assessment }: { assessment: AssessmentDetail
         </div>
       ) : (
         questions.map((q, i) => (
-          <div key={q.id} className="rounded-lg border border-border bg-surface p-4">
+          <div key={q.id} className="rounded-xl border border-border bg-surface p-4 shadow-xs">
             <div className="flex flex-wrap items-center gap-2">
               <span className="text-sm font-medium text-ink">Q{i + 1}.</span>
               <Badge variant="secondary">{QUESTION_TYPE_LABELS[q.type] || q.type}</Badge>
@@ -118,7 +118,7 @@ export function AssessmentPreview({ assessment }: { assessment: AssessmentDetail
           </div>
         ))
       )}
-      <div className="rounded-lg border border-border bg-surface p-4 text-sm text-muted">
+      <div className="rounded-xl border border-border bg-surface p-4 shadow-xs text-sm text-muted">
         Total: <strong className="text-ink">{assessment.totalQuestions}</strong> questions ·{" "}
         <strong className="text-ink">{assessment.totalMarks}</strong> marks · passing{" "}
         <strong className="text-ink">{assessment.passing_score}</strong>

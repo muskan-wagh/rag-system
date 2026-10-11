@@ -1,12 +1,10 @@
 import { Request, Response, NextFunction } from 'express';
-import { createClerkClient } from '@clerk/backend';
+import { verifyToken } from '@clerk/backend';
 import { config } from '@/config';
 import { getOrCreateRecruiter } from '@/services/recruiter';
 import { RecruiterRecord } from '@/services/supabase/database';
 import { memoryCache } from '@/utils/memory-cache';
 import { logger } from '@/utils/logger';
-
-const clerkClient = createClerkClient({ secretKey: config.clerkSecretKey });
 
 const PUBLIC_PATHS = ['/', '/health', '/api/upload', '/api/gmail/callback', '/api/integrations/gmail/callback', '/api/candidate'];
 
@@ -16,14 +14,29 @@ function isPublicPath(req: Request): boolean {
   return PUBLIC_PATHS.some((path) => req.path === path || req.path.startsWith(path + '/'));
 }
 
-function decodeJwtPayload(token: string): Record<string, unknown> | null {
+/**
+ * Verify a Clerk session token's SIGNATURE, expiry, issuer and audience.
+ *
+ * The previous implementation base64-decoded the payload without checking the
+ * signature, which meant any attacker-authored three-part JWT with a `sub`
+ * claim was accepted as a valid recruiter identity. Verification is mandatory:
+ * an unverified token is never trusted, even if it looks structurally valid.
+ */
+export async function verifyClerkToken(
+  token: string,
+): Promise<{ clerkId: string } | { error: string }> {
   try {
-    const parts = token.split('.');
-    if (parts.length !== 3) return null;
-    const decoded = Buffer.from(parts[1].replace(/-/g, '+').replace(/_/g, '/'), 'base64').toString('utf-8');
-    return JSON.parse(decoded);
-  } catch {
-    return null;
+    const payload = await verifyToken(token, { secretKey: config.clerkSecretKey });
+    const sub = payload.sub;
+    if (!sub || typeof sub !== 'string') {
+      return { error: 'Token missing subject claim' };
+    }
+    return { clerkId: sub };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    // Never echo the raw token or internal verification detail to the client.
+    logger.warn('[auth] Clerk token verification failed', { message });
+    return { error: 'Invalid or expired token' };
   }
 }
 
@@ -46,16 +59,19 @@ export async function authMiddleware(req: Request, res: Response, next: NextFunc
   }
 
   const token = authHeader.slice(7);
-  const payload = decodeJwtPayload(token);
 
-  if (!payload || !payload.sub || typeof payload.sub !== 'string') {
-    res.status(401).json({ success: false, error: 'Invalid token format' });
+  // Signature/expiry/audience verification. Never trust a decoded-but-unverified
+  // payload: `getOrCreateRecruiter` auto-provisions, so an unverified `sub`
+  // would let an attacker mint themselves a recruiter account.
+  const verification = await verifyClerkToken(token);
+  if ('error' in verification) {
+    res.status(401).json({ success: false, error: verification.error });
     return;
   }
+  const clerkId = verification.clerkId;
 
-  const clerkId = payload.sub;
-
-  // Check in-memory cache first — avoids DB lookup on every request
+  // Check in-memory cache first — avoids DB lookup on every request.
+  // Only reached AFTER successful signature verification.
   const cacheKey = `recruiter:clerk:${clerkId}`;
   const cached = memoryCache.get<RecruiterRecord>(cacheKey);
   if (cached) {

@@ -4,6 +4,7 @@ import { getSupabaseClient } from '@/services/supabase/client';
 import { AppError } from '@/middleware/errorHandler';
 import { ErrorCodes } from '@/middleware/errorCodes';
 import { enqueueScreeningJob, getScreeningQueue, screeningJobId } from '@/services/queue/screeningQueue';
+import { enqueueProgressionJob } from '@/services/queue/progressionQueue';
 import { parseJD } from '@/services/llm/parseJD';
 import { generateEmbedding } from '@/services/embedding';
 import { searchByEmbedding } from '@/services/qdrant/searchCandidates';
@@ -134,28 +135,41 @@ export async function runScreeningForCandidate(
   );
   if (error) throw new Error(`Failed to persist screening: ${error.message}`);
 
-  // Pass -> Assessment-eligible (req 10). Status advance only — the
-  // assessment invitation email stays strictly recruiter-controlled
-  // (req 11): nothing here enqueues or sends any email.
-  // Never downgrade a candidate already past Screening.
+  // Screening pass -> Assessment-eligible.
+  //
+  // This now goes through the CENTRAL progression service instead of writing
+  // `current_status` directly, which gave us: no idempotency (re-running
+  // screening duplicated work), no transition validation, no recruiter
+  // attribution on the timeline, and an unused `screening` trigger type.
+  //
+  // The progression service honours the job's `screening_to_assessment`
+  // toggle and parks the candidate when automation is off. Nothing here
+  // enqueues or sends an email — invitations stay recruiter-controlled.
   if (aiStatus === 'passed') {
-    const { data: current } = await supabase
+    const { data: owner } = await supabase
       .from('candidates')
-      .select('current_status')
+      .select('recruiter_id, current_status')
       .eq('id', candidateId)
       .maybeSingle();
-    const cur = String((current as { current_status?: string } | null)?.current_status || 'Applied');
-    if (['Applied', 'Shortlisted'].includes(cur)) {
-      await supabase.from('candidates').update({ current_status: 'Screening' }).eq('id', candidateId);
-      await supabase.from('candidate_status_log').insert({
-        candidate_id: candidateId,
-        status: 'Screening',
-        details: {
-          action: 'screening_passed',
-          job_id: jobId,
-          ai_overall: r.overall,
-          threshold: passThreshold,
-        },
+    const ownerId = String((owner as { recruiter_id?: string } | null)?.recruiter_id || '');
+    const currentStatus = String(
+      (owner as { current_status?: string } | null)?.current_status || 'Applied',
+    );
+
+    // Never move a candidate who is already at or past Screening — screening a
+    // second time must not walk them backwards through the pipeline.
+    const isPreScreening = ['Applied', 'Shortlisted', ''].includes(currentStatus);
+    if (ownerId && isPreScreening) {
+      await enqueueProgressionJob({
+        candidateId,
+        jobId,
+        recruiterId: ownerId,
+        fromStage: 'Applied',
+        triggerType: 'screening',
+        // Stable per (job, candidate, outcome) so retries deduplicate.
+        triggerId: `screening:${jobId}:${candidateId}:${aiStatus}`,
+        passed: true,
+        metadata: { aiOverall: r.overall, threshold: passThreshold },
       });
     }
   }

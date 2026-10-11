@@ -53,7 +53,13 @@ export default function TakeAssessmentPage() {
       if (full.attempt) setAttemptId(full.attempt.id);
       const restored: Record<string, { answer: unknown; code?: string; language?: string }> = {};
       for (const a of full.answers || []) {
-        restored[a.question_id] = { answer: a.answer, code: undefined, language: a.language || undefined };
+        // Restore the candidate's own autosaved source. Dropping it here meant a
+        // refresh silently threw away everything they had written.
+        restored[a.question_id] = {
+          answer: a.answer,
+          code: (a as { code?: string }).code || undefined,
+          language: a.language || undefined,
+        };
       }
       setAnswers(restored);
       setPhase("taking");
@@ -124,7 +130,7 @@ export default function TakeAssessmentPage() {
   if (phase === "loading") {
     return (
       <main className="mx-auto max-w-3xl p-6">
-        <p className="text-sm text-muted-foreground">Validating your secure invitation…</p>
+        <p className="text-sm text-muted">Validating your secure invitation…</p>
       </main>
     );
   }
@@ -133,7 +139,7 @@ export default function TakeAssessmentPage() {
     return (
       <main className="mx-auto max-w-3xl p-6">
         <h1 className="text-xl font-semibold">Assessment unavailable</h1>
-        <p role="alert" className="mt-2 text-sm text-red-600">{error}</p>
+        <p role="alert" className="mt-2 text-sm text-danger">{error}</p>
       </main>
     );
   }
@@ -182,7 +188,7 @@ export default function TakeAssessmentPage() {
         <h1 className="text-lg font-semibold">{data?.assessment.name || "Assessment"}</h1>
         <div className="flex items-center gap-2">
           <AssessmentTimer expiresAt={data?.attempt?.expires_at || null} />
-          <span className="text-xs text-muted-foreground" data-testid="autosave-state">
+          <span className="text-xs text-muted" data-testid="autosave-state">
             {saveState === "saving" ? "Saving…" : saveState === "saved" ? "Saved" : saveState === "error" ? "Save failed — retrying" : ""}
           </span>
         </div>
@@ -205,7 +211,7 @@ export default function TakeAssessmentPage() {
 
       {q ? (
         <section key={q.id} className="space-y-3 rounded-xl border border-border p-4">
-          <div className="flex items-center justify-between text-xs text-muted-foreground">
+          <div className="flex items-center justify-between text-xs text-muted">
             <span>Question {current + 1} of {questions.length} · {q.type} · {q.marks} marks</span>
           </div>
           <h2 className="font-medium">{q.title || `Question ${current + 1}`}</h2>
@@ -218,7 +224,7 @@ export default function TakeAssessmentPage() {
           />
         </section>
       ) : (
-        <p className="text-sm text-muted-foreground">No questions in this assessment.</p>
+        <p className="text-sm text-muted">No questions in this assessment.</p>
       )}
 
       <div className="flex items-center justify-between">

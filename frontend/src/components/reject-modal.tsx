@@ -50,19 +50,19 @@ export function RejectModal({ open, onClose, candidateId, onSuccess }: RejectMod
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="sm:max-w-md">
         <div className="px-6 pt-6 pb-2">
-          <div className="flex items-center gap-2 text-red-600">
+          <div className="flex items-center gap-2 text-danger">
             <XCircle className="h-5 w-5" />
             <h2 className="text-lg font-semibold">Reject Candidate</h2>
           </div>
-          <p className="text-sm text-muted-foreground mt-0.5">This action will move the candidate out of the hiring pipeline.</p>
+          <p className="text-sm text-muted mt-0.5">This action will move the candidate out of the hiring pipeline.</p>
         </div>
         <div className="space-y-4">
           <div>
-            <label className="text-xs font-medium text-muted-foreground mb-1 block">Reason for Rejection</label>
+            <label className="text-xs font-medium text-muted mb-1 block">Reason for Rejection</label>
             <select
               value={reason}
               onChange={(e) => setReason(e.target.value)}
-              className="w-full h-9 px-3 text-sm rounded-lg border border-border bg-surface focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500"
+              className="w-full h-9 px-3 text-sm rounded-lg border border-border bg-surface focus:outline-none focus:ring-2 focus:ring-danger/20 focus:border-danger"
             >
               {REJECT_REASONS.map((r) => (
                 <option key={r.value} value={r.value}>{r.label}</option>
@@ -70,15 +70,15 @@ export function RejectModal({ open, onClose, candidateId, onSuccess }: RejectMod
             </select>
           </div>
           <div>
-            <label className="text-xs font-medium text-muted-foreground mb-1 block">
-              Recruiter Note <span className="text-muted-foreground/60">(optional)</span>
+            <label className="text-xs font-medium text-muted mb-1 block">
+              Recruiter Note <span className="text-muted/60">(optional)</span>
             </label>
             <textarea
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               placeholder="Add any additional context..."
               rows={3}
-              className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-surface focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 resize-none"
+              className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-surface focus:outline-none focus:ring-2 focus:ring-danger/20 focus:border-danger resize-none"
             />
           </div>
           <div className="flex justify-end gap-2 pt-2">

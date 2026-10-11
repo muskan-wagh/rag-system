@@ -177,13 +177,19 @@ vi.mock('@/services/llm/explainability', () => ({
 
 // In-memory BullMQ fake so the REAL queue/producer logic runs hermetically
 // (no Redis). Shared via vi.hoisted to dodge mock-factory hoisting.
+
+/** All jobs currently sitting in the fake BullMQ store. */
+function queuedJobs(): Array<{ id: string; name?: string; data?: unknown; queue: string }> {
+  return [...bullStore.values()] as Array<{ id: string; name?: string; data?: unknown; queue: string }>;
+}
+
 const { bullStore, FakeQueue } = vi.hoisted(() => {
   const store = new Map<string, { id: string; state: string; data: unknown; queue: string }>();
   class FakeQueue {
     constructor(private qname: string) {}
-    async add(_name: string, data: unknown, opts?: { jobId?: string }) {
+    async add(name: string, data: unknown, opts?: { jobId?: string }) {
       const id = opts?.jobId || `auto-${store.size}`;
-      store.set(`${this.qname}:${id}`, { id, state: 'waiting', data, queue: this.qname });
+      store.set(`${this.qname}:${id}`, { id, name, state: 'waiting', data, queue: this.qname });
       return { id };
     }
     async getJob(id: string) {
@@ -269,29 +275,57 @@ describe('screening scoring persistence', () => {
 // ---------- pass -> Assessment eligibility ----------
 
 describe('pass to Assessment eligibility', () => {
-  it('passing candidate becomes Screening-eligible with timeline entry and no email', async () => {
+  // Screening no longer writes `candidates.current_status` directly. It hands
+  // the transition to the central progression service, which gives us
+  // idempotency, transition validation and recruiter-attributed timeline
+  // entries. The write therefore happens in the worker, not inline.
+  it('enqueues a screening progression instead of writing status directly', async () => {
     await runScreeningForCandidate('job-1', 'cand-1', 'jd', 60, 'rec-A');
     const cand = db.candidates.find((c) => c.id === 'cand-1');
-    expect(cand?.current_status).toBe('Screening');
-    const tl = db.candidate_status_log.filter((t) => t.candidate_id === 'cand-1');
-    expect(tl.length).toBe(1);
-    expect(tl[0].status).toBe('Screening');
-    expect((tl[0].details as Row).action).toBe('screening_passed');
+    expect(cand?.current_status).toBe('Applied');
+    expect(db.candidate_status_log.filter((t) => t.candidate_id === 'cand-1').length).toBe(0);
+
+    const queued = queuedJobs().filter((j) => String(j.data?.triggerType) === 'screening');
+    expect(queued.length).toBe(1);
+    const payload = queued[0].data as {
+      candidateId: string;
+      jobId: string;
+      recruiterId: string;
+      fromStage: string;
+      passed: boolean;
+      triggerId: string;
+    };
+    expect(payload.candidateId).toBe('cand-1');
+    expect(payload.jobId).toBe('job-1');
+    expect(payload.recruiterId).toBe('rec-A');
+    expect(payload.fromStage).toBe('Applied');
+    expect(payload.passed).toBe(true);
+    // Stable key => a retried screening run deduplicates instead of
+    // re-progressing the candidate.
+    expect(payload.triggerId).toBe('screening:job-1:cand-1:passed');
   });
 
-  it('failing candidate keeps Applied status and gets no timeline row', async () => {
+  it('enqueues nothing for a failing candidate', async () => {
     await runScreeningForCandidate('job-1', 'cand-2', 'jd', 60, 'rec-A');
     const row = db.screening_results.find((r) => r.candidate_id === 'cand-2');
     expect(row?.status).toBe('failed');
     expect(db.candidates.find((c) => c.id === 'cand-2')?.current_status).toBe('Applied');
     expect(db.candidate_status_log.filter((t) => t.candidate_id === 'cand-2').length).toBe(0);
+    expect(queuedJobs().filter((j) => String(j.data?.triggerType) === 'screening').length).toBe(0);
   });
 
-  it('never downgrades a candidate already past Screening', async () => {
+  it('never walks a candidate already past Screening backwards', async () => {
     const cand = db.candidates.find((c) => c.id === 'cand-1');
     if (cand) cand.current_status = 'Technical Interview';
     await runScreeningForCandidate('job-1', 'cand-1', 'jd', 60, 'rec-A');
     expect(db.candidates.find((c) => c.id === 'cand-1')?.current_status).toBe('Technical Interview');
+    expect(queuedJobs().filter((j) => String(j.data?.triggerType) === 'screening').length).toBe(0);
+  });
+
+  it('does not queue any assessment invitation email on a pass', async () => {
+    await runScreeningForCandidate('job-1', 'cand-1', 'jd', 60, 'rec-A');
+    const invites = queuedJobs().filter((j) => String(j.name) === 'send-email');
+    expect(invites.length).toBe(0);
   });
 });
 

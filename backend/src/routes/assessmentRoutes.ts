@@ -2,6 +2,7 @@ import { Router } from 'express';
 import {
   listAssessmentsHandler,
   createAssessmentHandler,
+  generateAssessmentHandler,
   getAssessmentHandler,
   updateAssessmentHandler,
   publishAssessmentHandler,
@@ -11,6 +12,7 @@ import {
   updateQuestionHandler,
   deleteQuestionHandler,
   duplicateQuestionHandler,
+  regenerateQuestionHandler,
   reorderQuestionsHandler,
   eligibleCandidatesHandler,
   listInvitesHandler,
@@ -21,6 +23,8 @@ import {
 import {
   validate,
   createAssessmentSchema,
+  generateAssessmentSchema,
+  regenerateQuestionSchema,
   updateAssessmentSchema,
   assessmentIdParamSchema,
   assessmentQuestionParamSchema,
@@ -34,6 +38,8 @@ const router = Router();
 // Assessments
 router.get('/', listAssessmentsHandler);
 router.post('/', validate(createAssessmentSchema), createAssessmentHandler);
+// AI generation (job-specific, draft-only) — before :assessmentId routes.
+router.post('/generate', validate(generateAssessmentSchema), generateAssessmentHandler);
 router.get('/:assessmentId', validate(assessmentIdParamSchema, 'params'), getAssessmentHandler);
 // Explicit Save Draft — no autosave (correction #11).
 router.patch(
@@ -74,6 +80,12 @@ router.post(
   '/:assessmentId/questions/:questionId/duplicate',
   validate(assessmentQuestionParamSchema, 'params'),
   duplicateQuestionHandler,
+);
+router.post(
+  '/:assessmentId/questions/:questionId/regenerate',
+  validate(assessmentQuestionParamSchema, 'params'),
+  validate(regenerateQuestionSchema),
+  regenerateQuestionHandler,
 );
 
 // Eligible candidates + invites (Resend only; Gmail untouched)

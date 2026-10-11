@@ -48,23 +48,23 @@ export default function UploadPage() {
 
   if (uploaded) {
     return (
-      <div className="min-h-[calc(100vh-0.75rem)] bg-gradient-to-b from-green-50 to-white flex items-center justify-center p-4">
+      <div className="min-h-[calc(100vh-0.75rem)] bg-gradient-to-b from-success/10 to-white flex items-center justify-center p-4">
         <motion.div
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
           className="max-w-md w-full text-center"
         >
-          <div className="bg-surface rounded-2xl p-10 border border-green-200 shadow-lg">
+          <div className="bg-surface rounded-2xl p-10 border border-success shadow-lg">
             <div className="flex justify-center mb-4">
-              <div className="h-16 w-16 rounded-full bg-green-100 flex items-center justify-center">
-                <CheckCircle className="h-8 w-8 text-green-600" />
+              <div className="h-16 w-16 rounded-full bg-success/12 flex items-center justify-center">
+                <CheckCircle className="h-8 w-8 text-success" />
               </div>
             </div>
             <h1 className="text-2xl font-semibold text-foreground mb-2">Application Submitted!</h1>
-            <p className="text-sm text-muted-foreground mb-6">
+            <p className="text-sm text-muted mb-6">
               Thank you, {candidateName}. Your resume has been received and is being processed.
             </p>
-            <div className="bg-green-50 rounded-xl p-4 text-xs text-green-700">
+            <div className="bg-success/10 rounded-xl p-4 text-xs text-success">
               You can close this page. The recruiter will review your application.
             </div>
           </div>
@@ -87,7 +87,7 @@ export default function UploadPage() {
             </div>
             <div>
               <h1 className="text-lg font-semibold text-foreground">Submit Your Resume</h1>
-              <p className="text-xs text-muted-foreground">Upload your resume to apply for this position</p>
+              <p className="text-xs text-muted">Upload your resume to apply for this position</p>
             </div>
           </div>
 
@@ -103,14 +103,14 @@ export default function UploadPage() {
                 <FileText className="h-4 w-4 text-primary shrink-0" />
                 <div className="min-w-0">
                   <p className="text-xs font-medium text-foreground truncate">{file.name}</p>
-                  <p className="text-[10px] text-muted-foreground">
+                  <p className="text-[10px] text-muted">
                     {(file.size / 1024).toFixed(0)} KB
                   </p>
                 </div>
               </div>
               <button
                 onClick={() => setFile(null)}
-                className="text-[10px] text-muted-foreground hover:text-destructive transition-colors shrink-0"
+                className="text-[10px] text-muted hover:text-destructive transition-colors shrink-0"
               >
                 Remove
               </button>
@@ -121,17 +121,17 @@ export default function UploadPage() {
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              className="mt-3 p-3 rounded-xl bg-red-50 border border-red-200 flex items-start gap-2"
+              className="mt-3 p-3 rounded-xl bg-danger/8 border border-danger/25 flex items-start gap-2"
             >
-              <AlertCircle className="h-4 w-4 text-red-500 shrink-0 mt-0.5" />
-              <p className="text-xs text-red-600">{error}</p>
+              <AlertCircle className="h-4 w-4 text-danger shrink-0 mt-0.5" />
+              <p className="text-xs text-danger">{error}</p>
             </motion.div>
           )}
 
           <button
             onClick={handleUpload}
             disabled={!file || uploading}
-            className="mt-5 w-full flex items-center justify-center gap-2 h-11 rounded-xl bg-primary-solid text-white text-sm font-medium hover:bg-primary-solid/90 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            className="mt-5 w-full flex items-center justify-center gap-2 h-11 rounded-xl bg-primary-solid text-primary-solid-text text-sm font-medium hover:bg-primary-solid/90 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {uploading ? (
               <>
@@ -146,7 +146,7 @@ export default function UploadPage() {
             )}
           </button>
 
-          <p className="mt-4 text-[10px] text-center text-muted-foreground">
+          <p className="mt-4 text-[10px] text-center text-muted">
             Supported formats: PDF, DOCX &bull; Max size: 5MB
           </p>
         </div>

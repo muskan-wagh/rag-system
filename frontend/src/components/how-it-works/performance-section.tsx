@@ -49,7 +49,7 @@ export function PerformanceSection() {
           <h2 className="text-2xl md:text-3xl font-semibold text-foreground">
             Performance & <span className="text-primary">Capabilities</span>
           </h2>
-          <p className="mt-3 text-sm text-muted-foreground max-w-lg mx-auto">
+          <p className="mt-3 text-sm text-muted max-w-lg mx-auto">
             Built for speed, scale, and reliability
           </p>
         </motion.div>
@@ -72,7 +72,7 @@ export function PerformanceSection() {
               <h3 className="text-xs md:text-sm font-semibold text-foreground mb-1 leading-snug">
                 {metric.label}
               </h3>
-              <p className="text-[11px] md:text-xs text-muted-foreground leading-relaxed">
+              <p className="text-[11px] md:text-xs text-muted leading-relaxed">
                 {metric.desc}
               </p>
             </motion.div>

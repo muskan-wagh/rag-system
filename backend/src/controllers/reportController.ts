@@ -5,12 +5,14 @@ import { AppError } from '@/middleware/errorHandler';
 import { ErrorCodes } from '@/middleware/errorCodes';
 import { buildInternalReport } from '@/services/reports/buildReport';
 import { toCandidateSafeReport, assertCandidateSafe } from '@/services/reports/filterCandidateSafe';
+import type { HiringReport } from '@/services/reports/buildReport';
 import { generateReportPdf } from '@/services/reports/generatePdf';
 import { uploadReportPdf, downloadReportPdf, reportStoragePath } from '@/services/reports/storage';
 import { enqueueReportJob } from '@/services/queue/reportQueue';
 import { enqueueEmail } from '@/services/queue/emailQueue';
 import { buildCandidateReportEmail, candidateReportEmailKey, candidateReportSubject } from '@/services/email/candidateReport';
 import { logEmail } from '@/services/supabase/database';
+import { logger } from '@/utils/logger';
 
 async function requireOwnedCandidate(recruiterId: string, candidateId: string) {
   const supabase = getSupabaseClient();
@@ -244,19 +246,36 @@ export const finalDecisionHandler = asyncHandler(async (req: Request, res: Respo
 
 // ---------- Candidate self-service (session auth, candidate-safe ONLY) ----------
 
+// Columns a candidate may see about their own report. `email_status` /
+// `email_sent_at` are internal delivery plumbing and are NOT exposed — a
+// candidate has no use for "queued/failed" and it leaks system state.
+const CANDIDATE_REPORT_PUBLIC_COLUMNS = 'id, version, payload, generated_at';
+
 export const getCandidateReportHandler = asyncHandler(async (req: Request, res: Response) => {
   const ctx = req.candidate;
   if (!ctx) throw new AppError('No candidate session', 401, ErrorCodes.NOT_FOUND);
   const supabase = getSupabaseClient();
   const { data } = await supabase
     .from('candidate_reports')
-    .select('id, version, payload, generated_at, email_sent_at, email_status')
+    .select(CANDIDATE_REPORT_PUBLIC_COLUMNS)
     .eq('candidate_id', ctx.candidateId)
     .eq('report_type', 'candidate')
     .order('version', { ascending: false })
     .limit(1)
     .maybeSingle();
   if (!data) throw new AppError('No report available yet', 404, ErrorCodes.NOT_FOUND);
+
+  // Defence in depth: the stored payload is already candidate-safe (the safe
+  // object is what gets persisted), but re-assert it on the READ path so a
+  // report written with the wrong `report_type` can never be served here.
+  const payloadForCheck = (data as { payload?: HiringReport }).payload;
+  if (payloadForCheck && assertCandidateSafe(payloadForCheck).length > 0) {
+    logger.error('Candidate report payload failed the safety check; refusing to serve', {
+      candidateId: ctx.candidateId,
+    });
+    throw new AppError('Report unavailable', 500, ErrorCodes.INTERNAL_ERROR);
+  }
+
   res.json({ success: true, data });
 });
 

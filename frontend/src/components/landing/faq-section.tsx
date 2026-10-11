@@ -1,91 +1,108 @@
 "use client"
 
 import { useState } from "react"
-import { motion, AnimatePresence } from "framer-motion"
-import { ChevronDown } from "lucide-react"
+import { AnimatePresence, motion } from "framer-motion"
+import { Plus } from "lucide-react"
 import { SectionHeader } from "@/components/ui/section-header"
 
 const faqs = [
   {
     question: "How does HireStack rank candidates?",
-    answer: "HireStack uses a hybrid ranking engine that combines semantic similarity (via vector embeddings) with weighted scoring across skills, experience, and education. The result is ranked by overall fit rather than just keyword matches.",
+    answer:
+      "Four signals are computed independently — semantic similarity between the resume and the job description, skill coverage, experience fit and education — then combined with fixed weights of 35%, 30%, 20% and 15%. Every candidate returns the full breakdown and a written explanation, and you can override any score.",
   },
   {
-    question: "What file formats are supported for resume uploads?",
-    answer: "HireStack supports PDF and DOCX formats for resume uploads, with a maximum file size of 5MB per upload.",
+    question: "What file formats can candidates submit?",
+    answer:
+      "PDF and DOCX, up to 5 MB per file. Candidates apply through a unique upload link tied to a specific role, so every resume lands against the right job without anyone having to file it.",
   },
   {
-    question: "How accurate is the AI parsing?",
-    answer: "The AI parser extracts structured data from resumes with high accuracy — including skills, experience timelines, education history, and certifications. It uses advanced LLMs for understanding complex resume formats.",
+    question: "Can the AI advance or reject a candidate on its own?",
+    answer:
+      "No. Stage transitions are validated server-side: stages can never be skipped or moved backwards, and moving a candidate from Offer to Hired is reserved for recruiters. A high score can get someone further down the pipeline, but it cannot hire them.",
   },
   {
-    question: "Can I compare multiple candidates side by side?",
-    answer: "Yes, HireStack's comparison view lets you select multiple candidates and see an AI-powered head-to-head analysis with score breakdowns, strengths, and weaknesses relative to your job description.",
+    question: "How do assessments work?",
+    answer:
+      "You can generate a question set from the job description or write your own. Each assessment is timed and can mix multiple-choice, coding and SQL questions. Candidates receive a personal invite link, and coding answers run against test cases in a sandbox.",
   },
   {
-    question: "How does the resume dropbox feature work?",
-    answer: "Generate a unique application link from the dashboard and share it anywhere (email, LinkedIn, career page). Candidates upload their resume through a simple interface, and it's automatically parsed and added to your database.",
+    question: "What happens in an interview round?",
+    answer:
+      "You schedule the stage and the candidate receives the invitation. The room combines video with a shared code editor, so you can push a problem and watch the code and its test results while they are still writing. Interviewers then score against a shared rubric.",
   },
   {
-    question: "Is my data secure and private?",
-    answer: "Absolutely. HireStack is SOC 2 compliant and GDPR ready. All data is encrypted at rest (AES-256) and in transit (TLS 1.3). Your candidate data is never used for training our AI models.",
+    question: "Where is candidate data stored?",
+    answer:
+      "Resumes and candidate records live in the Supabase instance and the vector store configured for your deployment. Access to the recruiter workspace is authenticated, and each job's candidates, screening runs and interviews are scoped to the recruiter who owns them.",
+  },
+  {
+    question: "Do candidates need an account?",
+    answer:
+      "No. Candidates apply, take an assessment and join an interview through personal links. They never see the recruiter workspace, other candidates, scores, or internal notes.",
   },
 ]
 
 export function FAQSection() {
-  const [openIndex, setOpenIndex] = useState<number | null>(null)
+  const [openIndex, setOpenIndex] = useState<number | null>(0)
 
   return (
-    <section id="faq" className="w-full py-20 md:py-28 relative overflow-hidden">
-      <div className="mx-auto max-w-3xl px-4 md:px-6 relative">
-        <SectionHeader
-          label="FAQ"
-          title="Frequently asked"
-          highlight="questions"
-          description="Everything you need to know about HireStack"
-        />
+    <div className="mx-auto max-w-3xl">
+      <SectionHeader
+        label="FAQ"
+        title="Questions worth asking"
+        description="If something here is still unclear, the architecture and performance pages go into more detail."
+      />
 
-        <div className="space-y-3">
-          {faqs.map((faq, i) => (
-            <motion.div
-              key={i}
-              initial={{ opacity: 0, y: 10 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ delay: i * 0.04 }}
-              className="rounded-xl border border-border bg-surface overflow-hidden hover:border-border-hover transition-all duration-120"
-            >
-              <button
-                onClick={() => setOpenIndex(openIndex === i ? null : i)}
-                className="w-full flex items-center justify-between px-6 py-4 text-sm font-medium text-ink hover:bg-hover-tone transition-colors text-left"
-                style={{ fontFamily: "var(--font-inter)" }}
-              >
-                {faq.question}
-                <ChevronDown
-                  className={`h-4 w-4 text-muted shrink-0 transition-transform duration-300 ${
-                    openIndex === i ? "rotate-180" : ""
-                  }`}
-                />
-              </button>
-              <AnimatePresence>
-                {openIndex === i && (
+      <div className="mt-12 divide-y divide-white/[0.07] overflow-hidden rounded-2xl border border-white/[0.08] bg-white/[0.025] backdrop-blur-xl">
+        {faqs.map((faq, i) => {
+          const isOpen = openIndex === i
+          return (
+            <div key={faq.question}>
+              <h3>
+                <button
+                  type="button"
+                  onClick={() => setOpenIndex(isOpen ? null : i)}
+                  aria-expanded={isOpen}
+                  aria-controls={`faq-panel-${i}`}
+                  id={`faq-trigger-${i}`}
+                  className="group flex w-full items-center justify-between gap-4 px-5 py-4 text-left transition-colors duration-300 hover:bg-white/[0.03] sm:px-6"
+                >
+                  <span className="text-[14px] font-medium leading-snug text-white/85 transition-colors duration-300 group-hover:text-white">
+                    {faq.question}
+                  </span>
+                  <Plus
+                    className={`size-4 shrink-0 text-white/40 transition-transform duration-300 ${
+                      isOpen ? "rotate-45" : ""
+                    }`}
+                    strokeWidth={1.75}
+                    aria-hidden
+                  />
+                </button>
+              </h3>
+              <AnimatePresence initial={false}>
+                {isOpen && (
                   <motion.div
+                    key="panel"
+                    id={`faq-panel-${i}`}
+                    role="region"
+                    aria-labelledby={`faq-trigger-${i}`}
                     initial={{ height: 0, opacity: 0 }}
                     animate={{ height: "auto", opacity: 1 }}
                     exit={{ height: 0, opacity: 0 }}
-                    transition={{ duration: 0.25, ease: "easeInOut" }}
+                    transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
                     className="overflow-hidden"
                   >
-                    <div className="px-6 pb-4 text-sm text-muted leading-relaxed" style={{ fontFamily: "var(--font-inter)" }}>
+                    <p className="px-5 pb-5 pr-12 text-[13.5px] leading-relaxed text-white/55 sm:px-6">
                       {faq.answer}
-                    </div>
+                    </p>
                   </motion.div>
                 )}
               </AnimatePresence>
-            </motion.div>
-          ))}
-        </div>
+            </div>
+          )
+        })}
       </div>
-    </section>
+    </div>
   )
 }

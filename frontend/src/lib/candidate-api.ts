@@ -42,7 +42,7 @@ export interface CandidateAssessment {
   };
   questions: SafeQuestion[];
   attempt: { id: string; status: string; started_at: string; expires_at: string | null; attempt_number: number } | null;
-  answers: Array<{ question_id: string; answer: Record<string, unknown>; language: string | null; updated_at: string }>;
+  answers: Array<{ question_id: string; answer: Record<string, unknown>; language: string | null; code: string | null; updated_at: string }>;
 }
 
 export interface RunCodeResult {

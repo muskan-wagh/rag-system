@@ -15,7 +15,7 @@ export function HeroSection() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
         >
-          <div className="inline-flex items-center gap-1.5 rounded-full border border-border bg-surface px-3 py-1 text-xs text-muted-foreground shadow-sm mb-6">
+          <div className="inline-flex items-center gap-1.5 rounded-full border border-border bg-surface px-3 py-1 text-xs text-muted shadow-sm mb-6">
             <span className="flex h-1.5 w-1.5 rounded-full bg-primary animate-pulse-subtle" />
             AI-Powered Recruitment Intelligence
           </div>
@@ -25,7 +25,7 @@ export function HeroSection() {
             <span className="text-primary">Works</span>
           </h1>
 
-          <p className="text-sm md:text-base text-muted-foreground max-w-2xl mx-auto leading-relaxed">
+          <p className="text-sm md:text-base text-muted max-w-2xl mx-auto leading-relaxed">
             Discover how HireStack combines semantic search, AI reasoning, vector databases and hybrid ranking
             to identify the best candidates—not just the best keyword matches.
           </p>
@@ -37,7 +37,7 @@ export function HeroSection() {
           transition={{ duration: 0.5, delay: 0.5 }}
           className="mt-12"
         >
-          <ArrowDown className="h-5 w-5 text-muted-foreground/40 mx-auto animate-bounce" />
+          <ArrowDown className="h-5 w-5 text-muted/40 mx-auto animate-bounce" />
         </motion.div>
       </div>
     </section>

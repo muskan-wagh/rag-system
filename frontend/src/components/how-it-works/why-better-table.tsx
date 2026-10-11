@@ -26,7 +26,7 @@ export function WhyBetterTable() {
           <h2 className="text-2xl md:text-3xl font-semibold text-foreground">
             Why HireStack is <span className="text-primary">Better</span>
           </h2>
-          <p className="mt-3 text-sm text-muted-foreground max-w-lg mx-auto">
+          <p className="mt-3 text-sm text-muted max-w-lg mx-auto">
             Traditional systems were built for the resume era. HireStack is built for the intelligence era.
           </p>
         </motion.div>
@@ -34,7 +34,7 @@ export function WhyBetterTable() {
         <div className="bg-surface rounded-2xl border border-border overflow-hidden shadow-sm">
           <div className="grid grid-cols-3 gap-0">
             <div className="px-5 py-4 bg-muted/50 border-r border-border">
-              <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Feature</span>
+              <span className="text-xs font-semibold text-muted uppercase tracking-wider">Feature</span>
             </div>
             <div className="px-5 py-4 bg-destructive/[0.03] border-r border-border">
               <span className="text-xs font-semibold text-destructive/70 uppercase tracking-wider">Traditional ATS</span>
@@ -58,11 +58,11 @@ export function WhyBetterTable() {
                 className="grid grid-cols-3 gap-0"
               >
                 <div className="px-5 py-3.5 flex items-center border-r border-border">
-                  <span className="text-sm text-muted-foreground">{item.traditional}</span>
+                  <span className="text-sm text-muted">{item.traditional}</span>
                 </div>
                 <div className="px-5 py-3.5 flex items-center gap-2.5 border-r border-border bg-destructive/[0.02]">
                   <X className="h-3.5 w-3.5 text-destructive/40 shrink-0" />
-                  <span className="text-sm text-muted-foreground/70 line-through">{item.traditional}</span>
+                  <span className="text-sm text-muted/70 line-through">{item.traditional}</span>
                 </div>
                 <div className={cn(
                   "px-5 py-3.5 flex items-center gap-2.5",

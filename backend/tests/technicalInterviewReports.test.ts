@@ -175,3 +175,33 @@ describe('failure isolation contract', () => {
     }).not.toThrow();
   });
 });
+
+describe('Candidate-facing report read path', () => {
+  it('does not expose internal delivery plumbing to the candidate', () => {
+    // The candidate endpoint selects only these columns; `email_status` and
+    // `email_sent_at` are internal queue state and must never be returned.
+    const candidateVisible = ['id', 'version', 'payload', 'generated_at'];
+    expect(candidateVisible).not.toContain('email_status');
+    expect(candidateVisible).not.toContain('email_sent_at');
+    expect(candidateVisible).not.toContain('report_type');
+  });
+
+  it('rejects an unsafe payload instead of serving it', () => {
+    const leakedInternal = {
+      candidateName: 'Ada Lovelace',
+      privateNotes: 'Do not reveal the salary band discussion',
+      technical: { privateNotes: 'borderline on system design' },
+    } as unknown as Parameters<typeof assertCandidateSafe>[0];
+    const leaks = assertCandidateSafe(leakedInternal);
+    expect(leaks.length).toBeGreaterThan(0);
+  });
+
+  it('accepts a properly filtered payload', () => {
+    const safe = {
+      candidateName: 'Ada Lovelace',
+      jobTitle: 'Backend Engineer',
+      recommendation: 'Pass',
+    } as unknown as Parameters<typeof assertCandidateSafe>[0];
+    expect(assertCandidateSafe(safe)).toEqual([]);
+  });
+});

@@ -16,7 +16,7 @@ export function SimilarCandidatesBar({ candidates }: SimilarCandidatesBarProps) 
     <div className="bg-surface rounded-xl border border-border p-5">
       <div className="flex items-center gap-2 mb-3">
         <Users className="h-4 w-4 text-brand" />
-        <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Similar Candidates</h3>
+        <h3 className="text-xs font-medium text-muted uppercase tracking-wider">Similar Candidates</h3>
       </div>
 
       <div className="flex gap-2 overflow-x-auto pb-1">
@@ -31,9 +31,9 @@ export function SimilarCandidatesBar({ candidates }: SimilarCandidatesBarProps) 
             </div>
             <div className="min-w-0">
               <p className="text-xs font-medium text-foreground truncate max-w-[120px]">{c.name}</p>
-              <p className="text-xs text-muted-foreground">{c.skills.slice(0, 2).join(", ")}</p>
+              <p className="text-xs text-muted">{c.skills.slice(0, 2).join(", ")}</p>
             </div>
-            <ChevronRight className="h-3 w-3 text-muted-foreground shrink-0" />
+            <ChevronRight className="h-3 w-3 text-muted shrink-0" />
           </Link>
         ))}
       </div>

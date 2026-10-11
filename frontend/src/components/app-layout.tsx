@@ -23,8 +23,22 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     }
   }, [mobileOpen])
 
+  useEffect(() => {
+    if (!mobileOpen) return
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setMobileOpen(false)
+    window.addEventListener("keydown", onKey)
+    return () => window.removeEventListener("keydown", onKey)
+  }, [mobileOpen])
+
   return (
     <div className="min-h-[100vh] bg-canvas">
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[100] focus:rounded-lg focus:border focus:border-border focus:bg-surface focus:px-4 focus:py-2 focus:text-[13px] focus:font-medium focus:text-ink focus:shadow-lg"
+      >
+        Skip to main content
+      </a>
+
       <AppSidebar />
 
       <AnimatePresence>
@@ -35,7 +49,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.15 }}
-              className="fixed inset-0 z-40 bg-black/30 lg:hidden"
+              className="fixed inset-0 z-40 bg-black/25 backdrop-blur-[2px] lg:hidden"
               onClick={() => setMobileOpen(false)}
               aria-hidden
             />
@@ -43,8 +57,8 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
               initial={{ x: "-100%" }}
               animate={{ x: 0 }}
               exit={{ x: "-100%" }}
-              transition={{ duration: 0.2, ease: [0.25, 0.1, 0.25, 1] }}
-              className="fixed bottom-2 left-2 top-2 z-50 w-[264px] overflow-hidden rounded-xl border border-border bg-surface lg:hidden"
+              transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
+              className="fixed bottom-2 left-2 top-2 z-50 w-[272px] overflow-hidden rounded-xl border border-border bg-surface shadow-xl lg:hidden"
               role="dialog"
               aria-modal="true"
               aria-label="Navigation"
@@ -55,10 +69,12 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
         )}
       </AnimatePresence>
 
-      <div className="min-w-0 lg:pl-[228px]">
-        <div className="mx-auto w-full min-w-0 max-w-[1200px] px-3 sm:px-5 lg:px-6">
+      <div className="min-w-0 lg:pl-[236px]">
+        <div className="mx-auto w-full min-w-0 max-w-[1280px] px-3 sm:px-5 lg:px-8">
           <TopNav onOpenMobile={() => setMobileOpen(true)} />
-          <main className="overflow-x-clip pb-10 pt-1 sm:pt-2">{children}</main>
+          <main id="main-content" tabIndex={-1} className="overflow-x-clip pb-16 pt-1 outline-none sm:pt-2">
+            {children}
+          </main>
         </div>
       </div>
     </div>

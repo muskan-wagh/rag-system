@@ -172,9 +172,12 @@ export const getAssessmentHandler = asyncHandler(async (req: Request, res: Respo
     .maybeSingle();
   let answers: Array<Record<string, unknown>> = [];
   if (attempt) {
+    // `code` MUST be selected here. It is the candidate's own autosaved source,
+    // so returning it is safe — and omitting it meant a page refresh silently
+    // discarded everything the candidate had written.
     const { data: rows } = await supabase
       .from('assessment_answers')
-      .select('question_id, answer, language, updated_at')
+      .select('question_id, answer, language, code, updated_at')
       .eq('attempt_id', (attempt as { id: string }).id);
     answers = (rows || []) as Array<Record<string, unknown>>;
   }
@@ -330,6 +333,12 @@ export const submitAttemptHandler = asyncHandler(async (req: Request, res: Respo
     throw new AppError('Attempt is no longer active', 409, ErrorCodes.VALIDATION_ERROR);
   }
 
+  // Honour the timer at submit time. Autosave enforced `expires_at`, but submit
+  // did not — so an expired attempt could still be submitted and scored.
+  if (attempt.expires_at && Date.now() > new Date(String(attempt.expires_at)).getTime()) {
+    throw new AppError('This assessment has expired', 409, ErrorCodes.VALIDATION_ERROR);
+  }
+
   // Load assessment + questions + answers atomically (read set).
   const { data: assessment } = await supabase
     .from('assessments')
@@ -440,7 +449,11 @@ export const submitAttemptHandler = asyncHandler(async (req: Request, res: Respo
       .eq('attempt_id', attemptId)
       .eq('question_id', p.questionId);
   }
-  const { error: persistError } = await supabase
+  // `.select()` is REQUIRED. Without it a zero-row update (a concurrent submit
+  // already moved the row out of `in_progress`) returns `error: null`, so the
+  // conflict branch below was unreachable and every concurrent submit fell
+  // through and re-enqueued progression.
+  const { data: persisted, error: persistError } = await supabase
     .from('assessment_attempts')
     .update({
       status: 'evaluated',
@@ -453,16 +466,13 @@ export const submitAttemptHandler = asyncHandler(async (req: Request, res: Respo
       updated_at: new Date().toISOString(),
     })
     .eq('id', attemptId)
-    .eq('status', 'in_progress'); // guard: only transition from active (idempotent)
+    .eq('status', 'in_progress') // guard: only transition from active (idempotent)
+    .select('id')
+    .maybeSingle();
 
-  // Mark invite completed (best-effort).
-  const inviteId = (attempt as unknown as { invite_id?: string }).invite_id;
-  if (inviteId) {
-    await supabase.from('assessment_invites').update({ status: 'completed' }).eq('id', inviteId);
-  }
-
-  if (persistError) {
-    // Likely a concurrent submit won — return its result (idempotent).
+  if (persistError || !persisted) {
+    // A concurrent submit won the race — return the authoritative persisted
+    // result instead of continuing with ours.
     const { data: current } = await supabase
       .from('assessment_attempts')
       .select('id, status, score, max_score, percentage, passed, submitted_at')
@@ -470,6 +480,12 @@ export const submitAttemptHandler = asyncHandler(async (req: Request, res: Respo
       .maybeSingle();
     res.json({ success: true, data: { ...(current as object), deduplicated: true } });
     return;
+  }
+
+  // Mark invite completed (best-effort).
+  const inviteId = (attempt as unknown as { invite_id?: string }).invite_id;
+  if (inviteId) {
+    await supabase.from('assessment_invites').update({ status: 'completed' }).eq('id', inviteId);
   }
 
   // Enqueue progression (async, retryable — correction #2).

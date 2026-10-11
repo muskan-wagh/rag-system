@@ -55,7 +55,7 @@ export function WinningCards() {
           <h2 className="text-2xl md:text-3xl font-semibold text-foreground">
             Why HireStack <span className="text-primary">Wins</span>
           </h2>
-          <p className="mt-3 text-sm text-muted-foreground max-w-lg mx-auto">
+          <p className="mt-3 text-sm text-muted max-w-lg mx-auto">
             Six capabilities that set HireStack apart from traditional ATS systems
           </p>
         </motion.div>
@@ -76,7 +76,7 @@ export function WinningCards() {
                   <card.icon className="h-5 w-5 text-white" />
                 </div>
                 <h3 className="text-base font-semibold text-foreground mb-2">{card.title}</h3>
-                <p className="text-sm text-muted-foreground leading-relaxed mb-4 flex-1">{card.description}</p>
+                <p className="text-sm text-muted leading-relaxed mb-4 flex-1">{card.description}</p>
                 <div className="pt-4 border-t border-border">
                   <p className="text-xs text-primary/70 font-medium flex items-center gap-1.5">
                     <span className="flex h-1.5 w-1.5 rounded-full bg-primary/40" />

@@ -1,20 +1,15 @@
-"use client"
+import { stageDotClass } from "@/lib/pipeline"
+import { cn } from "@/lib/utils"
 
-interface StatusDotProps {
-  status?: string
-}
-
-export function StatusDot({ status = "applied" }: StatusDotProps) {
-  const s = status.toLowerCase()
-  // Interview / active interview → blue, Screening / Applied → amber,
-  // Hired / Offered → green, Rejected → red, neutral → gray.
-  const color =
-    s === "applied" || s === "screening" || s === "shortlisted" ? "#D97706" :
-    s === "interview scheduled" || s === "interview completed" || s === "interview" || s === "technical round" || s === "hr round" ? "#2563EB" :
-    s === "rejected" || s === "high risk" ? "#DC2626" :
-    s === "hired" || s === "offered" || s === "pending offer" ? "#16A34A" :
-    "#6B6B6B"
+/**
+ * Status dot driven by the shared pipeline tone map. Replaces a hardcoded
+ * hex lookup that ignored the active light/dark theme.
+ */
+export function StatusDot({ status, className }: { status?: string; className?: string }) {
   return (
-    <span className="inline-block rounded-full shrink-0" style={{ width: 6, height: 6, backgroundColor: color }} />
+    <span
+      className={cn("inline-block size-1.5 shrink-0 rounded-full", stageDotClass(status), className)}
+      aria-hidden
+    />
   )
 }

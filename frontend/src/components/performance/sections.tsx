@@ -47,11 +47,11 @@ function Section({
     <section id={id} className="w-full py-12 md:py-16 scroll-mt-24">
       <div className="mx-auto max-w-6xl px-4 md:px-6">
         <Reveal>
-          <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground">
+          <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-muted">
             {index}
           </p>
           <h2 className="mt-1 text-xl md:text-2xl font-semibold text-foreground">{title}</h2>
-          <p className="mt-2 max-w-2xl text-sm text-muted-foreground leading-relaxed">{lede}</p>
+          <p className="mt-2 max-w-2xl text-sm text-muted leading-relaxed">{lede}</p>
         </Reveal>
         <div className="mt-8">{children}</div>
       </div>
@@ -86,7 +86,7 @@ function Table({
         <thead>
           <tr className="border-b border-border">
             {head.map((h) => (
-              <th key={h} className="px-4 py-3 text-[11px] font-medium uppercase tracking-[0.06em] text-muted-foreground">
+              <th key={h} className="px-4 py-3 text-[11px] font-medium uppercase tracking-[0.06em] text-muted">
                 {h}
               </th>
             ))}
@@ -103,13 +103,13 @@ export function PerformanceHero() {
     <section className="w-full pt-10 md:pt-14 pb-8">
       <div className="mx-auto max-w-6xl px-4 md:px-6 text-center">
         <Reveal>
-          <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground">
+          <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-muted">
             Staging evaluation · {EVAL_DATE} · worker concurrency = 5
           </p>
           <h1 className="mx-auto mt-3 max-w-3xl text-3xl md:text-[40px] font-semibold leading-tight text-foreground">
             Performance & <span className="text-primary">Architecture</span>
           </h1>
-          <p className="mx-auto mt-4 max-w-2xl text-sm md:text-[15px] text-muted-foreground leading-relaxed">
+          <p className="mx-auto mt-4 max-w-2xl text-sm md:text-[15px] text-muted leading-relaxed">
             Measured numbers from a controlled 5-resume staging run — 5/5 jobs completed
             concurrently with flat memory, the API stayed responsive, and the Qdrant
             collection was never modified. Anything unmeasured is labeled as such.
@@ -123,14 +123,14 @@ export function PerformanceHero() {
             ].map(([v, l]) => (
               <div key={l}>
                 <p className="font-data text-2xl font-medium text-foreground">{v}</p>
-                <p className="mt-1 text-xs text-muted-foreground">{l}</p>
+                <p className="mt-1 text-xs text-muted">{l}</p>
               </div>
             ))}
           </div>
           <div className="mt-8">
             <a
               href="#technical-report"
-              className="inline-flex items-center justify-center rounded-[8px] bg-primary-solid px-5 py-2.5 text-sm font-medium text-white hover:bg-primary-solid-hover transition-all duration-120"
+              className="inline-flex items-center justify-center rounded-[8px] bg-primary-solid px-5 py-2.5 text-sm font-medium text-primary-solid-text hover:bg-primary-solid-hover transition-all duration-120"
             >
               Technical Report
             </a>
@@ -153,9 +153,9 @@ export function ArchitectureSection() {
         {ARCH_NODES.map((n, i) => (
           <Reveal key={n.name}>
             <div className="rounded-xl border border-border bg-surface p-4">
-              <p className="font-data text-[11px] text-muted-foreground">{String(i + 1).padStart(2, "0")}</p>
+              <p className="font-data text-[11px] text-muted">{String(i + 1).padStart(2, "0")}</p>
               <p className="mt-1 text-sm font-medium text-foreground">{n.name}</p>
-              <p className="mt-0.5 text-xs text-muted-foreground">{n.desc}</p>
+              <p className="mt-0.5 text-xs text-muted">{n.desc}</p>
             </div>
           </Reveal>
         ))}
@@ -177,9 +177,9 @@ export function PipelineSection() {
           {PIPELINE.map((s, i) => (
             <li key={s} className="flex items-center gap-2 text-[13px]">
               <span className="flex h-7 items-center gap-2 rounded-lg border border-border bg-surface px-3 text-foreground">
-                <span className="font-data text-[11px] text-muted-foreground">{i + 1}</span> {s}
+                <span className="font-data text-[11px] text-muted">{i + 1}</span> {s}
               </span>
-              {i < PIPELINE.length - 1 && <span className="text-muted-foreground">→</span>}
+              {i < PIPELINE.length - 1 && <span className="text-muted">→</span>}
             </li>
           ))}
         </ol>
@@ -201,7 +201,7 @@ export function ProblemsSection() {
           <Reveal key={b.title}>
             <div className="h-full rounded-xl border border-border bg-surface p-4">
               <p className="text-sm font-medium text-foreground">{b.title}</p>
-              <p className="mt-1 text-[13px] text-muted-foreground leading-relaxed">{b.detail}</p>
+              <p className="mt-1 text-[13px] text-muted leading-relaxed">{b.detail}</p>
             </div>
           </Reveal>
         ))}
@@ -223,8 +223,8 @@ export function OptimizationsSection() {
           {OPTIMIZATIONS.map((o) => (
             <tr key={o.problem}>
               <td className="px-4 py-2.5 font-medium">{o.problem}</td>
-              <td className="px-4 py-2.5 text-muted-foreground">{o.solution}</td>
-              <td className="px-4 py-2.5 text-muted-foreground">{o.impact}</td>
+              <td className="px-4 py-2.5 text-muted">{o.solution}</td>
+              <td className="px-4 py-2.5 text-muted">{o.impact}</td>
               <td className="px-4 py-2.5"><Badge status={o.status} /></td>
             </tr>
           ))}
@@ -250,7 +250,7 @@ export function ReliabilitySection() {
                 <p className="text-sm font-medium text-foreground">{r.name}</p>
                 <Badge status={r.status} />
               </div>
-              <p className="text-[13px] text-muted-foreground leading-relaxed">{r.detail}</p>
+              <p className="text-[13px] text-muted leading-relaxed">{r.detail}</p>
             </div>
           </Reveal>
         ))}
@@ -279,7 +279,7 @@ export function DashboardSection() {
           ].map(([t, d]) => (
             <div key={t} className="rounded-xl border border-border bg-surface p-4">
               <p className="font-data text-lg font-medium text-foreground">{t}</p>
-              <p className="mt-1 text-[13px] text-muted-foreground leading-relaxed">{d}</p>
+              <p className="mt-1 text-[13px] text-muted leading-relaxed">{d}</p>
             </div>
           ))}
         </div>
@@ -301,7 +301,7 @@ export function EmbeddingsSection() {
           {["MiniLM", "384-d vector", "Qdrant", "Top-K candidates"].map((s, i, a) => (
             <li key={s} className="flex items-center gap-2 text-[13px]">
               <span className="rounded-lg border border-border bg-surface px-3 py-2 font-medium text-foreground">{s}</span>
-              {i < a.length - 1 && <span className="text-muted-foreground">→</span>}
+              {i < a.length - 1 && <span className="text-muted">→</span>}
             </li>
           ))}
         </ol>
@@ -313,7 +313,7 @@ export function EmbeddingsSection() {
               <tr key={c.service}>
                 <td className="px-4 py-2.5 font-medium">{c.service}</td>
                 <td className="px-4 py-2.5"><Badge status={c.status} /></td>
-                <td className="px-4 py-2.5 text-muted-foreground">{c.result}</td>
+                <td className="px-4 py-2.5 text-muted">{c.result}</td>
               </tr>
             ))}
           </Table>
@@ -339,7 +339,7 @@ export function ResultsSection() {
               <td className="px-4 py-2.5 font-medium">{r.metric}</td>
               <td className="px-4 py-2.5 font-data text-[12px]">{r.idle}</td>
               <td className="px-4 py-2.5 font-data text-[12px]">{r.busy}</td>
-              <td className="px-4 py-2.5 text-muted-foreground">{r.result}</td>
+              <td className="px-4 py-2.5 text-muted">{r.result}</td>
             </tr>
           ))}
         </Table>
@@ -368,11 +368,11 @@ export function ResultsSection() {
               <td className="px-4 py-2.5 font-data text-[12px]">{r.top}</td>
               <td className="px-4 py-2.5 font-data text-[12px]">{r.sem}</td>
               <td className="px-4 py-2.5 font-data text-[12px]">{r.overall}</td>
-              <td className="px-4 py-2.5 text-muted-foreground">{r.note}</td>
+              <td className="px-4 py-2.5 text-muted">{r.note}</td>
             </tr>
           ))}
         </Table>
-        <p className="mt-3 text-xs text-muted-foreground">
+        <p className="mt-3 text-xs text-muted">
           Formal retrieval accuracy was not measured because no labeled evaluation dataset was available.
         </p>
       </Reveal>
@@ -391,7 +391,7 @@ export function RemainingSection() {
       <Reveal>
         <ul className="space-y-2.5">
           {REMAINING.map((r) => (
-            <li key={r} className="rounded-xl border border-border bg-surface p-4 text-[13px] text-muted-foreground leading-relaxed">
+            <li key={r} className="rounded-xl border border-border bg-surface p-4 text-[13px] text-muted leading-relaxed">
               {r}
             </li>
           ))}
@@ -410,7 +410,7 @@ export function TechnicalReportSection() {
       lede="The complete evaluation also lives at docs/performance-optimization-report.md in the repository. Everything below is drawn from the same measured data — no secrets, no candidate PII."
     >
       <Reveal>
-        <div className="rounded-xl border border-border bg-surface p-5 md:p-6 text-[13px] leading-relaxed text-muted-foreground space-y-3 max-w-none">
+        <div className="rounded-xl border border-border bg-surface p-5 md:p-6 text-[13px] leading-relaxed text-muted space-y-3 max-w-none">
           <p><strong className="text-foreground">Executive summary.</strong> 5/5 staging jobs completed concurrently (11.8s wall, 0 failed, 0 retries, flat memory); the API stayed responsive (3–7ms root, ~0.5–1.0s health, unchanged under load); search and ranking behave over the untouched 384-d Qdrant collection; hosted alternatives failed validation, so production remains on local MiniLM with concurrency exactly 5.</p>
           <p><strong className="text-foreground">Reliability.</strong> Duplicate suppression yields one live job per candidate; corrupt resumes fail fast with a 400 while the worker stays alive; retries (3, exponential 5s), 180s lock, and 300s timeout bound every failure mode without infinite loops.</p>
           <p><strong className="text-foreground">Embeddings.</strong> Local MiniLM is the only production-compatible provider: Hugging Face serverless cannot serve raw vectors for this model (HTTP 400), and Cloudflare BGE-small — same 384 dimensions — sits in a different vector space (cosine 0.30, top-5 overlap 1–2/5). A future hosted option is safe only with identical weights plus passing staging gates.</p>

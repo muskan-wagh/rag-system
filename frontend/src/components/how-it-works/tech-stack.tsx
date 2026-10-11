@@ -26,7 +26,7 @@ export function TechStack() {
           <h2 className="text-2xl md:text-3xl font-semibold text-foreground">
             Technology <span className="text-primary">Stack</span>
           </h2>
-          <p className="mt-3 text-sm text-muted-foreground max-w-lg mx-auto">
+          <p className="mt-3 text-sm text-muted max-w-lg mx-auto">
             Built with modern, battle-tested technologies
           </p>
         </motion.div>
@@ -56,7 +56,7 @@ export function TechStack() {
                     <tech.icon className={cn("h-5 w-5", tech.iconColor)} />
                   </div>
                   <h3 className="text-sm font-semibold text-foreground mb-1">{tech.name}</h3>
-                  <p className="text-xs text-muted-foreground leading-relaxed">{tech.desc}</p>
+                  <p className="text-xs text-muted leading-relaxed">{tech.desc}</p>
                 </div>
               </div>
             </motion.div>

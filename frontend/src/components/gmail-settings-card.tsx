@@ -149,7 +149,7 @@ export function GmailSettingsCard() {
   }, [api])
 
   return (
-    <div className="rounded-lg border border-border bg-surface p-5">
+    <div className="rounded-xl border border-border bg-surface p-5 shadow-xs">
       <div className="flex items-center gap-3">
         <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-surface-secondary">
           <GmailLogo className="size-5" />

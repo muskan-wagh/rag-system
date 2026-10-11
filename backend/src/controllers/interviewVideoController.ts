@@ -22,6 +22,12 @@ import {
 
 const VIDEO_ALLOWED_STATUSES = ['scheduled', 'joined', 'in_progress'];
 
+// GET /interviews/livekit/status — lets the UI pick the video or fallback path
+// without attempting (and failing) a token mint.
+export const getLiveKitStatusHandler = asyncHandler(async (_req: Request, res: Response) => {
+  res.json({ success: true, data: { configured: isLivekitConfigured() } });
+});
+
 function assertVideoAllowed(status: string): void {
   if (!VIDEO_ALLOWED_STATUSES.includes(status)) {
     throw new AppError(`Video is not available for ${status} interviews`, 410, ErrorCodes.NOT_FOUND);

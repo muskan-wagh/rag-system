@@ -1,21 +1,15 @@
 "use client"
 
-import { Sparkles, Users, Calendar, Briefcase, ArrowUpRight, ArrowRight, Zap } from "lucide-react"
+import { Sparkles, Users, Calendar, Briefcase, ArrowRight, Zap } from "lucide-react"
+import type { LucideIcon } from "lucide-react"
 import type { QuickAction } from "@/lib/types"
+import { cn } from "@/lib/utils"
 
-function getActionIcon(icon: string) {
-  switch (icon) {
-    case "users":
-      return <Users className="size-3.5" strokeWidth={1.5} />
-    case "calendar":
-      return <Calendar className="size-3.5" strokeWidth={1.5} />
-    case "briefcase":
-      return <Briefcase className="size-3.5" strokeWidth={1.5} />
-    case "zap":
-      return <Zap className="size-3.5" strokeWidth={1.5} />
-    default:
-      return <Sparkles className="size-3.5" strokeWidth={1.5} />
-  }
+const ICONS: Record<string, LucideIcon> = {
+  users: Users,
+  calendar: Calendar,
+  briefcase: Briefcase,
+  zap: Zap,
 }
 
 export function QuickActions({
@@ -25,32 +19,37 @@ export function QuickActions({
   items: QuickAction[]
   onAction: (action: string) => void
 }) {
-  if (items.length === 0) return null
+  if (!items || items.length === 0) return null
+
   return (
-    <div className="flex gap-1.5 overflow-x-auto pb-0.5">
+    <ul className="flex flex-wrap gap-2">
       {items.map((action) => {
         const isPrimary = action.priority === "high"
+        const Icon = ICONS[action.icon] ?? Sparkles
         return (
-          <button
-            key={action.id}
-            onClick={() => onAction(action.action)}
-            title={action.description}
-            className={
-              isPrimary
-                ? "inline-flex h-7 shrink-0 items-center gap-1.5 rounded-md bg-ink px-2.5 text-[12px] font-medium text-canvas transition-colors duration-120 hover:bg-ink/90 active:scale-[0.99]"
-                : "inline-flex h-7 shrink-0 items-center gap-1.5 rounded-md border border-border bg-surface px-2.5 text-[12px] font-medium text-ink transition-colors duration-120 hover:bg-surface-secondary active:scale-[0.99]"
-            }
-          >
-            {getActionIcon(action.icon)}
-            <span className="whitespace-nowrap">{action.label}</span>
-            {isPrimary ? (
-              <ArrowRight className="size-3" strokeWidth={1.5} />
-            ) : (
-              <ArrowUpRight className="size-3" strokeWidth={1.5} />
-            )}
-          </button>
+          <li key={action.id}>
+            <button
+              type="button"
+              onClick={() => onAction(action.action)}
+              title={action.description}
+              className={cn(
+                "group inline-flex h-8 items-center gap-2 whitespace-nowrap rounded-lg px-3 text-[12.5px] font-medium transition-all duration-150",
+                isPrimary
+                  ? "bg-ink text-canvas hover:bg-ink-hover"
+                  : "border border-border bg-surface text-ink hover:border-border-hover hover:bg-surface-secondary",
+              )}
+            >
+              <Icon className="size-3.5 shrink-0" strokeWidth={1.75} aria-hidden />
+              {action.label}
+              <ArrowRight
+                className="size-3 shrink-0 opacity-50 transition-transform duration-150 group-hover:translate-x-0.5 group-hover:opacity-100"
+                strokeWidth={2}
+                aria-hidden
+              />
+            </button>
+          </li>
         )
       })}
-    </div>
+    </ul>
   )
 }

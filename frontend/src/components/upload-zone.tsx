@@ -65,7 +65,7 @@ export function UploadZone({ file, onFileSelect }: UploadZoneProps) {
         dragging
           ? "border-primary bg-primary/5"
           : file
-            ? "border-green-300 bg-green-50/50"
+            ? "border-success bg-success/10/50"
             : "border-border hover:border-primary/40 hover:bg-muted/30"
       }`}
     >
@@ -83,8 +83,8 @@ export function UploadZone({ file, onFileSelect }: UploadZoneProps) {
         className="flex flex-col items-center gap-3"
       >
         {file ? (
-          <div className="h-12 w-12 rounded-full bg-green-100 flex items-center justify-center">
-            <FileText className="h-6 w-6 text-green-600" />
+          <div className="h-12 w-12 rounded-full bg-success/12 flex items-center justify-center">
+            <FileText className="h-6 w-6 text-success" />
           </div>
         ) : (
           <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
@@ -98,15 +98,15 @@ export function UploadZone({ file, onFileSelect }: UploadZoneProps) {
               <p className="text-sm font-medium text-foreground">
                 Drop your resume here
               </p>
-              <p className="text-xs text-muted-foreground mt-1">
+              <p className="text-xs text-muted mt-1">
                 or click to browse
               </p>
             </div>
             <div className="flex gap-2">
-              <span className="rounded-full bg-muted px-2.5 py-0.5 text-[10px] text-muted-foreground">
+              <span className="rounded-full bg-muted px-2.5 py-0.5 text-[10px] text-muted">
                 PDF
               </span>
-              <span className="rounded-full bg-muted px-2.5 py-0.5 text-[10px] text-muted-foreground">
+              <span className="rounded-full bg-muted px-2.5 py-0.5 text-[10px] text-muted">
                 DOCX
               </span>
             </div>
@@ -114,7 +114,7 @@ export function UploadZone({ file, onFileSelect }: UploadZoneProps) {
         )}
 
         {file && (
-          <p className="text-xs text-green-600 font-medium">File selected</p>
+          <p className="text-xs text-success font-medium">File selected</p>
         )}
       </motion.div>
     </div>

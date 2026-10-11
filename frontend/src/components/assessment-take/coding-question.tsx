@@ -74,10 +74,10 @@ export function CodingQuestion({
         >
           Reset code
         </button>
-        <span className="self-center text-xs text-muted-foreground">Run uses visible tests only.</span>
+        <span className="self-center text-xs text-muted">Run uses visible tests only.</span>
       </div>
       {error ? (
-        <p role="alert" className="text-sm text-red-600">
+        <p role="alert" className="text-sm text-danger">
           {error}
         </p>
       ) : null}

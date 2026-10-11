@@ -569,6 +569,91 @@ export function createApiClient(getToken: () => Promise<string | null>) {
       ),
 
     // === Unified hiring workflow ===
+    getJobConfig: (jobId: string) =>
+      withAuth((a) =>
+        request<{ jobId: string; progression_config: Record<string, boolean> }>(
+          `/jobs/${jobId}/config`,
+          { method: "GET" },
+          a,
+        ),
+      ),
+
+    updateJobConfig: (jobId: string, config: Record<string, boolean>) =>
+      withAuth((a) =>
+        request<{ jobId: string; progression_config: Record<string, boolean> }>(
+          `/jobs/${jobId}/config`,
+          { method: "PATCH", body: JSON.stringify({ progression_config: config }) },
+          a,
+        ),
+      ),
+
+    getHiringSummary: (jobId: string) =>
+      withAuth((a) =>
+        request<{
+          jobId: string;
+          total: number;
+          stages: Record<string, number>;
+          stageCandidates: Record<string, string[]>;
+          screening: { screened: number; passed: number; failed: number; overridden: number; passRate: number };
+          assessment: { templatePublished: boolean; invited: number; started: number; completed: number; passed: number; passRate: number };
+          technical: { count: number; technical: number; hr: number; evalOutcomes: Record<string, number> };
+          final: { decisions: number; hired: number; rejected: number };
+          dropOffs: { screeningFailed: number; assessmentNotPassed: number; rejected: number };
+        }>(`/jobs/${jobId}/hiring-summary`, { method: "GET" }, a),
+      ),
+
+    /** Job pipeline from the authoritative job_applications table. */
+    getJobPipeline: (jobId: string) =>
+      withAuth((a) =>
+        request<{
+          jobId: string;
+          total: number;
+          counts: Record<string, number>;
+          byStage: Record<string, Array<{ id: string; name: string }>>;
+        }>(`/jobs/${jobId}/pipeline`, { method: "GET" }, a),
+      ),
+
+    /** Job candidates, one row per person (dedupe guaranteed by the DB). */
+    getJobCandidates: (jobId: string, opts?: { stage?: string; limit?: number; offset?: number }) => {
+      const q = new URLSearchParams();
+      if (opts?.stage) q.set("stage", opts.stage);
+      if (opts?.limit) q.set("limit", String(opts.limit));
+      if (opts?.offset) q.set("offset", String(opts.offset));
+      const qs = q.toString();
+      return withAuth((a) =>
+        request<{ jobId: string; candidates: Array<Record<string, unknown>>; total: number }>(
+          `/jobs/${jobId}/candidates${qs ? `?${qs}` : ""}`,
+          { method: "GET" },
+          a,
+        ),
+      );
+    },
+
+    generateAssessment: (data: {
+      job_id: string;
+      question_types: { mcq?: number; coding?: number; sql?: number; subjective?: number };
+      difficulty?: string;
+      duration_minutes?: number;
+      passing_score?: number;
+      marks_per_question?: number;
+    }) =>
+      withAuth((a) =>
+        request<{ assessmentId: string; questions: unknown[]; model: string; dropped: number }>(
+          "/assessments/generate",
+          { method: "POST", body: JSON.stringify(data) },
+          a,
+        ),
+      ),
+
+    regenerateQuestion: (assessmentId: string, questionId: string, type?: string) =>
+      withAuth((a) =>
+        request<import("./types").AssessmentQuestion>(
+          `/assessments/${assessmentId}/questions/${questionId}/regenerate`,
+          { method: "POST", body: JSON.stringify(type ? { type } : {}) },
+          a,
+        ),
+      ),
+
     runScreening: (jobId: string, data?: { candidateIds?: string[]; jdText?: string }) =>
       withAuth((a) =>
         request<{ queued: boolean; deduplicated: boolean }>(`/jobs/${jobId}/screening/run`, {

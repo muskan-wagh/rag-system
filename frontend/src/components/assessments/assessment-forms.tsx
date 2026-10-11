@@ -102,7 +102,7 @@ export function AssessmentDetailsForm({
   }
 
   return (
-    <div className="space-y-4 rounded-lg border border-border bg-surface p-4 sm:p-5">
+    <div className="space-y-4 rounded-xl border border-border bg-surface p-4 shadow-xs sm:p-5">
       {locked && (
         <p className="rounded-md bg-warning/10 px-3 py-2 text-xs text-warning">
           Published assessments are locked. Unpublish to draft before editing.
@@ -227,7 +227,7 @@ export function AssessmentSettingsForm({
   const toggleCls = "size-4 accent-primary"
 
   return (
-    <div className="space-y-4 rounded-lg border border-border bg-surface p-4 sm:p-5">
+    <div className="space-y-4 rounded-xl border border-border bg-surface p-4 shadow-xs sm:p-5">
       {locked && (
         <p className="rounded-md bg-warning/10 px-3 py-2 text-xs text-warning">
           Published assessments are locked. Unpublish to draft before editing.

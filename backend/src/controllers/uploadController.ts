@@ -8,6 +8,8 @@ import { AppError } from '@/middleware/errorHandler';
 import { ErrorCodes } from '@/middleware/errorCodes';
 import { broadcast } from '@/services/websocket';
 import { logActivity } from '@/services/activity';
+import { enrollCandidate } from '@/services/hiring/jobApplicationService';
+import { getSupabaseClient } from '@/services/supabase/client';
 import { invalidateDashboardCache } from '@/controllers/dashboardController';
 
 export const uploadResumeHandler = asyncHandler(async (req: Request, res: Response) => {
@@ -72,8 +74,34 @@ export const uploadResumeHandler = asyncHandler(async (req: Request, res: Respon
     throw new AppError('Failed to create candidate record', 500, ErrorCodes.DATABASE_ERROR);
   }
 
-  // Invalidate the recruiter's dashboard cache so new uploads show up promptly
+  // Enrol into the job that owns this upload session. `job_applications` is the
+  // authoritative candidate↔job link, so the candidate must appear in that
+  // job's pipeline immediately — not only once some evidence table happens to
+  // reference them. Failure is non-fatal: the candidate record is already
+  // persisted and the backfill covers it.
   if (session.recruiter_id) {
+    const { data: linkedJob } = await getSupabaseClient()
+      .from('jobs')
+      .select('id')
+      .eq('upload_session_id', uuid)
+      .eq('recruiter_id', session.recruiter_id)
+      .maybeSingle();
+    if (linkedJob) {
+      try {
+        await enrollCandidate({
+          jobId: (linkedJob as { id: string }).id,
+          candidateId: candidate.id,
+          recruiterId: session.recruiter_id,
+          source: 'resume_upload',
+        });
+      } catch (enrollErr) {
+        logger.warn('UPLOAD: failed to enrol candidate into job', {
+          candidateId: candidate.id,
+          jobId: (linkedJob as { id: string }).id,
+          error: enrollErr instanceof Error ? enrollErr.message : String(enrollErr),
+        });
+      }
+    }
     await invalidateDashboardCache(session.recruiter_id);
   }
 

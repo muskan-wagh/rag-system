@@ -204,7 +204,7 @@ function CandidatesContent() {
             aria-hidden
             className="pointer-events-none absolute -inset-x-4 -top-6 bottom-0 bg-[radial-gradient(60%_90%_at_20%_0%,rgba(62,99,221,0.14),transparent_70%),radial-gradient(50%_80%_at_85%_10%,rgba(48,164,108,0.10),transparent_70%)]"
           />
-          <div className="relative rounded-2xl bg-gradient-to-br from-info/40 via-border to-success/30 p-px shadow-[0_12px_40px_rgba(0,0,0,0.35)]">
+          <div className="relative rounded-2xl bg-gradient-to-br from-info/40 via-border to-success/30 p-px shadow-xl">
             <div className="rounded-[15px] bg-surface p-3 sm:p-4">
               {/* console header */}
               <div className="mb-2 flex items-center gap-2">
@@ -269,7 +269,7 @@ function CandidatesContent() {
                   <Button
                     onClick={handleSearch}
                     disabled={loading || !jdText.trim()}
-                    className="h-9 w-full gap-2 px-5 text-[13px] font-semibold shadow-[0_4px_16px_rgba(0,0,0,0.3)] sm:w-auto"
+                    className="h-9 w-full gap-2 px-5 text-[13px] font-semibold shadow-lg sm:w-auto"
                   >
                     {loading ? (
                       <Loader2 className="h-4 w-4 animate-spin" strokeWidth={2} />

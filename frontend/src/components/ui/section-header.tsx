@@ -1,40 +1,79 @@
 "use client"
 
 import { motion } from "framer-motion"
+import { cn } from "@/lib/utils"
 
 interface SectionHeaderProps {
+  /** Small eyebrow above the heading, e.g. "Product". */
   label?: string
-  title: string
-  highlight?: string
-  description?: string
+  title: React.ReactNode
+  description?: React.ReactNode
+  align?: "center" | "left"
   className?: string
+  /** Extra content rendered under the description (pills, CTAs, links). */
+  children?: React.ReactNode
+  as?: "h2" | "h3"
 }
 
-export function SectionHeader({ label, title, highlight, description, className = "" }: SectionHeaderProps) {
+/**
+ * Shared heading block for every marketing section. Keeps the vertical rhythm
+ * and the restrained fade-up consistent across the public site.
+ */
+export function SectionHeader({
+  label,
+  title,
+  description,
+  align = "center",
+  className,
+  children,
+  as: Tag = "h2",
+}: SectionHeaderProps) {
   return (
     <motion.div
-      initial={{ opacity: 0, y: 20 }}
+      initial={{ opacity: 0, y: 18 }}
       whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true, margin: "-60px" }}
-      className={className}
+      viewport={{ once: true, margin: "-80px" }}
+      transition={{ duration: 0.55, ease: [0.16, 1, 0.3, 1] }}
+      className={cn(
+        "flex flex-col",
+        align === "center" ? "items-center text-center" : "items-start text-left",
+        className,
+      )}
     >
       {label && (
-        <div className="inline-flex items-center gap-1.5 rounded-[6px] bg-surface-secondary px-3 py-1 text-xs font-medium text-muted mb-5" style={{ fontFamily: "var(--font-inter)" }}>
-          <span className="flex h-1.5 w-1.5 rounded-full bg-info" />
+        <span
+          className={cn(
+            "mb-6 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.035] px-3 py-1 backdrop-blur-md",
+            "text-[11px] font-medium uppercase tracking-[0.14em] text-white/60",
+          )}
+        >
+          <span className="relative flex size-1.5" aria-hidden>
+            <span className="absolute inline-flex size-full animate-ping rounded-full bg-[#CBE2D2] opacity-70" />
+            <span className="relative inline-flex size-1.5 rounded-full bg-[#CBE2D2]" />
+          </span>
           {label}
-        </div>
+        </span>
       )}
-      <h2 className="text-3xl md:text-4xl font-medium text-ink tracking-tight" style={{ letterSpacing: "-0.02em", fontFamily: "var(--font-inter)" }}>
-        {title}
-        {highlight && (
-          <span className="text-muted"> {highlight}</span>
+
+      <Tag
+        className={cn(
+          "max-w-3xl text-balance text-[30px] font-medium leading-[1.06] tracking-[-0.035em] text-white sm:text-[40px] lg:text-[48px]",
         )}
-      </h2>
+      >
+        {title}
+      </Tag>
+
       {description && (
-        <p className="mt-4 text-base md:text-lg text-muted leading-relaxed max-w-2xl mx-auto" style={{ fontFamily: "var(--font-inter)" }}>
+        <p
+          className={cn(
+            "mt-5 max-w-2xl text-pretty text-[15px] leading-relaxed text-white/50 sm:text-[17px]",
+          )}
+        >
           {description}
         </p>
       )}
+
+      {children && <div className="mt-7">{children}</div>}
     </motion.div>
   )
 }

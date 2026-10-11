@@ -227,6 +227,47 @@ export const eligibleQuerySchema = z.object({
   search: z.string().max(200).optional(),
 });
 
+// AI generation: counts only — skills/JD always come from the server-side Job.
+export const generateAssessmentSchema = z.object({
+  job_id: nonEmptyString,
+  question_types: z.object({
+    mcq: z.number().int().min(0).max(30).optional(),
+    coding: z.number().int().min(0).max(30).optional(),
+    sql: z.number().int().min(0).max(30).optional(),
+    subjective: z.number().int().min(0).max(30).optional(),
+  }),
+  difficulty: z.enum(['easy', 'medium', 'hard', 'mixed']).optional().default('mixed'),
+  duration_minutes: z.number().int().positive().max(480).optional(),
+  passing_score: z.number().min(0).optional(),
+  marks_per_question: z.number().int().positive().max(20).optional(),
+  experience_level: z.string().max(500).optional(),
+  education: z.string().max(1000).optional(),
+  skills: z.array(z.string().max(100)).max(30).optional(),
+});
+
+export const regenerateQuestionSchema = z.object({
+  type: questionTypeEnum.optional(),
+});
+
+// Per-job progression config: recruiter-controlled toggles only.
+const progressionConfigSchema = z.object({
+  screening_to_assessment: z.boolean().optional(),
+  assessment_to_technical: z.boolean().optional(),
+  technical_to_hr: z.boolean().optional(),
+  hr_to_offer: z.boolean().optional(),
+  assessment_auto_invite: z.boolean().optional(),
+  interview_auto_invite: z.boolean().optional(),
+});
+
+export const jobConfigSchema = z.union([
+  progressionConfigSchema,
+  z.object({ progression_config: progressionConfigSchema }),
+]);
+
+export const jobIdParamSchema = z.object({
+  jobId: nonEmptyString,
+});
+
 // === CANDIDATE ASSESSMENT (session-cookie auth; never trust body IDs) ===
 
 export const exchangeTokenSchema = z.object({

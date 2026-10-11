@@ -17,7 +17,14 @@ export const ROUTES = {
   assessments: "/assessments",
   assessmentNew: "/assessments/new",
   assessmentDetail: (id: string) => `/assessments/${id}`,
+  assessmentTake: (token: string) => `/assessments/take/${token}`,
+  candidateReport: "/candidate/report",
+  settings: "/settings",
+  performance: "/performance",
+  signIn: "/sign-in",
+  signUp: "/sign-up",
   jobs: "/jobs",
+  jobDetail: (id: string) => `/jobs/${id}`,
   jobScreening: (id: string) => `/jobs/${id}/screening`,
 } as const
 

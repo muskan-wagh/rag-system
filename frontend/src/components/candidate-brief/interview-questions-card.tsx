@@ -16,9 +16,9 @@ export function InterviewQuestionsCard({ technical = [], behavioral = [], follow
       <div className="bg-surface rounded-xl border border-border p-5">
         <div className="flex items-center gap-2 mb-2">
           <MessageSquare className="h-4 w-4 text-brand" />
-          <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Interview Questions</h3>
+          <h3 className="text-xs font-medium text-muted uppercase tracking-wider">Interview Questions</h3>
         </div>
-        <p className="text-sm text-muted-foreground">Generate an AI hiring brief for suggested questions.</p>
+        <p className="text-sm text-muted">Generate an AI hiring brief for suggested questions.</p>
       </div>
     )
   }
@@ -27,7 +27,7 @@ export function InterviewQuestionsCard({ technical = [], behavioral = [], follow
     <div className="bg-surface rounded-xl border border-border p-5">
       <div className="flex items-center gap-2 mb-3">
         <MessageSquare className="h-4 w-4 text-brand" />
-        <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Interview Questions</h3>
+        <h3 className="text-xs font-medium text-muted uppercase tracking-wider">Interview Questions</h3>
       </div>
 
       <div className="space-y-4">
@@ -39,7 +39,7 @@ export function InterviewQuestionsCard({ technical = [], behavioral = [], follow
             </div>
             <ul className="space-y-1.5">
               {technical.map((q, i) => (
-                <li key={i} className="text-xs text-muted-foreground pl-5 border-l-2 border-brand/20">
+                <li key={i} className="text-xs text-muted pl-5 border-l-2 border-brand/20">
                   {q}
                 </li>
               ))}
@@ -50,12 +50,12 @@ export function InterviewQuestionsCard({ technical = [], behavioral = [], follow
         {behavioral.length > 0 && (
           <div>
             <div className="flex items-center gap-1.5 text-sm font-medium text-foreground mb-2">
-              <Users className="h-3.5 w-3.5 text-amber-500" />
+              <Users className="h-3.5 w-3.5 text-warning" />
               Behavioral
             </div>
             <ul className="space-y-1.5">
               {behavioral.map((q, i) => (
-                <li key={i} className="text-xs text-muted-foreground pl-5 border-l-2 border-amber-200">
+                <li key={i} className="text-xs text-muted pl-5 border-l-2 border-warning">
                   {q}
                 </li>
               ))}
@@ -65,10 +65,10 @@ export function InterviewQuestionsCard({ technical = [], behavioral = [], follow
 
         {followUpTopics.length > 0 && (
           <div className="border-t border-border pt-3">
-            <p className="text-xs font-medium text-muted-foreground mb-2">Follow-up Topics</p>
+            <p className="text-xs font-medium text-muted mb-2">Follow-up Topics</p>
             <div className="flex flex-wrap gap-1.5">
               {followUpTopics.map((topic, i) => (
-                <span key={i} className="text-xs px-2 py-1 bg-muted rounded-md text-muted-foreground">
+                <span key={i} className="text-xs px-2 py-1 bg-muted rounded-md text-muted">
                   {topic}
                 </span>
               ))}

@@ -237,11 +237,18 @@ export function validatePublish(input: PublishInput): string[] {
     errors.push('Total marks must be greater than 0.');
   }
 
+  // `passing_score` is a PERCENTAGE (0–100).
+  //
+  // It was previously validated against the total marks, which contradicted
+  // `scoring.isPassing(percentage, passingScorePercent)`. With the UI default
+  // of 60 and, say, 12 questions × 2 marks (24 total), every AI-generated
+  // draft was rejected at publish with "Passing score (60) cannot exceed
+  // total marks (24)" — the assessment workflow was unusable.
   const passing = Number(input.passing_score ?? 0);
   if (!Number.isFinite(passing) || passing < 0) {
-    errors.push('Passing score must be a number >= 0.');
-  } else if (questions.length > 0 && total > 0 && passing > total) {
-    errors.push(`Passing score (${passing}) cannot exceed total marks (${total}).`);
+    errors.push('Passing score must be a number between 0 and 100.');
+  } else if (passing > 100) {
+    errors.push(`Passing score (${passing}) must be a percentage between 0 and 100.`);
   }
 
   const from = parseWindowEdge(input.available_from);

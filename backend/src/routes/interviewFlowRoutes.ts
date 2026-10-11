@@ -22,6 +22,7 @@ import {
   runCandidateCodeHandler,
 } from '@/controllers/interviewLiveController';
 import {
+  getLiveKitStatusHandler,
   postCandidateLivekitTokenHandler,
   postCandidateVideoEventHandler,
   postRecruiterLivekitTokenHandler,
@@ -82,7 +83,10 @@ interviewLiveRecruiterRouter.post(
   runCodingSessionHandler,
 );
 interviewLiveRecruiterRouter.post('/:interviewId/end', endInterviewHandler);
-// Interviewer video token (LiveKit video layer only — coding/WS untouched).
+
+// LiveKit video/audio tokens (recruiter). Media only — live coding stays on the
+// WebSocket layer above.
+interviewLiveRecruiterRouter.get('/livekit/status', getLiveKitStatusHandler);
 interviewLiveRecruiterRouter.post('/:interviewId/livekit-token', postRecruiterLivekitTokenHandler);
 
 // Candidate (public exchange + session authed status + live coding).

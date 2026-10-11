@@ -20,7 +20,7 @@ export function SavedSearchCard({ search, onRun, onToggleFavorite, onDelete }: S
             <h3 className="text-sm font-medium text-ink truncate">{search.name}</h3>
             <button
               onClick={(e) => { e.stopPropagation(); onToggleFavorite(search.id, !search.is_favorite) }}
-              className={`shrink-0 ${search.is_favorite ? 'text-amber-400' : 'text-muted opacity-0 group-hover:opacity-100'} transition-opacity`}
+              className={`shrink-0 ${search.is_favorite ? 'text-warning' : 'text-muted opacity-0 group-hover:opacity-100'} transition-opacity`}
             >
               <Star className="h-3.5 w-3.5" fill={search.is_favorite ? 'currentColor' : 'none'} />
             </button>
@@ -49,7 +49,7 @@ export function SavedSearchCard({ search, onRun, onToggleFavorite, onDelete }: S
           </button>
           <button
             onClick={() => onDelete(search.id)}
-            className="p-1.5 rounded-lg hover:bg-red-50 text-muted hover:text-red-500 transition-colors"
+            className="p-1.5 rounded-lg hover:bg-danger/8 text-muted hover:text-danger transition-colors"
             title="Delete"
           >
             <Trash2 className="h-3.5 w-3.5" />

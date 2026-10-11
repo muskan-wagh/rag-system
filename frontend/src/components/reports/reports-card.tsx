@@ -116,15 +116,15 @@ export function ReportsCard({ candidateId }: { candidateId: string }) {
       </div>
 
       {reports.length === 0 ? (
-        <p className="mt-2 text-xs text-muted-foreground">No reports yet.</p>
+        <p className="mt-2 text-xs text-muted">No reports yet.</p>
       ) : (
         <ul className="mt-3 space-y-2 text-xs">
           {reports.slice(0, 6).map((r) => (
             <li key={String(r.id)} className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border border-border p-2">
               <span className="font-medium">{String(r.report_type)} v{String(r.version)}</span>
-              <span className="text-muted-foreground">generated {String(r.generated_at || r.created_at || "").slice(0, 16).replace("T", " ")}</span>
-              <span className="text-muted-foreground">email: {String(r.email_status || "pending")}{r.email_sent_at ? ` @ ${String(r.email_sent_at).slice(0, 16).replace("T", " ")}` : ""}</span>
-              {r.email_error ? <span className="text-red-600">error: {String(r.email_error).slice(0, 120)}</span> : null}
+              <span className="text-muted">generated {String(r.generated_at || r.created_at || "").slice(0, 16).replace("T", " ")}</span>
+              <span className="text-muted">email: {String(r.email_status || "pending")}{r.email_sent_at ? ` @ ${String(r.email_sent_at).slice(0, 16).replace("T", " ")}` : ""}</span>
+              {r.email_error ? <span className="text-danger">error: {String(r.email_error).slice(0, 120)}</span> : null}
               <span className="ml-auto flex gap-2">
                 <button onClick={() => void download(String(r.id))} className="underline">Download PDF</button>
                 {String(r.report_type) === "candidate" ? (
@@ -139,7 +139,7 @@ export function ReportsCard({ candidateId }: { candidateId: string }) {
         </ul>
       )}
       {latest("candidate") ? (
-        <p className="mt-2 text-[11px] text-muted-foreground">
+        <p className="mt-2 text-[11px] text-muted">
           Last candidate report: v{String(latest("candidate")?.version)} · {String(latest("candidate")?.generated_at || "").slice(0, 16).replace("T", " ")} · email {String(latest("candidate")?.email_status)}
         </p>
       ) : null}

@@ -4,6 +4,7 @@ import { getRedisClient, isRedisAvailable } from '@/services/redis/manager';
 import { logger } from '@/utils/logger';
 import { verifyCandidateSession, parseCookies } from '@/services/hiring/candidateSession';
 import { getSupabaseClient } from '@/services/supabase/client';
+import { verifyClerkToken } from '@/middleware/auth';
 
 const EVENTS_CHANNEL = 'app:events';
 
@@ -12,31 +13,28 @@ let wss: WebSocketServer | null = null;
 interface RoomClient {
   ws: WebSocket;
   rooms: Set<string>;
+  /** Recruiter uuid when authenticated as a recruiter; null for candidate sockets. */
+  recruiterId: string | null;
+  /** True once the socket has passed an auth check of any kind. */
+  authenticated: boolean;
 }
 
 const clients = new Set<RoomClient>();
-
-function decodeClerkSub(token: string): string | null {
-  try {
-    const parts = token.split('.');
-    if (parts.length !== 3) return null;
-    const payload = JSON.parse(Buffer.from(parts[1].replace(/-/g, '+').replace(/_/g, '/'), 'base64').toString('utf-8')) as { sub?: unknown };
-    return typeof payload.sub === 'string' ? payload.sub : null;
-  } catch {
-    return null;
-  }
-}
 
 /**
  * Authorize a WS room join for one interview.
  * - Candidate: `session` query (or hs_candidate cookie) validated via
  *   verifyCandidateSession; room is ALWAYS the session's own interview —
  *   a spoofed interviewId can never join another candidate's room.
- * - Recruiter: `role=recruiter` + Clerk JWT (`token`); ownership of the
- *   interview's candidate is verified in DB (same rule as REST).
+ * - Recruiter: `role=recruiter` + Clerk JWT (`token`); the JWT SIGNATURE is
+ *   verified before the recruiter lookup, and ownership of the interview's
+ *   candidate is then checked in DB (same rule as REST).
  * Returns the authorized room name or null.
  */
-async function authorizeInterviewRoom(params: URLSearchParams, cookieHeader: string | undefined): Promise<string | null> {
+async function authorizeInterviewRoom(
+  params: URLSearchParams,
+  cookieHeader: string | undefined,
+): Promise<{ room: string | null; recruiterId: string | null }> {
   const requestedId = (params.get('interviewId') || '').trim();
   const sessionToken = (params.get('session') || '').trim() || parseCookies(cookieHeader).hs_candidate || '';
   if (sessionToken) {
@@ -52,62 +50,88 @@ async function authorizeInterviewRoom(params: URLSearchParams, cookieHeader: str
         const inv = invite as { interview_id: string; status: string } | null;
         if (inv && inv.status !== 'revoked') {
           // Bind to the SESSION's interview, not the client claim.
-          return `interview:${inv.interview_id}`;
+          return { room: `interview:${inv.interview_id}`, recruiterId: null };
         }
       }
     } catch {
-      return null;
+      return { room: null, recruiterId: null };
     }
-    return null;
+    return { room: null, recruiterId: null };
   }
   if (params.get('role') === 'recruiter' && requestedId) {
-    const clerkSub = decodeClerkSub(params.get('token') || '');
-    if (!clerkSub) return null;
+    // Signature-verified. An unsigned/forged token resolves to no clerk id.
+    const verified = await verifyClerkToken(params.get('token') || '');
+    if ('error' in verified) return { room: null, recruiterId: null };
     try {
       const supabase = getSupabaseClient();
-      const { data: recruiter } = await supabase.from('recruiters').select('id').eq('clerk_id', clerkSub).maybeSingle();
-      if (!recruiter) return null;
-      const { data: interview } = await supabase.from('interviews').select('candidate_id').eq('id', requestedId).maybeSingle();
-      if (!interview) return null;
+      const { data: recruiter } = await supabase
+        .from('recruiters')
+        .select('id')
+        .eq('clerk_id', verified.clerkId)
+        .maybeSingle();
+      if (!recruiter) return { room: null, recruiterId: null };
+      const { data: interview } = await supabase
+        .from('interviews')
+        .select('candidate_id')
+        .eq('id', requestedId)
+        .maybeSingle();
+      if (!interview) return { room: null, recruiterId: null };
       const { data: cand } = await supabase
         .from('candidates')
         .select('id')
         .eq('id', (interview as { candidate_id: string }).candidate_id)
         .eq('recruiter_id', (recruiter as { id: string }).id)
         .maybeSingle();
-      if (!cand) return null;
-      return `interview:${requestedId}`;
+      if (!cand) return { room: null, recruiterId: null };
+      return { room: `interview:${requestedId}`, recruiterId: (recruiter as { id: string }).id };
     } catch {
-      return null;
+      return { room: null, recruiterId: null };
     }
   }
-  return null;
+  return { room: null, recruiterId: null };
 }
+
+/**
+ * Events that carry candidate/interview identifiers and must therefore be
+ * delivered ONLY to the interview's own room. Broadcasting these globally
+ * leaked interview ids and statuses across recruiters and tenants.
+ */
+const ROOM_SCOPED_EVENTS = new Set(['interview:updated', 'interview:scheduled', 'interview:cancelled']);
+const ROOM_EVENT_KEY = 'interviewId';
 
 export function initWebSocketServer(server: HttpServer): WebSocketServer {
   wss = new WebSocketServer({ server, path: '/ws' });
 
   wss.on('connection', (ws, req) => {
-    const client: RoomClient = { ws, rooms: new Set() };
+    const client: RoomClient = { ws, rooms: new Set(), recruiterId: null, authenticated: false };
     clients.add(client);
+    clientsBySocket.set(ws, client);
     void (async () => {
       try {
         const url = new URL(req.url || '/ws', 'http://localhost');
-        // Global listener (legacy dashboard events) needs no room.
-        if (!url.searchParams.get('interviewId') && !url.searchParams.get('session')) return;
-        const room = await authorizeInterviewRoom(url.searchParams, req.headers.cookie);
+        const requestedId = (url.searchParams.get('interviewId') || '').trim();
+        const sessionToken =
+          (url.searchParams.get('session') || '').trim() || parseCookies(req.headers.cookie).hs_candidate || '';
+
+        if (!requestedId && !sessionToken) {
+          // No credentials of any kind. Previously this socket was left OPEN and
+          // subscribed to every global broadcast. Reject it outright.
+          rejectUnauthorized(ws, client);
+          return;
+        }
+
+        const { room, recruiterId } = await authorizeInterviewRoom(url.searchParams, req.headers.cookie);
         if (!room) {
-          ws.send(JSON.stringify({ event: 'ws:unauthorized', payload: {}, timestamp: new Date().toISOString() }));
-          ws.close(4401, 'unauthorized');
-          clients.delete(client);
+          rejectUnauthorized(ws, client);
           return;
         }
         client.rooms.add(room);
+        client.recruiterId = recruiterId;
+        client.authenticated = true;
         ws.send(JSON.stringify({ event: 'ws:joined', payload: { room }, timestamp: new Date().toISOString() }));
       } catch (err) {
         logger.warn('WebSocket auth failed', { error: err instanceof Error ? err.message : String(err) });
-        try { ws.close(4401, 'unauthorized'); } catch { /* noop */ }
-        clients.delete(client);
+        rejectUnauthorized(ws, client);
       }
     })();
 
@@ -124,6 +148,7 @@ export function initWebSocketServer(server: HttpServer): WebSocketServer {
 
     const cleanup = () => {
       clients.delete(client);
+      clientsBySocket.delete(ws);
     };
     ws.on('close', cleanup);
     ws.on('error', (err) => {
@@ -158,19 +183,36 @@ export function initWebSocketServer(server: HttpServer): WebSocketServer {
   return wss;
 }
 
-function broadcastRaw(message: string): void {
-  if (!wss) return;
-  wss.clients.forEach((client) => {
-    if (client.readyState === WebSocket.OPEN) {
-      client.send(message);
-    }
-  });
-  // Room-tracked clients share the same underlying sockets; legacy global
-  // fan-out stays intact for dashboard events.
+function rejectUnauthorized(ws: WebSocket, client: RoomClient): void {
+  clients.delete(client);
+  try {
+    ws.send(JSON.stringify({ event: 'ws:unauthorized', payload: {}, timestamp: new Date().toISOString() }));
+  } catch { /* socket already gone */ }
+  try {
+    ws.close(4401, 'unauthorized');
+  } catch { /* socket already gone */ }
 }
 
+/**
+ * Fan a message out to AUTHENTICATED sockets only.
+ * Unauthenticated sockets are closed on connect, but this guard keeps the
+ * invariant enforced at send time as well.
+ */
+function broadcastRaw(message: string): void {
+  if (!wss) return;
+  wss.clients.forEach((socket) => {
+    const client = clientsBySocket.get(socket);
+    if (!client || !client.authenticated) return;
+    if (socket.readyState === WebSocket.OPEN) {
+      socket.send(message);
+    }
+  });
+}
+
+/** Reverse index so broadcastRaw can check the auth flag without a socket scan. */
+const clientsBySocket = new Map<WebSocket, RoomClient>();
+
 export function broadcast(event: string, payload: Record<string, unknown>): void {
-  const message = JSON.stringify({ event, payload, timestamp: new Date().toISOString() });
   // Interview-scoped coding events go ONLY to room members.
   if (event === 'interview:coding') {
     const interviewId = String((payload as Record<string, unknown>).interviewId || '');
@@ -179,7 +221,17 @@ export function broadcast(event: string, payload: Record<string, unknown>): void
       return;
     }
   }
-  broadcastRaw(message);
+  // Interview lifecycle events also carry an interviewId — never global.
+  if (ROOM_SCOPED_EVENTS.has(event)) {
+    const interviewId = String((payload as Record<string, unknown>)[ROOM_EVENT_KEY] || '');
+    if (interviewId) {
+      broadcastToInterview(interviewId, event, payload);
+      return;
+    }
+    // Missing interviewId: drop rather than leak a global copy.
+    return;
+  }
+  broadcastRaw(JSON.stringify({ event, payload, timestamp: new Date().toISOString() }));
 }
 
 /** Room-scoped broadcast — server is the source of truth; no client write path. */

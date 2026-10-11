@@ -29,7 +29,7 @@ export function RankingBreakdown() {
           <h2 className="text-2xl md:text-3xl font-semibold text-foreground">
             Ranking <span className="text-primary">Breakdown</span>
           </h2>
-          <p className="mt-3 text-sm text-muted-foreground max-w-lg mx-auto">
+          <p className="mt-3 text-sm text-muted max-w-lg mx-auto">
             Hover over each metric to understand how it contributes to the final score
           </p>
         </motion.div>
@@ -42,10 +42,10 @@ export function RankingBreakdown() {
         >
           <div className="flex items-center justify-between mb-8">
             <div>
-              <span className="text-xs text-muted-foreground uppercase tracking-wider font-medium">Overall Match</span>
+              <span className="text-xs text-muted uppercase tracking-wider font-medium">Overall Match</span>
               <div className="flex items-baseline gap-1 mt-1">
                 <span className="text-4xl font-semibold text-foreground">94</span>
-                <span className="text-lg text-muted-foreground/60 font-medium">%</span>
+                <span className="text-lg text-muted/60 font-medium">%</span>
               </div>
             </div>
             <div className="flex items-center gap-2 rounded-full bg-primary/5 px-3 py-1.5">
@@ -63,8 +63,8 @@ export function RankingBreakdown() {
                 className="group relative"
               >
                 <div className="flex items-center gap-2 mb-1">
-                  <span className="text-xs text-muted-foreground">{metric.label}</span>
-                  <HelpCircle className="h-3 w-3 text-muted-foreground/40 group-hover:text-primary transition-colors" />
+                  <span className="text-xs text-muted">{metric.label}</span>
+                  <HelpCircle className="h-3 w-3 text-muted/40 group-hover:text-primary transition-colors" />
                 </div>
                 <ProgressBar
                   value={metric.value}

@@ -33,7 +33,7 @@ export function HiringProgressTracker({
 }) {
   if (!stages || stages.length === 0) {
     return (
-      <div className="text-sm text-muted-foreground" data-testid="progress-empty">
+      <div className="text-sm text-muted" data-testid="progress-empty">
         No hiring stages configured.
       </div>
     );
@@ -50,13 +50,13 @@ export function HiringProgressTracker({
         const showScore = variant === "recruiter" && typeof s.score === "number";
         return (
           <li key={`${s.stage}-${i}`} className="flex items-center gap-2">
-            {i > 0 && <span aria-hidden className="text-muted-foreground">→</span>}
+            {i > 0 && <span aria-hidden className="text-muted">→</span>}
             <span
               className={cn(
                 "inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium",
-                done && "border-emerald-600/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
-                current && "border-blue-600/40 bg-blue-500/10 text-blue-700 dark:text-blue-300",
-                !done && !current && "border-border text-muted-foreground",
+                done && "border-success/40 bg-success/10 text-success dark:text-success",
+                current && "border-info/40 bg-info/10 text-info dark:text-info",
+                !done && !current && "border-border text-muted",
               )}
               title={s.status || s.stage}
             >
