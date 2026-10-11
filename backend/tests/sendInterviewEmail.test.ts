@@ -13,7 +13,7 @@ vi.mock('@/services/supabase/database', async (importOriginal) => {
 });
 
 vi.mock('@/services/queue/emailQueue', () => ({
-  enqueueEmail: vi.fn(),
+  enqueueEmail: vi.fn().mockResolvedValue({ queued: true, deduplicated: false }),
 }));
 
 vi.mock('@/services/activity', () => ({
@@ -71,8 +71,12 @@ describe('POST /candidates/:id/send-email (Resend delivery)', () => {
     (mockedDb.getCandidateInterviews as ReturnType<typeof vi.fn>).mockResolvedValue([INTERVIEW]);
   });
 
-  it('enqueues the email via Resend and keeps the response shape', async () => {
+  it('enqueues the email and reports it as QUEUED, not delivered', async () => {
     mockCandidateEmail('candidate@example.com');
+    (mockedQueue.enqueueEmail as ReturnType<typeof vi.fn>).mockResolvedValue({
+      queued: true,
+      deduplicated: false,
+    });
     const app = makeApp();
     const res = await request(app)
       .post('/c/cand-1/send-email')
@@ -81,6 +85,10 @@ describe('POST /candidates/:id/send-email (Resend delivery)', () => {
     expect(res.body.success).toBe(true);
     expect(res.body.data.subject).toBe('Interview Confirmation');
     expect(res.body.data.body).toBe('See you soon');
+    // The API must not claim delivery for a message that is merely queued.
+    expect(res.body.data.queued).toBe(true);
+    expect(res.body.data.message).toMatch(/queued/i);
+    expect(res.body.data.message).not.toMatch(/^Interview email sent$/);
     expect(mockedQueue.enqueueEmail).toHaveBeenCalledOnce();
     expect(mockedQueue.enqueueEmail).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -92,12 +100,28 @@ describe('POST /candidates/:id/send-email (Resend delivery)', () => {
     expect(html).toContain('See you soon');
   });
 
-  it('still responds 200 without enqueue when the candidate has no email (backward compat)', async () => {
+  it('surfaces a 503 when the email could not be queued, instead of a false success', async () => {
+    mockCandidateEmail('candidate@example.com');
+    (mockedQueue.enqueueEmail as ReturnType<typeof vi.fn>).mockResolvedValue({
+      queued: false,
+      deduplicated: false,
+      error: 'redis down',
+    });
+    const app = makeApp();
+    const res = await request(app).post('/c/cand-1/send-email').send({});
+    expect(res.status).toBe(503);
+    expect(res.body.success).toBe(false);
+    expect(JSON.stringify(res.body)).toMatch(/redis down/);
+  });
+
+  it('rejects with 400 when the candidate has no email address', async () => {
     mockCandidateEmail(null);
     const app = makeApp();
     const res = await request(app).post('/c/cand-1/send-email').send({});
-    expect(res.status).toBe(200);
-    expect(res.body.success).toBe(true);
+    // Previously this returned 200 with nothing sent — a silent no-op the
+    // recruiter read as a delivered email.
+    expect(res.status).toBe(400);
+    expect(res.body.success).toBe(false);
     expect(mockedQueue.enqueueEmail).not.toHaveBeenCalled();
   });
 

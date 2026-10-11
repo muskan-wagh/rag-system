@@ -47,51 +47,51 @@ export function MakeOfferModal({ open, onClose, candidateId, onSuccess }: MakeOf
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="sm:max-w-md">
         <div className="px-6 pt-6 pb-2">
-          <div className="flex items-center gap-2 text-green-600">
+          <div className="flex items-center gap-2 text-success">
             <Gift className="h-5 w-5" />
             <h2 className="text-lg font-semibold">Make an Offer</h2>
           </div>
-          <p className="text-sm text-muted-foreground mt-0.5">Extend an employment offer to this candidate</p>
+          <p className="text-sm text-muted mt-0.5">Extend an employment offer to this candidate</p>
         </div>
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-xs font-medium text-muted-foreground mb-1 block">
-                Salary <span className="text-muted-foreground/60">(optional)</span>
+              <label className="text-xs font-medium text-muted mb-1 block">
+                Salary <span className="text-muted/60">(optional)</span>
               </label>
               <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">$</span>
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted">$</span>
                 <input
                   type="number"
                   value={salary}
                   onChange={(e) => setSalary(e.target.value)}
                   placeholder="0"
-                  className="w-full h-9 pl-7 pr-3 text-sm rounded-lg border border-border bg-surface focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500"
+                  className="w-full h-9 pl-7 pr-3 text-sm rounded-lg border border-border bg-surface focus:outline-none focus:ring-2 focus:ring-success/20 focus:border-success"
                 />
               </div>
             </div>
             <div>
-              <label className="text-xs font-medium text-muted-foreground mb-1 block">
-                Joining Date <span className="text-muted-foreground/60">(optional)</span>
+              <label className="text-xs font-medium text-muted mb-1 block">
+                Joining Date <span className="text-muted/60">(optional)</span>
               </label>
               <input
                 type="date"
                 value={joiningDate}
                 onChange={(e) => setJoiningDate(e.target.value)}
-                className="w-full h-9 px-3 text-sm rounded-lg border border-border bg-surface focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500"
+                className="w-full h-9 px-3 text-sm rounded-lg border border-border bg-surface focus:outline-none focus:ring-2 focus:ring-success/20 focus:border-success"
               />
             </div>
           </div>
           <div>
-            <label className="text-xs font-medium text-muted-foreground mb-1 block">
-              Notes <span className="text-muted-foreground/60">(optional)</span>
+            <label className="text-xs font-medium text-muted mb-1 block">
+              Notes <span className="text-muted/60">(optional)</span>
             </label>
             <textarea
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               placeholder="Offer details, terms, or additional notes..."
               rows={3}
-              className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-surface focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 resize-none"
+              className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-surface focus:outline-none focus:ring-2 focus:ring-success/20 focus:border-success resize-none"
             />
           </div>
           <div className="flex justify-end gap-2 pt-2">
@@ -100,7 +100,7 @@ export function MakeOfferModal({ open, onClose, candidateId, onSuccess }: MakeOf
             </Button>
             <Button
               size="sm"
-              className="bg-green-600 hover:bg-green-700"
+              className="bg-success hover:bg-success"
               onClick={handleSubmit}
               disabled={saving}
             >

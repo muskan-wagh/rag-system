@@ -32,7 +32,7 @@ export function ProblemSection() {
           <h2 className="text-2xl md:text-3xl font-semibold text-foreground">
             The <span className="text-primary">Problem</span>
           </h2>
-          <p className="mt-3 text-sm text-muted-foreground max-w-lg mx-auto">
+          <p className="mt-3 text-sm text-muted max-w-lg mx-auto">
             Traditional ATS systems are built for keyword matching, not understanding candidates
           </p>
         </motion.div>
@@ -50,7 +50,7 @@ export function ProblemSection() {
               </div>
               <div>
                 <h3 className="text-base font-semibold text-foreground">Traditional ATS</h3>
-                <p className="text-xs text-muted-foreground">Legacy keyword-based approach</p>
+                <p className="text-xs text-muted">Legacy keyword-based approach</p>
               </div>
             </div>
 
@@ -91,7 +91,7 @@ export function ProblemSection() {
                   className="flex items-center gap-2.5"
                 >
                   <X className="h-3.5 w-3.5 text-destructive/50 shrink-0" />
-                  <span className="text-sm text-muted-foreground">{problem}</span>
+                  <span className="text-sm text-muted">{problem}</span>
                 </motion.div>
               ))}
             </div>
@@ -113,7 +113,7 @@ export function ProblemSection() {
               </div>
               <div>
                 <h3 className="text-base font-semibold text-foreground">HireStack</h3>
-                <p className="text-xs text-muted-foreground">AI-powered semantic matching</p>
+                <p className="text-xs text-muted">AI-powered semantic matching</p>
               </div>
             </div>
 

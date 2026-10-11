@@ -130,11 +130,33 @@ describe('validatePublish', () => {
     expect(validatePublish({ name: 'A', passing_score: 0, questions: [] }).join(' ')).toMatch(/at least 1 question/);
   });
 
-  it('requires total marks > 0 and passing within range', () => {
+  it('requires total marks > 0', () => {
     const zero = validatePublish({ name: 'A', passing_score: 0, questions: [question({ id: 'z', marks: 0 })] });
     expect(zero.join(' ')).toMatch(/greater than 0/);
-    const over = validatePublish({ name: 'A', passing_score: 99, questions: [question()] });
-    expect(over.join(' ')).toMatch(/cannot exceed total marks/);
+  });
+
+  it('treats passing_score as a PERCENTAGE, independent of total marks', () => {
+    // Regression guard: passing_score used to be validated against the total
+    // marks while scoring.isPassing() treated it as a percentage. With the UI
+    // default of 60 and 12 questions x 2 marks (24 total), every generated
+    // draft was unpublishable. The two must now agree.
+    const twoMarkQuestion = question({ marks: 2 });
+    expect(
+      validatePublish({ name: 'A', passing_score: 60, questions: [twoMarkQuestion] }),
+    ).toEqual([]);
+    expect(validatePublish({ name: 'A', passing_score: 100, questions: [twoMarkQuestion] })).toEqual([]);
+  });
+
+  it('rejects a passing_score outside 0–100', () => {
+    expect(validatePublish({ name: 'A', passing_score: 101, questions: [question()] }).join(' ')).toMatch(
+      /percentage between 0 and 100/,
+    );
+    expect(validatePublish({ name: 'A', passing_score: -1, questions: [question()] }).join(' ')).toMatch(
+      /between 0 and 100/,
+    );
+    expect(validatePublish({ name: 'A', passing_score: Number.NaN, questions: [question()] }).join(' ')).toMatch(
+      /between 0 and 100/,
+    );
   });
 
   it('rejects bad windows and bad question payloads', () => {

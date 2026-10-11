@@ -29,8 +29,8 @@ export function RecruiterNotesCard({ notes, onAddNote }: RecruiterNotesCardProps
     <div className="bg-surface rounded-xl border border-border p-5">
       <div className="flex items-center gap-2 mb-3">
         <StickyNote className="h-4 w-4 text-brand" />
-        <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Notes</h3>
-        <span className="text-xs text-muted-foreground ml-auto">{notes.length} notes</span>
+        <h3 className="text-xs font-medium text-muted uppercase tracking-wider">Notes</h3>
+        <span className="text-xs text-muted ml-auto">{notes.length} notes</span>
       </div>
 
       <form onSubmit={handleSubmit} className="flex gap-2 mb-4">
@@ -51,13 +51,13 @@ export function RecruiterNotesCard({ notes, onAddNote }: RecruiterNotesCardProps
       </form>
 
       {notes.length === 0 ? (
-        <p className="text-sm text-muted-foreground">No notes yet.</p>
+        <p className="text-sm text-muted">No notes yet.</p>
       ) : (
         <div className="space-y-2 max-h-48 overflow-y-auto">
           {notes.map((note) => (
             <div key={note.id} className="text-sm bg-muted/30 rounded-lg p-3">
               <p className="text-foreground">{note.note_text}</p>
-              <p className="text-xs text-muted-foreground mt-1">
+              <p className="text-xs text-muted mt-1">
                 {new Date(note.created_at).toLocaleDateString(undefined, {
                   month: "short", day: "numeric", hour: "2-digit", minute: "2-digit",
                 })}

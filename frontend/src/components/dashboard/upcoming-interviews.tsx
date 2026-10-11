@@ -57,7 +57,7 @@ export function UpcomingInterviews({ items }: { items: UpcomingInterview[] }) {
       <PanelHeader
         title="Upcoming Interviews"
         description={items.length > 0 ? `${items.length} scheduled` : "No interviews scheduled"}
-        className="mb-2"
+        className="mb-2.5"
         action={
           items.length > 0 ? (
             <Link
@@ -70,7 +70,7 @@ export function UpcomingInterviews({ items }: { items: UpcomingInterview[] }) {
           ) : undefined
         }
       />
-      <div className="overflow-hidden rounded-md border border-border bg-surface">
+      <div className="overflow-hidden rounded-xl border border-border bg-surface shadow-xs">
         {items.length === 0 ? (
           <EmptyState
             icon={Calendar}

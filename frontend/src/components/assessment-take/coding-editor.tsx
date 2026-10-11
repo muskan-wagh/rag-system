@@ -40,7 +40,7 @@ export function CodingEditor({
           tabSize: 2,
           padding: { top: 12 },
         }}
-        loading={<div className="p-4 text-sm text-muted-foreground">Loading editor…</div>}
+        loading={<div className="p-4 text-sm text-muted">Loading editor…</div>}
       />
     </div>
   );

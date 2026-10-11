@@ -19,11 +19,21 @@ interface DashboardStats {
   open: number;
   applied: number;
   screening: number;
+  assessment: number;
+  technical: number;
+  hr: number;
+  finalDecision: number;
+  /** Backwards-compatible aggregate of technical + hr. */
   interview: number;
   interviewsToday: number;
   offered: number;
   hired: number;
   rejected: number;
+  onHold: number;
+  /** Historical screening metrics (event-based, not current stage). */
+  screeningPassed: number;
+  screeningFailed: number;
+  screeningTotal: number;
 }
 
 interface NeedsReviewItem {
@@ -463,11 +473,19 @@ async function fetchDashboardData(recruiterId: string, page: number, limit: numb
       open: r.open ?? 0,
       applied: r.applied ?? 0,
       screening: r.screening ?? 0,
+      assessment: r.assessment ?? 0,
+      technical: r.technical ?? 0,
+      hr: r.hr ?? 0,
+      finalDecision: r.finalDecision ?? 0,
       interview: r.interview ?? 0,
       interviewsToday: r.interviewsToday ?? 0,
       offered: r.offered ?? 0,
       hired: r.hired ?? 0,
       rejected: r.rejected ?? 0,
+      onHold: r.onHold ?? 0,
+      screeningPassed: r.screeningPassed ?? 0,
+      screeningFailed: r.screeningFailed ?? 0,
+      screeningTotal: r.screeningTotal ?? 0,
     };
 
     const quickActions = deriveQuickActions(stats, needsReview.length, upcomingInterviews);
@@ -513,22 +531,30 @@ async function fetchDashboardData(recruiterId: string, page: number, limit: numb
   }
 
   const allCandidates = (candidatesResult.data || []) as Array<Record<string, unknown>>;
-  let open = 0, applied = 0, screening = 0, interview = 0;
-  let offered = 0, hired = 0, rejected = 0;
+  let open = 0, applied = 0, screening = 0, assessment = 0, technical = 0, hr = 0;
+  let finalDecision = 0, offered = 0, hired = 0, rejected = 0, onHold = 0;
   let uploadedToday = 0;
   const today = new Date().toISOString().slice(0, 10);
 
+  // This fallback previously ignored every canonical pipeline stage, so a
+  // candidate in Assessment/Technical/HR counted nowhere. Buckets are mutually
+  // exclusive because `current_status` is a single column.
   for (const c of allCandidates) {
     const s = ((c.current_status as string) || '').toLowerCase();
     if (s === 'applied' || s === 'shortlisted') { applied++; open++; }
     else if (s === 'screening') { screening++; open++; }
-    else if (['interview', 'interview scheduled', 'interview completed', 'technical round', 'hr round'].includes(s)) { interview++; open++; }
+    else if (s === 'assessment') { assessment++; open++; }
+    else if (['technical interview', 'technical round', 'interview', 'interview scheduled', 'interview completed'].includes(s)) { technical++; open++; }
+    else if (['managerial/hr', 'hr round', 'hr interview'].includes(s)) { hr++; open++; }
+    else if (s === 'offer') { finalDecision++; open++; }
     else if (s === 'offered') { offered++; open++; }
     else if (s === 'hired') hired++;
     else if (s === 'rejected') rejected++;
+    else if (s === 'hold' || s === 'withdrawn') onHold++;
 
     if ((c.created_at as string || '').slice(0, 10) === today) uploadedToday++;
   }
+  const interview = technical + hr;
 
   const totalCandidates = allCandidates.length;
 
@@ -560,8 +586,14 @@ async function fetchDashboardData(recruiterId: string, page: number, limit: numb
     uploadedToday,
     activeSessions: (sessionsResult.data || []).length,
     searches,
-    open, applied, screening, interview,
-    interviewsToday, offered, hired, rejected,
+    open, applied, screening, assessment, technical, hr, finalDecision,
+    interview,
+    interviewsToday, offered, hired, rejected, onHold,
+    // The fallback path reads candidates only; it cannot know historical
+    // screening outcomes, so report zero rather than a fabricated number.
+    screeningPassed: 0,
+    screeningFailed: 0,
+    screeningTotal: 0,
   };
 
   const quickActions = deriveQuickActions(stats, needsReview.length, upcomingInterviews);

@@ -26,7 +26,7 @@ export function SemanticVsKeyword() {
             Keyword Search vs{" "}
             <span className="text-primary">Semantic Search</span>
           </h2>
-          <p className="mt-3 text-sm text-muted-foreground max-w-lg mx-auto">
+          <p className="mt-3 text-sm text-muted max-w-lg mx-auto">
             See the difference when searching for the same term
           </p>
         </motion.div>
@@ -42,7 +42,7 @@ export function SemanticVsKeyword() {
               <Search className="h-5 w-5 text-primary" />
             </div>
             <div>
-              <span className="text-xs text-muted-foreground uppercase tracking-wider font-medium">Search Query</span>
+              <span className="text-xs text-muted uppercase tracking-wider font-medium">Search Query</span>
               <div className="flex items-center gap-2">
                 <span className="text-lg font-semibold text-foreground">React Developer</span>
                 <span className="inline-flex items-center rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">
@@ -67,7 +67,7 @@ export function SemanticVsKeyword() {
               <span className="text-sm font-semibold text-foreground">Traditional ATS</span>
             </div>
 
-            <p className="text-xs text-muted-foreground mb-3">Finds</p>
+            <p className="text-xs text-muted mb-3">Finds</p>
 
             <div className="space-y-2">
               {traditionalResults.map((result) => (
@@ -101,7 +101,7 @@ export function SemanticVsKeyword() {
               <span className="text-sm font-semibold text-foreground">HireStack</span>
             </div>
 
-            <p className="text-xs text-muted-foreground mb-3">Finds</p>
+            <p className="text-xs text-muted mb-3">Finds</p>
 
             <div className="space-y-2">
               {recruitFlowResults.map((result, i) => (
@@ -134,7 +134,7 @@ export function SemanticVsKeyword() {
           className="mt-8 bg-surface rounded-2xl border border-border p-5 md:p-6"
         >
           <h4 className="text-sm font-semibold text-foreground mb-2">Why semantic search is more accurate</h4>
-          <p className="text-sm text-muted-foreground leading-relaxed">
+          <p className="text-sm text-muted leading-relaxed">
             Semantic search converts both the job description and candidate profiles into vector embeddings —
             mathematical representations of meaning. Instead of looking for exact words, it measures the
             conceptual distance between what the job needs and what each candidate offers. This means a search

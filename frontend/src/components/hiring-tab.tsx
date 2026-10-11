@@ -111,7 +111,7 @@ export function HiringTab({ candidateId }: { candidateId: string }) {
     }
   }
 
-  if (loading) return <p className="text-sm text-muted-foreground">Loading hiring progress…</p>;
+  if (loading) return <p className="text-sm text-muted">Loading hiring progress…</p>;
 
   return (
     <div className="space-y-5">
@@ -120,17 +120,17 @@ export function HiringTab({ candidateId }: { candidateId: string }) {
         {progress ? (
           <HiringProgressTracker stages={progress.stages} variant="recruiter" />
         ) : (
-          <p className="text-sm text-muted-foreground">Progress unavailable.</p>
+          <p className="text-sm text-muted">Progress unavailable.</p>
         )}
         {progress?.currentStage ? (
-          <p className="mt-2 text-xs text-muted-foreground">Current stage: {progress.currentStage}</p>
+          <p className="mt-2 text-xs text-muted">Current stage: {progress.currentStage}</p>
         ) : null}
       </section>
 
       <section className="rounded-xl border border-border bg-surface p-4">
         <h3 className="mb-2 text-sm font-medium">Technical / HR interviews</h3>
         {!interviewStage || interviewStage.interviews.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No interviews yet. Schedule from the header or assessment flow.</p>
+          <p className="text-sm text-muted">No interviews yet. Schedule from the header or assessment flow.</p>
         ) : (
           <ul className="space-y-4">
             {interviewStage.interviews.map((iv) => {
@@ -139,13 +139,13 @@ export function HiringTab({ candidateId }: { candidateId: string }) {
               const invite = (interviewStage.invites || []).find((x) => String(x.interview_id) === id) as Record<string, unknown> | undefined;
               return (
                 <li key={id} className="rounded-lg border border-border p-3 text-sm">
-                  <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                  <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted">
                     <span>{String(iv.scheduled_date || "")} {String(iv.scheduled_time || "")}</span>
                     <span>{String(iv.interviewer_name || "Unassigned interviewer")}</span>
                     <span>Status: {String(iv.status || "")}</span>
                     {invite ? <span>Invite v{String(invite.version || 1)} · {String(invite.status || "")}</span> : null}
                     {iv.meeting_link ? (
-                      <a href={String(iv.meeting_link)} target="_blank" rel="noreferrer" className="text-blue-600 underline">
+                      <a href={String(iv.meeting_link)} target="_blank" rel="noreferrer" className="text-info underline">
                         Meeting link
                       </a>
                     ) : null}
@@ -161,7 +161,7 @@ export function HiringTab({ candidateId }: { candidateId: string }) {
                     <button onClick={() => void doAction(id, "resend")} disabled={acting === id} className="rounded-md border border-border px-2 py-1 disabled:opacity-50">
                       Re-send invite
                     </button>
-                    <button onClick={() => void doAction(id, "cancel")} disabled={acting === id} className="rounded-md border border-red-300 px-2 py-1 text-red-600 disabled:opacity-50">
+                    <button onClick={() => void doAction(id, "cancel")} disabled={acting === id} className="rounded-md border border-danger px-2 py-1 text-danger disabled:opacity-50">
                       Cancel
                     </button>
                     <button onClick={() => setLiveFor((cur) => (cur === id ? null : id))} className="rounded-md border border-border px-2 py-1">
@@ -206,7 +206,7 @@ export function HiringTab({ candidateId }: { candidateId: string }) {
                     <p className="mt-2 text-xs">
                       Evaluation: <strong>{String(ev.overall_recommendation || "")}</strong>
                       {ev.summary ? ` — ${String(ev.summary).slice(0, 200)}` : ""}
-                      <span className="text-muted-foreground"> (private notes hidden from candidate)</span>
+                      <span className="text-muted"> (private notes hidden from candidate)</span>
                     </p>
                   ) : (
                     <div className="mt-2 grid gap-2 md:grid-cols-2">
@@ -262,12 +262,12 @@ export function HiringTab({ candidateId }: { candidateId: string }) {
       <section className="rounded-xl border border-border bg-surface p-4">
         <h3 className="mb-2 text-sm font-medium">Stage transition history</h3>
         {!progress || progress.timeline.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No transitions recorded yet.</p>
+          <p className="text-sm text-muted">No transitions recorded yet.</p>
         ) : (
           <ol className="space-y-1.5 text-xs">
             {progress.timeline.map((t, i) => (
               <li key={String(t.id || i)} className="flex gap-2">
-                <span className="tabular-nums text-muted-foreground">{String(t.changed_at || "").slice(0, 16).replace("T", " ")}</span>
+                <span className="tabular-nums text-muted">{String(t.changed_at || "").slice(0, 16).replace("T", " ")}</span>
                 <span className="font-medium">{String(t.status || "")}</span>
               </li>
             ))}

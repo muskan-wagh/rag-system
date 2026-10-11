@@ -1,5 +1,6 @@
 import { Worker, Job, UnrecoverableError } from 'bullmq';
 import { sendEmail, type EmailAttachment } from '@/services/email';
+import { getSupabaseClient } from '@/services/supabase/client';
 import { logger } from '@/utils/logger';
 
 /**
@@ -17,10 +18,48 @@ export interface EmailJobData {
   html: string;
   from?: string;
   attachments?: EmailAttachment[];
+  /**
+   * Idempotency key of the `email_logs` row written at enqueue time. Lets the
+   * worker record the real delivery outcome against the same row, so the UI
+   * can distinguish "queued" from "delivered".
+   */
+  idempotencyKey?: string;
+  /** Marks a `candidate_reports` row delivered when this email is its report. */
+  reportId?: string;
+}
+
+async function recordDelivery(
+  data: EmailJobData,
+  status: 'sent' | 'failed',
+  providerMessageId?: string,
+): Promise<void> {
+  const supabase = getSupabaseClient();
+
+  if (data.idempotencyKey) {
+    const patch: Record<string, unknown> = {
+      status,
+      error: status === 'failed' ? 'Delivery failed' : null,
+    };
+    if (status === 'sent') patch.sent_at = new Date().toISOString();
+    if (providerMessageId) patch.gmail_message_id = providerMessageId;
+    await supabase
+      .from('email_logs')
+      .update(patch)
+      .eq('idempotency_key', data.idempotencyKey)
+      .eq('status', 'queued');
+  }
+
+  if (data.reportId && status === 'sent') {
+    await supabase
+      .from('candidate_reports')
+      .update({ email_status: 'sent', email_sent_at: new Date().toISOString(), email_error: null })
+      .eq('id', data.reportId);
+  }
 }
 
 export async function processEmailJob(job: Job<EmailJobData>): Promise<void> {
-  const { to, subject, html, from, attachments } = job.data || ({} as EmailJobData);
+  const data = job.data || ({} as EmailJobData);
+  const { to, subject, html, from, attachments } = data;
   if (!to || !subject || !html) {
     throw new UnrecoverableError('Invalid email job payload: to/subject/html required.');
   }
@@ -35,16 +74,28 @@ export async function processEmailJob(job: Job<EmailJobData>): Promise<void> {
       }
     }
   }
-  const result = await sendEmail({ to, subject, html, from, attachments });
+
+  let result;
+  try {
+    result = await sendEmail({ to, subject, html, from, attachments });
+  } catch (err) {
+    await recordDelivery(data, 'failed').catch(() => undefined);
+    throw err;
+  }
+
   if (!result.success) {
     const message = result.error || 'Resend send failed';
     // Config errors will never succeed on retry — fail fast instead of
     // burning the queue's 3 attempts + backoff on every such job.
     if (/not configured/i.test(message)) {
+      await recordDelivery(data, 'failed').catch(() => undefined);
       throw new UnrecoverableError(message);
     }
+    await recordDelivery(data, 'failed').catch(() => undefined);
     throw new Error(message);
   }
+
+  await recordDelivery(data, 'sent', (result as { id?: string }).id).catch(() => undefined);
   logger.info('EMAIL-WORKER: email sent', { jobId: job.id, to, subject });
 }
 

@@ -48,24 +48,24 @@ function barClass(value: number): string {
 /** Per-candidate accent hues — kills the gray sameness, cycles for 3+ candidates. */
 const CANDIDATE_ACCENTS = [
   {
-    avatar: "bg-sky-500/10 text-sky-600 ring-sky-500/30 dark:text-sky-300",
-    tag: "border-sky-500/25 bg-sky-500/10 text-sky-700 dark:text-sky-300",
-    label: "text-sky-600 dark:text-sky-300",
+    avatar: "bg-info/10 text-info ring-info/30 dark:text-info",
+    tag: "border-info/25 bg-info/10 text-info dark:text-info",
+    label: "text-info dark:text-info",
   },
   {
-    avatar: "bg-violet-500/10 text-violet-600 ring-violet-500/30 dark:text-violet-300",
-    tag: "border-violet-500/25 bg-violet-500/10 text-violet-700 dark:text-violet-300",
-    label: "text-violet-600 dark:text-violet-300",
+    avatar: "bg-accent/10 text-accent ring-accent/30 dark:text-accent",
+    tag: "border-accent/25 bg-accent/10 text-accent dark:text-accent",
+    label: "text-accent dark:text-accent",
   },
   {
-    avatar: "bg-fuchsia-500/10 text-fuchsia-600 ring-fuchsia-500/30 dark:text-fuchsia-300",
-    tag: "border-fuchsia-500/25 bg-fuchsia-500/10 text-fuchsia-700 dark:text-fuchsia-300",
-    label: "text-fuchsia-600 dark:text-fuchsia-300",
+    avatar: "bg-accent/10 text-accent ring-accent/30 dark:text-accent",
+    tag: "border-accent/25 bg-accent/10 text-accent dark:text-accent",
+    label: "text-accent dark:text-accent",
   },
   {
-    avatar: "bg-amber-500/10 text-amber-600 ring-amber-500/30 dark:text-amber-300",
-    tag: "border-amber-500/25 bg-amber-500/10 text-amber-700 dark:text-amber-300",
-    label: "text-amber-600 dark:text-amber-300",
+    avatar: "bg-warning/10 text-warning ring-warning/30 dark:text-warning",
+    tag: "border-warning/25 bg-warning/10 text-warning dark:text-warning",
+    label: "text-warning dark:text-warning",
   },
 ]
 
@@ -168,7 +168,7 @@ export function ComparisonResults({
       {/* AI Best Fit */}
       {winner && (
         <motion.div variants={itemVariants}>
-          <div className="rounded-xl border border-emerald-500/30 bg-[radial-gradient(90%_130%_at_8%_0%,rgba(16,185,129,0.14),transparent_55%),radial-gradient(70%_120%_at_95%_15%,rgba(129,140,248,0.12),transparent_60%)] p-3.5 shadow-[0_0_36px_rgba(16,185,129,0.10)]">
+          <div className="rounded-xl border border-success/30 bg-[radial-gradient(90%_130%_at_8%_0%,rgba(16,185,129,0.14),transparent_55%),radial-gradient(70%_120%_at_95%_15%,rgba(129,140,248,0.12),transparent_60%)] p-3.5 shadow-none">
             <div className="flex items-start gap-2.5">
               <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-success/15">
                 <Sparkles className="size-3.5 text-success" strokeWidth={1.75} />
@@ -213,7 +213,7 @@ export function ComparisonResults({
                 transition={{ duration: 0.3, delay: i * 0.06 }}
                 className={cn(
                   "rounded-xl border border-border bg-surface p-4",
-                  isWinner && "border-emerald-500/40 shadow-[0_0_28px_rgba(16,185,129,0.10)]",
+                  isWinner && "border-success/40 shadow-none",
                 )}
               >
                 <div className="flex items-start justify-between gap-2">
@@ -392,14 +392,14 @@ export function ComparisonResults({
           <Section icon={Tags} title="Skill coverage">
             {skillOverlap.shared.length > 0 && (
               <div className="mb-3">
-                <p className="mb-1.5 text-[10.5px] font-semibold uppercase tracking-[0.06em] text-indigo-500 dark:text-indigo-300">
+                <p className="mb-1.5 text-[10.5px] font-semibold uppercase tracking-[0.06em] text-accent dark:text-accent">
                   Shared skills
                 </p>
                 <div className="flex flex-wrap gap-1.5">
                   {skillOverlap.shared.map((skill) => (
                     <span
                       key={skill}
-                      className="rounded-md border border-indigo-500/25 bg-indigo-500/10 px-2 py-1 text-[11px] text-indigo-700 dark:text-indigo-200"
+                      className="rounded-md border border-accent/25 bg-accent/10 px-2 py-1 text-[11px] text-accent dark:text-accent"
                     >
                       {skill}
                     </span>
@@ -492,7 +492,7 @@ export function ComparisonResults({
                   key={i}
                   className="flex items-start gap-2.5 rounded-lg bg-surface-secondary/60 p-2.5"
                 >
-                  <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-violet-500/15 font-data text-[10px] font-semibold text-violet-600 dark:text-violet-300">
+                  <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-accent/15 font-data text-[10px] font-semibold text-accent dark:text-accent">
                     {i + 1}
                   </span>
                   <p className="text-[12.5px] leading-relaxed text-muted">{question}</p>

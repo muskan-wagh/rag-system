@@ -1,41 +1,63 @@
 "use client"
 
+import Link from "next/link"
 import { motion } from "framer-motion"
-import { ArrowRight, Sparkles } from "lucide-react"
-import { PrimaryButton } from "@/components/ui/primary-button"
-import { SecondaryButton } from "@/components/ui/secondary-button"
+import { ArrowRight } from "lucide-react"
+import { BrandMark } from "@/components/brand"
 
 export function CTASection() {
   return (
-    <section className="w-full py-20 md:py-28 relative overflow-hidden border-y border-border">
-      <div className="mx-auto max-w-3xl px-4 md:px-6 text-center relative">
+    <section className="relative overflow-hidden border-y border-white/[0.07]">
+      {/* One soft bloom behind the panel. */}
+      <div className="pointer-events-none absolute inset-0" aria-hidden>
+        <div className="absolute left-1/2 top-1/2 size-[34rem] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[radial-gradient(closest-side,rgba(196,222,204,0.10),transparent_76%)] blur-[100px]" />
+      </div>
+
+      <div className="container-page section-y relative">
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: 18 }}
           whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.5 }}
+          viewport={{ once: true, margin: "-80px" }}
+          transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+          className="mx-auto flex max-w-2xl flex-col items-center text-center"
         >
-          <div className="inline-flex items-center gap-1.5 rounded-[6px] bg-surface-secondary px-3 py-1 text-xs font-medium text-muted mb-6" style={{ fontFamily: "var(--font-inter)" }}>
-            <Sparkles className="h-3 w-3 text-ink" />
-            Start hiring smarter today
+          <span className="relative flex size-11 items-center justify-center">
+            <span className="absolute inset-0 rounded-[12px] bg-[#CBE2D2]/10 ring-1 ring-inset ring-[#CBE2D2]/25" />
+            <BrandMark size={40} variant="soft" className="bg-transparent ring-0" />
+          </span>
+
+          <h2 className="mt-7 text-balance text-[32px] font-medium leading-[1.08] tracking-[-0.03em] text-white sm:text-[42px]">
+            Open a role and see the shortlist today
+          </h2>
+          <p className="mt-5 max-w-lg text-pretty text-[15px] leading-relaxed text-white/50 sm:text-[17px]">
+            Create an account, paste a job description, and run your first screening.
+            Candidates apply through a link you control — no setup call required.
+          </p>
+
+          <div className="mt-9 flex flex-col gap-3 sm:flex-row">
+            <Link
+              href="/sign-up"
+              className="group inline-flex h-11 items-center justify-center gap-2 rounded-full bg-white px-6 text-[14px] font-medium text-[#0A0A0A] transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] hover:bg-[#CBE2D2]"
+            >
+              Create your account
+              <ArrowRight className="size-3.5 transition-transform duration-300 group-hover:translate-x-0.5" />
+            </Link>
+            <Link
+              href="/sign-in"
+              className="inline-flex h-11 items-center justify-center rounded-full border border-white/15 px-6 text-[14px] font-medium text-white/80 transition-all duration-300 hover:border-white/30 hover:bg-white/[0.06] hover:text-white"
+            >
+              Sign in
+            </Link>
           </div>
 
-          <h2 className="text-3xl md:text-4xl lg:text-5xl font-medium text-ink mb-4" style={{ letterSpacing: "-0.02em", fontFamily: "var(--font-inter)" }}>
-            Ready to transform your hiring?
-          </h2>
-          <p className="text-base md:text-lg text-muted mb-8 max-w-lg mx-auto leading-relaxed" style={{ fontFamily: "var(--font-inter)" }}>
-            Start finding the best candidates in seconds with AI-powered matching. No credit card required.
-          </p>
-          <div className="flex flex-col sm:flex-row gap-3 justify-center">
-            <PrimaryButton href="/sign-up" icon={<ArrowRight className="h-4 w-4" />}>
-              Start Hiring Free
-            </PrimaryButton>
-            <SecondaryButton href="/#how-it-works">
-              See How It Works
-            </SecondaryButton>
-          </div>
-          <p className="text-xs text-faint mt-5" style={{ fontFamily: "var(--font-inter)" }}>
-            Free forever. No credit card required. Setup in 2 minutes.
+          <p className="mt-7 text-[12.5px] text-white/45">
+            Recruiting already using HireStack?{" "}
+            <Link
+              href="/dashboard"
+              className="font-medium text-white/80 underline underline-offset-4 transition-colors hover:text-white"
+            >
+              Go to your dashboard
+            </Link>
           </p>
         </motion.div>
       </div>

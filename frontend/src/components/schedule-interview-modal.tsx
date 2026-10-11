@@ -77,12 +77,12 @@ export function ScheduleInterviewModal({
             <CalendarIcon className="h-5 w-5 text-primary" />
             <h2 className="text-lg font-semibold">Schedule Interview</h2>
           </div>
-          <p className="text-sm text-muted-foreground mt-0.5">Set up a new interview for this candidate</p>
+          <p className="text-sm text-muted mt-0.5">Set up a new interview for this candidate</p>
         </div>
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-xs font-medium text-muted-foreground mb-1 block">Date</label>
+              <label className="text-xs font-medium text-muted mb-1 block">Date</label>
               <input
                 type="date"
                 value={date}
@@ -92,7 +92,7 @@ export function ScheduleInterviewModal({
               />
             </div>
             <div>
-              <label className="text-xs font-medium text-muted-foreground mb-1 block">Time</label>
+              <label className="text-xs font-medium text-muted mb-1 block">Time</label>
               <input
                 type="time"
                 value={time}
@@ -102,7 +102,7 @@ export function ScheduleInterviewModal({
             </div>
           </div>
           <div>
-            <label className="text-xs font-medium text-muted-foreground mb-1 block">Interview Type</label>
+            <label className="text-xs font-medium text-muted mb-1 block">Interview Type</label>
             <select
               value={type}
               onChange={(e) => setType(e.target.value)}
@@ -114,7 +114,7 @@ export function ScheduleInterviewModal({
             </select>
           </div>
           <div>
-            <label className="text-xs font-medium text-muted-foreground mb-1 block">Interviewer</label>
+            <label className="text-xs font-medium text-muted mb-1 block">Interviewer</label>
             <input
               type="text"
               value={interviewer}
@@ -124,7 +124,7 @@ export function ScheduleInterviewModal({
             />
           </div>
           <div>
-            <label className="text-xs font-medium text-muted-foreground mb-1 block">Notes</label>
+            <label className="text-xs font-medium text-muted mb-1 block">Notes</label>
             <textarea
               value={notes}
               onChange={(e) => setNotes(e.target.value)}

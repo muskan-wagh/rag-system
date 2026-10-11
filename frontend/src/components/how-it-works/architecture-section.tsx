@@ -27,7 +27,7 @@ export function ArchitectureSection() {
           <h2 className="text-2xl md:text-3xl font-semibold text-foreground">
             HireStack <span className="text-primary">Architecture</span>
           </h2>
-          <p className="mt-3 text-sm text-muted-foreground max-w-lg mx-auto">
+          <p className="mt-3 text-sm text-muted max-w-lg mx-auto">
             Enterprise-grade system design for intelligent candidate matching
           </p>
         </motion.div>
@@ -54,7 +54,7 @@ export function ArchitectureSection() {
                     </div>
                     <div>
                       <span className="text-sm font-medium text-foreground">{layer.label}</span>
-                      <p className="text-[11px] text-muted-foreground/70">{layer.desc}</p>
+                      <p className="text-[11px] text-muted/70">{layer.desc}</p>
                     </div>
                   </motion.div>
                   {i < layers.length - 1 && (
@@ -91,7 +91,7 @@ export function ArchitectureSection() {
               </div>
               <div className="flex-1 min-w-0">
                 <span className="text-sm font-medium text-foreground block">{layer.label}</span>
-                <span className="text-xs text-muted-foreground/70 block truncate">{layer.desc}</span>
+                <span className="text-xs text-muted/70 block truncate">{layer.desc}</span>
               </div>
               {i < layers.length - 1 && (
                 <ArrowDown className="h-3.5 w-3.5 text-primary/20 shrink-0" />

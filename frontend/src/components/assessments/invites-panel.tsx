@@ -266,6 +266,11 @@ export function InvitesPanel({ assessment }: { assessment: AssessmentDetail }) {
                       </TableCell>
                       <TableCell>
                         <Badge variant="secondary">{c.current_status || "—"}</Badge>
+                        {c.screening ? (
+                          <span className="font-data ml-1.5 text-[11px] tabular-nums text-muted">
+                            Scr {Math.round(c.screening.overall)}%
+                          </span>
+                        ) : null}
                       </TableCell>
                       <TableCell>
                         {c.invite ? (

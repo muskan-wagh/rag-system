@@ -20,8 +20,15 @@
   --color-secondary-foreground: var(--ink);
   --color-muted: var(--muted);
   --color-muted-foreground: var(--muted);
-  --color-accent: var(--ink);
-  --color-accent-foreground: var(--ink);
+  /* Accent = the product's indigo action hue, promoted out of the raw
+     `indigo-500` literals that were scattered across the app so CTAs, AI
+     affordances and stage highlights share ONE token. The backing variable is
+     `--brand-accent` because `--accent` belongs to the shadcn compat block. */
+  --color-accent: var(--brand-accent);
+  --color-accent-foreground: var(--brand-accent-fg);
+  --color-accent-hover: var(--brand-accent-hover);
+  --color-accent-soft: var(--brand-accent-soft);
+  --color-accent-border: var(--brand-accent-border);
   --color-destructive: var(--danger);
   --color-destructive-foreground: #FFFFFF;
   --color-success: var(--success);
@@ -59,8 +66,21 @@
   --radius-lg: 9px;
   --radius-xl: 11px;
   --radius-2xl: 14px;
+  --radius-3xl: 18px;
   --font-sans: var(--font-inter);
   --font-mono: var(--font-jetbrains-mono);
+
+  /* Elevation — a single scale used by every surface in the product. */
+  --shadow-xs: var(--elevation-xs);
+  --shadow-sm: var(--elevation-sm);
+  --shadow-md: var(--elevation-md);
+  --shadow-lg: var(--elevation-lg);
+  --shadow-xl: var(--elevation-xl);
+  --shadow-none: 0 0 0 0 transparent;
+
+  /* Motion */
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-spring: cubic-bezier(0.34, 1.26, 0.64, 1);
 }
 
 :root {
@@ -84,6 +104,16 @@
   --warning: #B45309;
   --info: #1D4ED8;
   --brand: #14532D;
+  --brand-accent: #4F46E5;
+  --brand-accent-fg: #FFFFFF;
+  --brand-accent-hover: #4338CA;
+  --brand-accent-soft: #EEEEFC;
+  --brand-accent-border: #C9C6F7;
+  --elevation-xs: 0 1px 2px rgba(12, 12, 12, 0.04);
+  --elevation-sm: 0 1px 2px rgba(12, 12, 12, 0.05), 0 1px 3px rgba(12, 12, 12, 0.04);
+  --elevation-md: 0 2px 4px rgba(12, 12, 12, 0.04), 0 8px 16px -4px rgba(12, 12, 12, 0.07);
+  --elevation-lg: 0 4px 8px rgba(12, 12, 12, 0.04), 0 16px 32px -8px rgba(12, 12, 12, 0.10);
+  --elevation-xl: 0 8px 16px rgba(12, 12, 12, 0.05), 0 32px 64px -16px rgba(12, 12, 12, 0.14);
   --background: var(--canvas);
   --foreground: var(--ink);
   --card: var(--surface);
@@ -121,6 +151,16 @@
   --warning: #FFB224;
   --info: #3E63DD;
   --brand: #4ADE80;
+  --brand-accent: #818CF8;
+  --brand-accent-fg: #0A0A0A;
+  --brand-accent-hover: #A5B4FC;
+  --brand-accent-soft: #1B1B33;
+  --brand-accent-border: #383866;
+  --elevation-xs: 0 1px 2px rgba(0, 0, 0, 0.30);
+  --elevation-sm: 0 1px 2px rgba(0, 0, 0, 0.36), 0 1px 3px rgba(0, 0, 0, 0.28);
+  --elevation-md: 0 2px 4px rgba(0, 0, 0, 0.34), 0 8px 16px -4px rgba(0, 0, 0, 0.44);
+  --elevation-lg: 0 4px 8px rgba(0, 0, 0, 0.34), 0 16px 32px -8px rgba(0, 0, 0, 0.52);
+  --elevation-xl: 0 8px 16px rgba(0, 0, 0, 0.36), 0 32px 64px -16px rgba(0, 0, 0, 0.60);
   --background: var(--canvas);
   --foreground: var(--ink);
   --card: var(--surface);
@@ -135,6 +175,67 @@
   --border-strong: var(--border-hover);
   --input: var(--border);
   --ring: var(--ink);
+}
+
+/**
+ * The public site runs as one continuous dark stage, whatever the app theme
+ * is. Declared after `.dark` so it wins, and it re-points the surface tokens at
+ * translucent glass — every card, panel and preview built on `bg-surface` /
+ * `border-border` picks up the stage treatment without a per-component override.
+ */
+.stage-scope {
+  color-scheme: dark;
+  --canvas: #060706;
+  --surface: rgba(255, 255, 255, 0.028);
+  --surface-secondary: rgba(255, 255, 255, 0.055);
+  --hover-tone: rgba(255, 255, 255, 0.06);
+  --soft: rgba(255, 255, 255, 0.08);
+  --track: rgba(255, 255, 255, 0.08);
+  --border: rgba(255, 255, 255, 0.09);
+  --border-hover: rgba(255, 255, 255, 0.2);
+  --ink: #F4F6F4;
+  --ink-hover: #FFFFFF;
+  --primary-solid: #FFFFFF;
+  --primary-solid-hover: #E8EBE8;
+  --primary-solid-text: #0A0A0A;
+  --muted: #9BA39E;
+  --faint: #6C736E;
+  --success: #A8C9B0;
+  --danger: #FF6B6B;
+  --warning: #FFC46B;
+  --info: #7AB8FF;
+  --brand: #CBE2D2;
+  --brand-accent: #CBE2D2;
+  --brand-accent-fg: #0A0A0A;
+  --brand-accent-hover: #E2F0E6;
+  --brand-accent-soft: rgba(203, 226, 210, 0.10);
+  --brand-accent-border: rgba(203, 226, 210, 0.24);
+  --accent: var(--ink);
+  --accent-soft: rgba(203, 226, 210, 0.10);
+  --accent-border: rgba(203, 226, 210, 0.24);
+  --elevation-xs: 0 1px 2px rgba(0, 0, 0, 0.34);
+  --elevation-sm: 0 1px 2px rgba(0, 0, 0, 0.36), 0 1px 3px rgba(0, 0, 0, 0.24);
+  --elevation-md: 0 2px 4px rgba(0, 0, 0, 0.34), 0 8px 16px -4px rgba(0, 0, 0, 0.44);
+  --elevation-lg: 0 4px 8px rgba(0, 0, 0, 0.34), 0 16px 32px -8px rgba(0, 0, 0, 0.52);
+  --elevation-xl: 0 8px 16px rgba(0, 0, 0, 0.36), 0 32px 64px -16px rgba(0, 0, 0, 0.60);
+}
+
+/** Panels sit on the stage as glass: translucent fill, hairline, soft lift. */
+@utility glass-card {
+  background-color: rgba(255, 255, 255, 0.028);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  backdrop-filter: blur(12px);
+}
+
+/** Mint hairline that fades out at both ends — used on stage panels. */
+@utility glass-hairline {
+  background-image: linear-gradient(
+    to right,
+    transparent,
+    rgba(255, 255, 255, 0.14) 22%,
+    rgba(255, 255, 255, 0.14) 78%,
+    transparent
+  );
 }
 
 @layer base {
@@ -215,6 +316,83 @@
 @utility animate-pulse-soft {
   animation: pulse-soft 1.8s ease-in-out infinite;
 }
+
+/* ——— Stage motion (landing hero) ——— */
+
+/* Dash travels the length of a stroke so light looks like it is running
+   along the line. Pair with pathLength={100} on the <path>. */
+@keyframes line-flow {
+  to { stroke-dashoffset: -100; }
+}
+@keyframes line-flow-back {
+  to { stroke-dashoffset: 100; }
+}
+@keyframes float-soft {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+@keyframes marquee-x {
+  to { transform: translateX(-50%); }
+}
+@keyframes beam-breathe {
+  0%, 100% { opacity: 0.35; }
+  50% { opacity: 0.9; }
+}
+@keyframes ring-spin {
+  to { transform: rotate(360deg); }
+}
+@keyframes node-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.25; transform: scale(0.55); }
+}
+@keyframes segment-sweep {
+  0% { transform: translateX(-120%); }
+  100% { transform: translateX(420%); }
+}
+@keyframes nudge-down {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(4px); }
+}
+@keyframes aurora-drift {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+  50% { transform: translate3d(2%, -3%, 0) scale(1.08); }
+}
+
+@utility animate-line-flow {
+  animation: line-flow 7s linear infinite;
+}
+@utility animate-line-flow-back {
+  animation: line-flow-back 9s linear infinite;
+}
+@utility animate-float-soft {
+  animation: float-soft 7s ease-in-out infinite;
+}
+@utility animate-marquee {
+  animation: marquee-x 34s linear infinite;
+}
+@utility animate-beam {
+  animation: beam-breathe 4.5s ease-in-out infinite;
+}
+@utility animate-ring-spin {
+  animation: ring-spin 16s linear infinite;
+}
+@utility animate-node-pulse {
+  animation: node-pulse 2.8s ease-in-out infinite;
+}
+@utility animate-segment-sweep {
+  animation: segment-sweep 4.5s cubic-bezier(0.65, 0, 0.35, 1) infinite;
+}
+@utility animate-nudge-down {
+  animation: nudge-down 2.2s ease-in-out infinite;
+}
+@utility animate-aurora {
+  animation: aurora-drift 22s ease-in-out infinite;
+}
+
+/* Masked edges so the logo strip fades out instead of getting cut. */
+@utility fade-edges-x {
+  mask-image: linear-gradient(to right, transparent, black 12%, black 88%, transparent);
+}
 @utility font-data {
   font-family: var(--font-jetbrains-mono), "SF Mono", Monaco, "Cascadia Code", monospace;
   font-variant-numeric: tabular-nums;
@@ -229,6 +407,62 @@
 @utility noise-bg {
   background-image: radial-gradient(circle, color-mix(in srgb, var(--border) 55%, transparent) 1px, transparent 1px);
   background-size: 8px 8px;
+}
+
+/* ——— Layout & surface utilities ——— */
+
+/** Single page gutter used by every marketing + app route. */
+@utility container-page {
+  width: 100%;
+  margin-inline: auto;
+  max-width: 80rem;
+  padding-inline: 1rem;
+  @media (width >= 40rem) { padding-inline: 1.5rem; }
+  @media (width >= 64rem) { padding-inline: 2rem; }
+}
+
+/** Standard raised panel: surface + hairline border + soft elevation. */
+@utility surface-card {
+  background-color: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--elevation-xs);
+}
+
+/** Hairline top highlight that reads as light catching a card edge. */
+@utility edge-light {
+  position: relative;
+  &::after {
+    content: "";
+    position: absolute;
+    inset: 0 0 auto;
+    height: 1px;
+    background: linear-gradient(
+      to right,
+      transparent,
+      color-mix(in srgb, var(--ink) 9%, transparent),
+      transparent
+    );
+    pointer-events: none;
+  }
+}
+
+/** Vertical rhythm for long-form marketing sections. */
+@utility section-y {
+  padding-block: 4rem;
+  @media (width >= 48rem) { padding-block: 6.5rem; }
+  @media (width >= 80rem) { padding-block: 8rem; }
+}
+
+/** Dotted rule used to separate compact metadata pairs. */
+@utility rule-dot {
+  background-image: linear-gradient(
+    to right,
+    var(--border) 1px,
+    transparent 1px
+  );
+  background-size: 4px 1px;
+  background-repeat: repeat-x;
 }
 
 @media (prefers-reduced-motion: reduce) {

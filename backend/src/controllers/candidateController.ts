@@ -33,6 +33,7 @@ import { ErrorCodes } from '@/middleware/errorCodes';
 import { CANDIDATE_STATUS } from '@/constants/candidateStatus';
 import { getCached, setCache } from '@/utils/cache';
 import { invalidateDashboardCache } from '@/controllers/dashboardController';
+import { filterOwnedCandidateIds } from '@/middleware/ownership';
 import { generateExplanations } from '@/services/llm/explainability';
 import { generateInterviewEmail } from '@/services/llm/emailTemplate';
 import { generateOutreachEmail } from '@/services/llm/outreachEmail';
@@ -156,9 +157,14 @@ export const getCandidateHandler = asyncHandler(async (req: Request, res: Respon
 });
 
 export const batchCandidatesHandler = asyncHandler(async (req: Request, res: Response) => {
-  const { ids } = req.body;
-
-  const candidates = await retrieveCandidateByIds(ids);
+  const { ids } = req.body as { ids: string[] };
+  const recruiterId = req.recruiter?.id as string | undefined;
+  if (!recruiterId) {
+    throw new AppError('Not authenticated', 401, ErrorCodes.UNAUTHORIZED);
+  }
+  // Never serve a vector-store record the recruiter does not own.
+  const owned = await filterOwnedCandidateIds(recruiterId, ids || []);
+  const candidates = await retrieveCandidateByIds(owned);
   res.status(200).json({ success: true, data: candidates });
 });
 
@@ -218,10 +224,21 @@ function compareCacheKey(jdText: string, candidateIds: string[]): string {
 }
 
 export const compareCandidatesHandler = asyncHandler(async (req: Request, res: Response) => {
-  const { jdText, candidateIds } = req.body;
+  const { jdText, candidateIds } = req.body as { jdText: string; candidateIds: string[] };
+  const recruiterId = req.recruiter?.id as string | undefined;
+  if (!recruiterId) {
+    throw new AppError('Not authenticated', 401, ErrorCodes.UNAUTHORIZED);
+  }
   const t0 = Date.now();
 
-  const cacheKey = compareCacheKey(jdText, candidateIds);
+  // Compare operates on the global vector store; restrict to owned candidates
+  // before anything (cache key included) touches the ids.
+  const ownedIds = await filterOwnedCandidateIds(recruiterId, candidateIds || []);
+  if (ownedIds.length < 2) {
+    throw new AppError('Could not find all specified candidates', 404, ErrorCodes.NOT_FOUND);
+  }
+
+  const cacheKey = compareCacheKey(jdText, ownedIds);
   const cached = await getCached<CompareResult>(cacheKey);
   if (cached) {
     res.status(200).json({ success: true, data: { comparison: cached, query: null, cached: true } });
@@ -234,7 +251,7 @@ export const compareCandidatesHandler = asyncHandler(async (req: Request, res: R
   logger.info('Compare lifecycle: parseJD done', { ms: Date.now() - t1 });
 
   const t2 = Date.now();
-  const candidates = await retrieveCandidateByIds(candidateIds);
+  const candidates = await retrieveCandidateByIds(ownedIds);
   logger.info('Compare lifecycle: retrieveCandidates done', { ms: Date.now() - t2, count: candidates.length });
 
   if (candidates.length < 2) {
@@ -592,7 +609,7 @@ export const sendInterviewEmailHandler = asyncHandler(async (req: Request, res: 
   const emailSubject = subject || 'Interview Confirmation';
   const emailBody = body || `Dear Candidate,\n\nYour interview has been confirmed.\n\nDate: ${interview.scheduled_date}\nTime: ${interview.scheduled_time}\nType: ${interview.interview_type}\n${interview.meeting_link ? `Link: ${interview.meeting_link}\n` : ''}\n\nBest regards,\nHireStack Team`;
 
-  // Deliver through Resend (fire-and-forget queue; the email worker sends it).
+  // Deliver through Resend (the email worker sends it).
   // Previously this handler only logged + returned the draft, so the email
   // never left the server despite the "sent" message.
   const { data: emailCandidate } = await getSupabaseClient()
@@ -601,31 +618,51 @@ export const sendInterviewEmailHandler = asyncHandler(async (req: Request, res: 
     .eq('id', id)
     .single();
   const recipient = (emailCandidate as { email?: string } | null)?.email || '';
-  if (recipient) {
-    const escaped = emailBody
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;');
-    enqueueEmail({
-      to: recipient,
-      subject: emailSubject,
-      html: `<div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 560px; margin: 0 auto; padding: 32px;"><p style="font-size: 16px; line-height: 1.6; color: #374151; white-space: pre-line;">${escaped}</p></div>`,
-    });
+  if (!recipient) {
+    throw new AppError('Candidate has no email address', 400, ErrorCodes.VALIDATION_ERROR);
+  }
+  const escaped = emailBody
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+  // AWAITED. The previous floating promise meant the HTTP 200 (and the
+  // `email_sent` activity entry) could be reported before the enqueue even
+  // resolved, and an enqueue failure was indistinguishable from success.
+  const enqueue = await enqueueEmail({
+    to: recipient,
+    subject: emailSubject,
+    html: `<div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 560px; margin: 0 auto; padding: 32px;"><p style="font-size: 16px; line-height: 1.6; color: #374151; white-space: pre-line;">${escaped}</p></div>`,
+  });
+  if (!enqueue.queued) {
+    throw new AppError(
+      `Email could not be queued for delivery: ${enqueue.error || 'queue unavailable'}`,
+      503,
+      ErrorCodes.INTERNAL_ERROR,
+    );
   }
 
   await logEmail(id, 'interview_email', emailSubject, emailBody);
 
   const r4 = req.recruiter;
   if (r4) {
-    logActivity({
+    // Accurate wording: the message is in the delivery queue, not delivered.
+    void logActivity({
       recruiterId: r4.id,
       actionType: 'email_sent',
-      description: `Email sent: ${emailSubject}`,
+      description: `Interview email queued for delivery: ${emailSubject}`,
       candidateId: id,
     });
   }
 
-  res.status(200).json({ success: true, data: { message: 'Interview email sent', subject: emailSubject, body: emailBody } });
+  res.status(200).json({
+    success: true,
+    data: {
+      message: 'Interview email queued for delivery',
+      queued: true,
+      subject: emailSubject,
+      body: emailBody,
+    },
+  });
 });
 
 export const getCandidateTimelineHandler = asyncHandler(async (req: Request, res: Response) => {

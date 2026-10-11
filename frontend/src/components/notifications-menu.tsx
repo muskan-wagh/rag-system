@@ -246,7 +246,7 @@ export function NotificationsMenu() {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -6, scale: 0.97 }}
             transition={{ duration: 0.14, ease: [0.25, 0.1, 0.25, 1] }}
-            className="absolute right-0 top-full z-50 mt-2 origin-top-right overflow-hidden rounded-lg border border-border bg-surface shadow-[0_20px_60px_rgba(0,0,0,0.16)]"
+            className="absolute right-0 top-full z-50 mt-2 origin-top-right overflow-hidden rounded-xl border border-border bg-surface shadow-xs shadow-xl"
           >
             <NotificationsContent onNavigated={() => setOpen(false)} />
           </motion.div>

@@ -120,13 +120,13 @@ export function PipelineSheet({ stepId, onClose }: PipelineSheetProps) {
                 </div>
                 <div>
                   <h2 className="text-lg font-semibold text-foreground">{step.label}</h2>
-                  <p className="text-xs text-muted-foreground">Pipeline Component</p>
+                  <p className="text-xs text-muted">Pipeline Component</p>
                 </div>
               </div>
 
               <div className="flex-1 space-y-6 overflow-y-auto">
                 <div className="bg-surface rounded-xl border border-border p-4">
-                  <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Purpose</h3>
+                  <h3 className="text-xs font-semibold text-muted uppercase tracking-wider mb-2">Purpose</h3>
                   <p className="text-sm text-foreground leading-relaxed">{step.purpose}</p>
                   {step.extracts && (
                     <div className="mt-3 flex flex-wrap gap-1.5">
@@ -144,20 +144,20 @@ export function PipelineSheet({ stepId, onClose }: PipelineSheetProps) {
 
                 {step.why && (
                   <div className="bg-surface rounded-xl border border-border p-4">
-                    <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Why</h3>
+                    <h3 className="text-xs font-semibold text-muted uppercase tracking-wider mb-2">Why</h3>
                     <p className="text-sm text-foreground leading-relaxed">{step.why}</p>
                   </div>
                 )}
 
                 {step.example && (
                   <div className="bg-surface rounded-xl border border-border p-4">
-                    <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Example</h3>
+                    <h3 className="text-xs font-semibold text-muted uppercase tracking-wider mb-2">Example</h3>
                     <p className="text-sm text-foreground leading-relaxed whitespace-pre-line">{step.example}</p>
                   </div>
                 )}
 
                 <div className="bg-surface rounded-xl border border-border p-4">
-                  <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">How it works</h3>
+                  <h3 className="text-xs font-semibold text-muted uppercase tracking-wider mb-3">How it works</h3>
                   <div className="space-y-2.5">
                     {step.details.map((detail, i) => (
                       <div key={i} className="flex items-start gap-2.5">

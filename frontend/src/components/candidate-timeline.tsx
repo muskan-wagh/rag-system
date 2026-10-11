@@ -36,9 +36,9 @@ function formatDateTime(dateStr: string): string {
 
 function getStatusIcon(status: string) {
   const s = status.toLowerCase()
-  if (s === "hired") return <CircleCheck className="size-4 text-green-600" strokeWidth={1.75} />
-  if (s === "offered" || s === "pending offer") return <Gift className="size-4 text-green-600" strokeWidth={1.75} />
-  if (s === "rejected") return <CircleX className="size-4 text-red-500" strokeWidth={1.75} />
+  if (s === "hired") return <CircleCheck className="size-4 text-success" strokeWidth={1.75} />
+  if (s === "offered" || s === "pending offer") return <Gift className="size-4 text-success" strokeWidth={1.75} />
+  if (s === "rejected") return <CircleX className="size-4 text-danger" strokeWidth={1.75} />
   if (
     s === "interview scheduled" ||
     s === "interview completed" ||
@@ -46,11 +46,11 @@ function getStatusIcon(status: string) {
     s === "hr round" ||
     s === "interview"
   )
-    return <Calendar className="size-4 text-blue-600" strokeWidth={1.75} />
+    return <Calendar className="size-4 text-info" strokeWidth={1.75} />
   if (s === "screening" || s === "shortlisted")
-    return <Search className="size-4 text-amber-600" strokeWidth={1.75} />
-  if (s === "applied") return <Upload className="size-4 text-amber-600" strokeWidth={1.75} />
-  return <Circle className="size-4 text-muted-foreground/60" strokeWidth={1.75} />
+    return <Search className="size-4 text-warning" strokeWidth={1.75} />
+  if (s === "applied") return <Upload className="size-4 text-warning" strokeWidth={1.75} />
+  return <Circle className="size-4 text-muted/60" strokeWidth={1.75} />
 }
 
 function getRejectionReason(details: Record<string, unknown> | null): string | null {
@@ -91,7 +91,7 @@ export function CandidateTimeline({ candidateId }: CandidateTimelineProps) {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-8">
-        <Loader2 className="size-5 animate-spin text-muted-foreground" strokeWidth={1.75} />
+        <Loader2 className="size-5 animate-spin text-muted" strokeWidth={1.75} />
       </div>
     )
   }
@@ -99,7 +99,7 @@ export function CandidateTimeline({ candidateId }: CandidateTimelineProps) {
   if (timeline.length === 0) {
     return (
       <div className="py-8 text-center">
-        <Clock className="mx-auto mb-2 size-6 text-muted-foreground/40" strokeWidth={1.5} />
+        <Clock className="mx-auto mb-2 size-6 text-muted/40" strokeWidth={1.5} />
         <p className="text-[12.5px] text-muted">No activity recorded yet</p>
       </div>
     )
@@ -119,19 +119,19 @@ export function CandidateTimeline({ candidateId }: CandidateTimelineProps) {
                 <span className={`inline-block rounded-full border px-2 py-0.5 text-[10px] font-medium ${getStatusColor(entry.status)}`}>
                   {entry.status}
                 </span>
-                <span className="text-[10px] text-muted-foreground">
+                <span className="text-[10px] text-muted">
                   {formatDateTime(entry.changed_at)}
                 </span>
               </div>
               {entry.changed_by && (
-                <p className="mt-0.5 text-[11.5px] text-muted-foreground">
+                <p className="mt-0.5 text-[11.5px] text-muted">
                   by {entry.changed_by}
                 </p>
               )}
               {entry.details && Object.keys(entry.details).length > 0 && (
-                <div className="mt-1 text-[11.5px] text-muted-foreground">
+                <div className="mt-1 text-[11.5px] text-muted">
                   {getRejectionReason(entry.details) && (
-                    <span className="text-red-600">Reason: {getRejectionReason(entry.details)}</span>
+                    <span className="text-danger">Reason: {getRejectionReason(entry.details)}</span>
                   )}
                   {(entry.details.interview_type as string) && (
                     <span>Type: {entry.details.interview_type as string}</span>

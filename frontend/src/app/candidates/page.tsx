@@ -1,13 +1,12 @@
 "use client"
 
-import { Suspense, useState, useCallback, useRef } from "react"
+import { Suspense, useState, useCallback, useRef, useMemo } from "react"
+import Link from "next/link"
 import { useSearchParams, useRouter } from "next/navigation"
 import useSWR from "swr"
 import {
-  Users, FileText, ChevronLeft, ChevronRight,
-  BadgeCheck, Loader2, Search, Sparkles, Eye,
-  Briefcase, Download, Plus,
-  ArrowUpRight, MapPin,
+  Users, FileText, BadgeCheck, Loader2, Search, Sparkles, Eye,
+  Briefcase, Plus, MapPin, X,
 } from "lucide-react"
 import { toast } from "sonner"
 import { CandidateDetailModal } from "@/components/candidate-detail-modal"
@@ -17,59 +16,59 @@ import { useApi } from "@/hooks/use-api"
 import { useWebSocket } from "@/lib/use-websocket"
 import { ROUTES, getInitials } from "@/lib/constants"
 import type { CandidateRecord } from "@/lib/api"
+import { stageDotClass, STAGE_FILTERS } from "@/lib/pipeline"
+import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Dialog, DialogContent } from "@/components/ui/dialog"
 import { PageHeader } from "@/components/ui/page-header"
 import { EmptyState } from "@/components/ui/empty-state"
-import { cn } from "@/lib/utils"
+import { StatTile } from "@/components/ui/stat-tile"
+import { StageBadge } from "@/components/ui/stage-badge"
+import { Pagination } from "@/components/ui/pagination"
 
 const PAGE_SIZE = 20
 
-type StatusTone = "amber" | "blue" | "green" | "red" | "neutral"
-
-function getStatusTone(status?: string): StatusTone {
-  const s = (status || "").toLowerCase()
-  if (s === "hired" || s === "offered" || s === "pending offer") return "green"
-  if (s === "rejected") return "red"
-  if (s.includes("interview") || s === "technical round" || s === "hr round") return "blue"
-  if (s === "applied" || s === "screening" || s === "shortlisted") return "amber"
-  return "neutral"
-}
-
-// Thick left-edge status indicator — solid in both themes.
-const STATUS_LINE: Record<StatusTone, string> = {
-  amber: "bg-amber-400",
-  blue: "bg-blue-500",
-  green: "bg-green-500",
-  red: "bg-red-500",
-  neutral: "bg-zinc-400 dark:bg-zinc-600",
-}
-
-// Color-coded status text — readable on dark surfaces without loud backgrounds.
-const STATUS_TEXT: Record<StatusTone, string> = {
-  amber: "text-amber-700 dark:text-amber-400",
-  blue: "text-blue-700 dark:text-blue-400",
-  green: "text-green-700 dark:text-green-400",
-  red: "text-red-600 dark:text-red-400",
-  neutral: "text-muted",
-}
-
+/** Score bands drive both the number colour and its word label. */
 function getScoreTone(score?: number) {
-  if (!score) return "text-muted"
+  if (score == null) return "text-muted"
   if (score >= 80) return "text-success"
   if (score >= 60) return "text-warning"
   return "text-danger"
 }
 
-function getScoreLabel(score?: number) {
-  if (!score) return "—"
-  if (score >= 80) return "Excellent"
-  if (score >= 60) return "Strong"
-  if (score >= 40) return "Fair"
-  return "Low"
+function getScoreBar(score?: number) {
+  if (score == null) return "bg-faint"
+  if (score >= 80) return "bg-success"
+  if (score >= 60) return "bg-warning"
+  return "bg-danger"
 }
+
+function getScoreLabel(score?: number) {
+  if (score == null) return "Not scored"
+  if (score >= 80) return "Strong match"
+  if (score >= 60) return "Good match"
+  if (score >= 40) return "Partial match"
+  return "Weak match"
+}
+
+function flightRiskTone(risk?: string) {
+  const r = (risk || "").toLowerCase()
+  if (r === "high") return "text-danger"
+  if (r === "medium") return "text-warning"
+  return "text-success"
+}
+
+const INTERVIEW_STAGES = new Set([
+  "interview",
+  "interview scheduled",
+  "interview completed",
+  "technical round",
+  "technical interview",
+  "hr round",
+  "managerial/hr",
+])
 
 function CandidatesContent() {
   const router = useRouter()
@@ -86,39 +85,65 @@ function CandidatesContent() {
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const statusFilterParam = searchParams.get("status") as string | null
 
-  const statusTabs = [
-    { label: "All", value: null },
-    { label: "Hired", value: "hired" },
-    { label: "Pending Offers", value: "offer" },
-    { label: "Rejected", value: "rejected" },
-  ] as const
+  // Mirrors the backend STATUS_FILTER_MAP so every dashboard tile that links
+  // here lands on a visible, selected filter rather than an invisible one.
+  const statusTabs = useMemo(
+    () => [{ label: "All", value: null as string | null }, ...STAGE_FILTERS.filter((f) => f.value !== "all").map((f) => ({ label: f.label, value: f.value }))],
+    [],
+  )
 
   const api = useApi()
 
   const candidatesKey = ["candidates-page", selectedSessionId, searchQuery, page, statusFilterParam]
   const { data: candidatesRes, isLoading: candidatesLoading, mutate: mutateCandidates } = useSWR(
     candidatesKey,
-    () => api.getCandidatesPage({
-      page, limit: PAGE_SIZE, search: searchQuery || undefined,
-      sessionId: selectedSessionId || undefined, sortBy: "created_at", sortOrder: "desc",
-      status: statusFilterParam || undefined,
-    }),
-    { revalidateOnFocus: false, revalidateOnReconnect: false, keepPreviousData: true, dedupingInterval: 10_000 },
+    () =>
+      api.getCandidatesPage({
+        page,
+        limit: PAGE_SIZE,
+        search: searchQuery || undefined,
+        sessionId: selectedSessionId || undefined,
+        sortBy: "created_at",
+        sortOrder: "desc",
+        status: statusFilterParam || undefined,
+      }),
+    {
+      revalidateOnFocus: false,
+      revalidateOnReconnect: false,
+      keepPreviousData: true,
+      dedupingInterval: 10_000,
+    },
   )
 
   const candidatesData = candidatesRes?.data ?? null
   const sessions = candidatesData?.sessions ?? []
   const candidates = candidatesData?.candidates ?? []
 
-  useWebSocket("candidate:status_changed", useCallback(() => {
-    if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current)
-    debounceTimerRef.current = setTimeout(() => mutateCandidates(), 500)
-  }, [mutateCandidates]))
+  useWebSocket(
+    "candidate:status_changed",
+    useCallback(() => {
+      if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current)
+      debounceTimerRef.current = setTimeout(() => mutateCandidates(), 500)
+    }, [mutateCandidates]),
+  )
 
-  const handleSearch = useCallback((value: string) => { setSearchQuery(value); setPage(1) }, [])
-  const handleSelectSession = useCallback((sessionId: string | null) => { setSelectedSessionId(sessionId); setSearchQuery(""); setPage(1) }, [])
-  const handleViewCandidate = useCallback((candidate: CandidateRecord) => { setSelectedCandidate(candidate); setShowDetailModal(true) }, [])
-  const handleHireClick = useCallback((candidate: CandidateRecord) => { setHireCandidate(candidate); setShowHireConfirm(true) }, [])
+  const handleSearch = useCallback((value: string) => {
+    setSearchQuery(value)
+    setPage(1)
+  }, [])
+  const handleSelectSession = useCallback((sessionId: string | null) => {
+    setSelectedSessionId(sessionId)
+    setSearchQuery("")
+    setPage(1)
+  }, [])
+  const handleViewCandidate = useCallback((candidate: CandidateRecord) => {
+    setSelectedCandidate(candidate)
+    setShowDetailModal(true)
+  }, [])
+  const handleHireClick = useCallback((candidate: CandidateRecord) => {
+    setHireCandidate(candidate)
+    setShowHireConfirm(true)
+  }, [])
 
   const confirmHire = async () => {
     if (!hireCandidate) return
@@ -127,24 +152,27 @@ function CandidatesContent() {
     setHireCandidate(null)
 
     if (candidatesRes?.data) {
-      mutateCandidates({
-        ...candidatesRes,
-        data: {
-          ...candidatesRes.data,
-          candidates: candidatesRes.data.candidates.map((c) =>
-            c.id === hireCandidate.id ? { ...c, current_status: "Hired" } : c
-          ),
+      mutateCandidates(
+        {
+          ...candidatesRes,
+          data: {
+            ...candidatesRes.data,
+            candidates: candidatesRes.data.candidates.map((c) =>
+              c.id === hireCandidate.id ? { ...c, current_status: "Hired" } : c,
+            ),
+          },
         },
-      }, false)
+        false,
+      )
     }
 
     try {
       const res = await api.markCandidateAsHired(hireCandidate.id)
       if (!res.success) throw new Error(res.error)
-      toast.success("Candidate marked as Hired!")
+      toast.success(`${hireCandidate.full_name || "Candidate"} marked as hired`)
       mutateCandidates()
     } catch {
-      toast.error("Failed to mark candidate as hired")
+      toast.error("Could not mark this candidate as hired. The stage was left unchanged.")
       mutateCandidates()
     } finally {
       setHireLoading(false)
@@ -161,103 +189,131 @@ function CandidatesContent() {
   const totalPages = candidatesData?.totalPages || 0
   const startRow = candidatesData?.total ? (page - 1) * PAGE_SIZE + 1 : 0
   const endRow = Math.min(page * PAGE_SIZE, candidatesData?.total || 0)
-  const avgMatchScore = candidates.length
-    ? Math.round(candidates.reduce((s, c) => s + (c.match_score ?? 0), 0) / candidates.length)
-    : 0
-  const pendingInterviews = candidates.filter(c => c.current_status?.toLowerCase() === "interview").length
-  const hiredCount = candidates.filter(c => c.current_status?.toLowerCase() === "hired").length
+  const hasFilters = Boolean(searchQuery || statusFilterParam || selectedSessionId)
 
-  const statCards = [
-    { label: "Total", value: candidatesData?.total ?? 0, icon: Users },
-    { label: "Hired", value: hiredCount, icon: BadgeCheck },
-    { label: "Avg Match", value: `${avgMatchScore}%`, icon: Sparkles },
-    { label: "Interviews", value: pendingInterviews, icon: Briefcase },
-  ]
+  const avgMatchScore = candidates.length
+    ? Math.round(
+        candidates.reduce((s, c) => s + (c.match_score ?? 0), 0) / candidates.length,
+      )
+    : null
+  const pendingInterviews = candidates.filter((c) =>
+    INTERVIEW_STAGES.has((c.current_status || "").toLowerCase()),
+  ).length
+  const hiredCount = candidates.filter(
+    (c) => c.current_status?.toLowerCase() === "hired",
+  ).length
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-5">
       <PageHeader
         title="Candidates"
-        description={selectedSessionId ? "Filtered by hiring session" : "All candidates across all sessions"}
+        description={
+          selectedSessionId
+            ? "Filtered to one hiring session"
+            : "Every candidate across all sessions"
+        }
         actions={
-          <>
-            <Button variant="outline" size="sm">
-              <Download className="size-3.5" strokeWidth={1.5} />
-              Export
-            </Button>
-            <Button size="sm">
-              <Plus className="size-3.5" strokeWidth={1.5} />
-              Add Candidate
-            </Button>
-          </>
+          <Button variant="action" render={<Link href={ROUTES.dashboard} />}>
+            <Plus strokeWidth={2.25} />
+            Add candidates
+          </Button>
         }
       />
 
-      {/* Stat strip */}
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        {statCards.map((card) => (
-          <div
-            key={card.label}
-            className="flex items-center gap-3 rounded-lg border border-border bg-surface px-4 py-3.5"
-          >
-            <div className="flex size-8 shrink-0 items-center justify-center rounded-md bg-surface-secondary text-muted">
-              <card.icon className="size-4" strokeWidth={1.5} />
-            </div>
-            <div className="min-w-0">
-              <p className="font-data text-[15px] font-semibold leading-tight text-ink">{card.value}</p>
-              <p className="text-[10px] uppercase tracking-[0.05em] text-muted">{card.label}</p>
-            </div>
-          </div>
-        ))}
+      <div className="grid grid-cols-2 gap-2.5 xl:grid-cols-4">
+        <StatTile
+          label="Total"
+          value={candidatesData?.total ?? 0}
+          icon={Users}
+          tone="neutral"
+          loading={candidatesLoading && !candidatesData}
+        />
+        <StatTile
+          label="Hired"
+          value={hiredCount}
+          icon={BadgeCheck}
+          tone="success"
+          href={candidatesRes ? `${ROUTES.candidates}?status=hired` : undefined}
+          hint="On this page"
+          loading={candidatesLoading && !candidatesData}
+        />
+        <StatTile
+          label="Avg match"
+          value={avgMatchScore == null ? "—" : `${avgMatchScore}%`}
+          icon={Sparkles}
+          tone="accent"
+          hint="Across this page"
+          loading={candidatesLoading && !candidatesData}
+        />
+        <StatTile
+          label="Interviews"
+          value={pendingInterviews}
+          icon={Briefcase}
+          tone="info"
+          href={candidatesRes ? `${ROUTES.candidates}?status=technical` : undefined}
+          hint="Awaiting a decision"
+          loading={candidatesLoading && !candidatesData}
+        />
       </div>
 
-      {/* Sessions bar */}
+      {/* Session filter */}
       <div className="flex items-center gap-2 overflow-x-auto pb-1">
         <button
+          type="button"
           onClick={() => handleSelectSession(null)}
+          aria-pressed={selectedSessionId === null}
           className={cn(
-            "flex shrink-0 items-center gap-2 rounded-md border px-3 py-1.5 text-[12px] font-medium whitespace-nowrap transition-colors duration-120",
+            "flex shrink-0 items-center gap-2 whitespace-nowrap rounded-lg border px-3 py-1.5 text-[12px] font-medium transition-colors duration-120",
             selectedSessionId === null
               ? "border-transparent bg-ink text-canvas"
               : "border-border bg-surface text-muted hover:border-border-hover hover:text-ink",
           )}
         >
-          <Users className="size-3.5" strokeWidth={1.5} />
-          All Candidates
+          <Users className="size-3.5" strokeWidth={1.75} aria-hidden />
+          All candidates
         </button>
+
         {candidatesLoading ? (
-          Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-8 w-32 shrink-0 rounded-md" />)
+          Array.from({ length: 3 }).map((_, i) => (
+            <Skeleton key={i} className="h-8 w-32 shrink-0 rounded-lg" />
+          ))
         ) : sessions.length === 0 ? (
-          <span className="px-2 text-[12px] text-muted">No sessions yet</span>
+          <span className="px-2 text-[12px] text-muted">No hiring sessions yet</span>
         ) : (
           sessions.map((session) => (
             <button
               key={session.id}
+              type="button"
               onClick={() => handleSelectSession(session.id)}
+              aria-pressed={selectedSessionId === session.id}
               className={cn(
-                "flex shrink-0 items-center gap-2 rounded-md border px-3 py-1.5 text-[12px] font-medium whitespace-nowrap transition-colors duration-120",
+                "flex shrink-0 items-center gap-2 whitespace-nowrap rounded-lg border px-3 py-1.5 text-[12px] font-medium transition-colors duration-120",
                 selectedSessionId === session.id
                   ? "border-transparent bg-ink text-canvas"
                   : "border-border bg-surface text-muted hover:border-border-hover hover:text-ink",
               )}
             >
-              <Briefcase className="size-3.5 shrink-0" strokeWidth={1.5} />
+              <Briefcase className="size-3.5 shrink-0" strokeWidth={1.75} aria-hidden />
               <span className="max-w-[150px] truncate">
                 {session.job_description_text
                   ? session.job_description_text.length > 35
                     ? `${session.job_description_text.slice(0, 35)}…`
                     : session.job_description_text
-                  : "Untitled"}
+                  : "Untitled session"}
               </span>
-              <span className="font-data text-[10px] text-muted">{session.candidate_count}</span>
+              <span className="font-data text-[10px] opacity-70">{session.candidate_count}</span>
             </button>
           ))
         )}
       </div>
 
-      {/* Filters */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-1.5 self-start overflow-x-auto rounded-lg bg-surface-secondary p-1 sm:self-auto">
+      {/* Stage filter + search */}
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        <div
+          className="flex items-center gap-1 overflow-x-auto rounded-lg bg-surface-secondary p-1"
+          role="tablist"
+          aria-label="Filter by stage"
+        >
           {statusTabs.map((tab) => {
             const isActive = tab.value === null
               ? !statusFilterParam
@@ -265,12 +321,13 @@ function CandidatesContent() {
             return (
               <button
                 key={tab.label}
+                type="button"
+                role="tab"
+                aria-selected={isActive}
                 onClick={() => handleStatusTabClick(tab.value)}
                 className={cn(
-                  "shrink-0 whitespace-nowrap rounded-md px-3.5 py-1.5 text-[12px] font-medium transition-colors duration-120",
-                  isActive
-                    ? "bg-ink text-canvas shadow-sm"
-                    : "text-muted hover:text-ink",
+                  "shrink-0 whitespace-nowrap rounded-md px-3 py-1.5 text-[12px] font-medium transition-colors duration-120",
+                  isActive ? "bg-surface text-ink shadow-xs" : "text-muted hover:text-ink",
                 )}
               >
                 {tab.label}
@@ -278,25 +335,60 @@ function CandidatesContent() {
             )
           })}
         </div>
-        <div className="relative">
-          <Search className="absolute left-3.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted" strokeWidth={1.5} />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => handleSearch(e.target.value)}
-            placeholder="Search candidates…"
-            className="h-9 w-full rounded-md border border-border bg-surface pl-9 pr-3.5 text-[13px] text-ink outline-none transition-colors duration-120 placeholder:text-muted focus:border-border-hover sm:w-64"
-          />
+
+        <div className="flex items-center gap-2">
+          <div className="relative flex-1 lg:w-64 lg:flex-none">
+            <label htmlFor="candidate-search" className="sr-only">
+              Search candidates
+            </label>
+            <Search
+              className="pointer-events-none absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-faint"
+              strokeWidth={1.5}
+              aria-hidden
+            />
+            <input
+              id="candidate-search"
+              type="search"
+              value={searchQuery}
+              onChange={(e) => handleSearch(e.target.value)}
+              placeholder="Search name, title, company…"
+              className="h-9 w-full rounded-lg border border-border bg-surface pl-8 pr-8 text-[13px] text-ink outline-none transition-all duration-120 placeholder:text-faint focus:border-ink focus:shadow-[0_0_0_3px_color-mix(in_srgb,var(--ink)_7%,transparent)]"
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => handleSearch("")}
+                aria-label="Clear search"
+                className="absolute right-2 top-1/2 flex size-5 -translate-y-1/2 items-center justify-center rounded text-faint transition-colors hover:text-ink"
+              >
+                <X className="size-3.5" strokeWidth={1.75} aria-hidden />
+              </button>
+            )}
+          </div>
+
+          {hasFilters && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                setSearchQuery("")
+                setSelectedSessionId(null)
+                router.push(ROUTES.candidates)
+              }}
+            >
+              Clear
+            </Button>
+          )}
         </div>
       </div>
 
-      {/* Candidate Grid */}
-      {candidatesLoading ? (
+      {/* Candidate grid */}
+      {candidatesLoading && !candidatesData ? (
         <div className="grid gap-3 sm:grid-cols-2">
           {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="rounded-lg border border-border bg-surface p-5">
-              <div className="flex items-center gap-3">
-                <Skeleton className="size-11 rounded-full" />
+            <div key={i} className="rounded-xl border border-border bg-surface p-5">
+              <div className="flex items-start gap-3">
+                <Skeleton className="size-11 shrink-0 rounded-full" />
                 <div className="flex-1 space-y-2">
                   <Skeleton className="h-3.5 w-36" />
                   <Skeleton className="h-3 w-24" />
@@ -306,265 +398,268 @@ function CandidatesContent() {
                 <Skeleton className="h-5 w-16 rounded-md" />
                 <Skeleton className="h-5 w-20 rounded-md" />
               </div>
-              <div className="mt-4 space-y-2">
-                <Skeleton className="h-2 w-full" />
-                <Skeleton className="h-2 w-3/4" />
+              <div className="mt-4 flex items-center justify-between border-t border-border pt-3.5">
+                <Skeleton className="h-4 w-24 rounded-md" />
+                <Skeleton className="h-3 w-16" />
               </div>
             </div>
           ))}
         </div>
       ) : candidates.length === 0 ? (
-        <div className="rounded-lg border border-border bg-surface">
+        <div className="rounded-xl border border-border bg-surface">
           <EmptyState
             icon={Users}
-            title={searchQuery || statusFilterParam ? "No candidates found" : "No candidates yet"}
+            title={hasFilters ? "No candidates match these filters" : "No candidates yet"}
             description={
-              searchQuery || statusFilterParam
-                ? "Try a different search term or clear filters"
-                : "Upload resumes or create an application link to start building your candidate database."
+              hasFilters
+                ? "Try a different search term, switch stage, or clear the session filter."
+                : "Create a hiring session to get an application link, then share it wherever you post the role."
             }
             action={
-              <div className="flex gap-2">
-                <Button size="sm">
-                  <Plus className="size-3.5" strokeWidth={1.5} />
-                  Upload Resume
+              hasFilters ? (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setSearchQuery("")
+                    setSelectedSessionId(null)
+                    router.push(ROUTES.candidates)
+                  }}
+                >
+                  Clear all filters
                 </Button>
-                <Button variant="outline" size="sm" onClick={() => router.push(ROUTES.dashboard)}>
-                  <ArrowUpRight className="size-3.5" strokeWidth={1.5} />
-                  Go to Dashboard
+              ) : (
+                <Button variant="action" size="sm" render={<Link href={ROUTES.dashboard} />}>
+                  <Plus strokeWidth={2.25} />
+                  Create a hiring session
                 </Button>
-              </div>
+              )
             }
           />
         </div>
       ) : (
         <>
-          <div className="grid gap-3 sm:grid-cols-2">
+          <ul className="grid gap-3 sm:grid-cols-2">
             {candidates.map((candidate) => {
-              const tone = getStatusTone(candidate.current_status)
+              const stage = candidate.current_status || "Applied"
+              const score = candidate.match_score
               return (
-                <div
-                  key={candidate.id}
-                  className="group relative cursor-pointer overflow-hidden rounded-xl border border-border bg-surface transition-all duration-200 hover:border-border-hover hover:bg-hover-tone"
-                  onClick={() => handleViewCandidate(candidate)}
-                >
-                  {/* Thick vertical status indicator */}
-                  <span
-                    aria-hidden
-                    className={cn("absolute inset-y-0 left-0 w-1", STATUS_LINE[tone])}
-                  />
-                  <div className="p-5 pl-6">
-                    <div className="flex items-start gap-3">
-                      <div className="relative shrink-0">
-                        <Avatar className="size-11">
-                          <AvatarFallback className="text-[13px] font-medium">
-                            {getInitials(candidate.full_name)}
-                          </AvatarFallback>
-                        </Avatar>
-                        {candidate.match_score !== undefined && candidate.match_score >= 85 && (
-                          <div className="absolute -right-1 -top-1 flex size-5 items-center justify-center rounded-full border border-border bg-surface">
-                            <Sparkles className="size-3 text-warning" strokeWidth={1.5} />
-                          </div>
-                        )}
-                      </div>
+                <li key={candidate.id}>
+                  <article className="group relative h-full overflow-hidden rounded-xl border border-border bg-surface transition-all duration-150 hover:border-border-hover hover:shadow-md">
+                    {/* Stage colour rail — double-coded with the badge below. */}
+                    <span
+                      aria-hidden
+                      className={cn(
+                        "absolute inset-y-0 left-0 w-[3px]",
+                        stageDotClass(stage),
+                      )}
+                    />
 
-                      <div className="min-w-0 flex-1">
-                        <h3 className="truncate text-[15px] font-semibold text-ink">
-                          {candidate.full_name || "Unknown"}
-                        </h3>
-                        <p className="mt-0.5 truncate text-[12px] text-muted">
-                          {candidate.current_title || ""}
-                          {candidate.current_title && candidate.current_company ? " · " : ""}
-                          {candidate.current_company || ""}
-                        </p>
-
-                        {(candidate.skills || []).length > 0 && (
-                          <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
-                            {(candidate.skills || []).slice(0, 3).map((skill, j) => (
-                              <span
-                                key={j}
-                                className="rounded-md border border-border bg-surface-secondary px-2 py-0.5 text-[11px] text-zinc-600 dark:text-zinc-300"
-                              >
-                                {skill}
-                              </span>
-                            ))}
-                            {(candidate.skills?.length || 0) > 3 && (
-                              <span className="text-[11px] text-muted">+{(candidate.skills?.length || 0) - 3}</span>
-                            )}
-                          </div>
-                        )}
-
-                        <div className="mt-2.5 flex flex-wrap items-center gap-x-3 gap-y-1">
-                          {candidate.total_experience_years != null && (
-                            <span className="flex items-center gap-1 text-[11px] text-muted">
-                              <Briefcase className="size-3" strokeWidth={1.5} />
-                              {candidate.total_experience_years}y exp
-                            </span>
-                          )}
-                          {candidate.location && (
-                            <span className="flex items-center gap-1 text-[11px] text-muted">
-                              <MapPin className="size-3" strokeWidth={1.5} />
-                              {candidate.location}
+                    <button
+                      type="button"
+                      onClick={() => handleViewCandidate(candidate)}
+                      className="block w-full p-4 pl-5 text-left"
+                    >
+                      <div className="flex items-start gap-3">
+                        <div className="relative shrink-0">
+                          <Avatar className="size-11">
+                            <AvatarFallback className="font-data text-[12px] font-medium">
+                              {getInitials(candidate.full_name)}
+                            </AvatarFallback>
+                          </Avatar>
+                          {score != null && score >= 85 && (
+                            <span className="absolute -right-1 -top-1 flex size-5 items-center justify-center rounded-full border border-border bg-surface">
+                              <Sparkles className="size-3 text-accent" strokeWidth={1.75} aria-hidden />
+                              <span className="sr-only">Top match</span>
                             </span>
                           )}
                         </div>
-                      </div>
-                    </div>
 
-                    <div className="mt-4 flex items-center justify-between gap-3 border-t border-border pt-3.5">
-                      <div className="flex min-w-0 items-center gap-2">
-                        <span
-                          aria-hidden
-                          className={cn("size-1.5 shrink-0 rounded-full", STATUS_LINE[tone])}
-                        />
-                        <span className={cn("truncate text-[12px] font-medium", STATUS_TEXT[tone])}>
-                          {candidate.current_status || "Applied"}
-                        </span>
-                        {candidate.flight_risk && (
-                          <span className={cn(
-                            "shrink-0 font-data text-[11px]",
-                            candidate.flight_risk === "High"
-                              ? "text-danger"
-                              : candidate.flight_risk === "Medium"
-                                ? "text-warning"
-                                : "text-success",
-                          )}>
-                            {candidate.flight_risk} risk
+                        <div className="min-w-0 flex-1">
+                          <h3 className="truncate text-[14px] font-medium text-ink">
+                            {candidate.full_name || "Unknown candidate"}
+                          </h3>
+                          <p className="mt-0.5 truncate text-[12px] text-muted">
+                            {[candidate.current_title, candidate.current_company]
+                              .filter(Boolean)
+                              .join(" · ") || "No title on record"}
+                          </p>
+                        </div>
+                      </div>
+
+                      {(candidate.skills || []).length > 0 && (
+                        <div className="mt-3 flex flex-wrap items-center gap-1.5">
+                          {(candidate.skills || []).slice(0, 3).map((skill, j) => (
+                            <span
+                              key={`${skill}-${j}`}
+                              className="rounded-md border border-border bg-canvas px-2 py-0.5 text-[11px] text-muted"
+                            >
+                              {skill}
+                            </span>
+                          ))}
+                          {(candidate.skills?.length || 0) > 3 && (
+                            <span className="text-[11px] text-faint">
+                              +{(candidate.skills?.length || 0) - 3}
+                            </span>
+                          )}
+                        </div>
+                      )}
+
+                      <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1">
+                        {candidate.total_experience_years != null && (
+                          <span className="flex items-center gap-1 text-[11px] text-muted">
+                            <Briefcase className="size-3" strokeWidth={1.5} aria-hidden />
+                            {candidate.total_experience_years}y
+                          </span>
+                        )}
+                        {candidate.location && (
+                          <span className="flex items-center gap-1 text-[11px] text-muted">
+                            <MapPin className="size-3" strokeWidth={1.5} aria-hidden />
+                            {candidate.location}
                           </span>
                         )}
                       </div>
 
-                      <div className="flex shrink-0 items-center gap-2.5">
-                        <div className="text-right">
-                          <p className={cn("font-data text-[13px] font-semibold", getScoreTone(candidate.match_score))}>
-                            {candidate.match_score !== undefined ? `${Math.round(candidate.match_score)}%` : "—"}
-                          </p>
-                          <p className="text-[10px] text-muted">{getScoreLabel(candidate.match_score)}</p>
+                      <div className="mt-3.5 flex items-center justify-between gap-3 border-t border-border pt-3">
+                        <div className="flex min-w-0 items-center gap-2">
+                          <StageBadge stage={stage} size="sm" />
+                          {candidate.flight_risk && (
+                            <span
+                              className={cn(
+                                "shrink-0 font-data text-[11px]",
+                                flightRiskTone(candidate.flight_risk),
+                              )}
+                            >
+                              {candidate.flight_risk} flight risk
+                            </span>
+                          )}
                         </div>
-                        <div className="h-1 w-12 overflow-hidden rounded-full bg-track">
-                          <div
-                            className="h-full rounded-full bg-info"
-                            style={{ width: `${Math.round(candidate.match_score ?? 0)}%` }}
-                          />
+
+                        <div className="flex shrink-0 items-center gap-2">
+                          <div className="hidden text-right sm:block">
+                            <p className={cn("font-data text-[12.5px] font-medium", getScoreTone(score))}>
+                              {score != null ? `${Math.round(score)}%` : "—"}
+                            </p>
+                            <p className="text-[10px] text-faint">{getScoreLabel(score)}</p>
+                          </div>
+                          <div className="h-1 w-12 overflow-hidden rounded-full bg-track">
+                            <div
+                              className={cn("h-full rounded-full", getScoreBar(score))}
+                              style={{ width: `${Math.max(0, Math.min(100, Math.round(score ?? 0)))}%` }}
+                            />
+                          </div>
                         </div>
                       </div>
-                    </div>
+                    </button>
 
-                    <div className="mt-3 flex items-center gap-1 opacity-100 transition-opacity duration-150 focus-within:opacity-100 lg:opacity-0 lg:group-hover:opacity-100">
+                    {/* Row actions stay reachable by keyboard, not hover-only. */}
+                    <div className="flex items-center gap-0.5 border-t border-border px-3 py-1.5">
                       {candidate.resume_file_url && (
                         <a
                           href={candidate.resume_file_url}
                           target="_blank"
                           rel="noopener noreferrer"
-                          onClick={(e) => e.stopPropagation()}
-                          className="flex size-7 items-center justify-center rounded-md text-muted transition-colors duration-120 hover:bg-surface-secondary hover:text-ink"
-                          aria-label="Open resume"
+                          className="flex size-7 items-center justify-center rounded-md text-faint transition-colors duration-120 hover:bg-surface-secondary hover:text-ink"
+                          aria-label={`Open ${candidate.full_name || "candidate"}'s resume`}
                         >
-                          <FileText className="size-3.5" strokeWidth={1.5} />
+                          <FileText className="size-3.5" strokeWidth={1.75} aria-hidden />
                         </a>
                       )}
-                      {candidate.current_status === "Offered" && (
+
+                      {stage.toLowerCase() === "offered" && (
                         <button
-                          onClick={(e) => { e.stopPropagation(); handleHireClick(candidate) }}
+                          type="button"
+                          onClick={() => handleHireClick(candidate)}
                           className="flex size-7 items-center justify-center rounded-md text-success transition-colors duration-120 hover:bg-success/10"
-                          aria-label="Mark as hired"
+                          aria-label={`Mark ${candidate.full_name || "candidate"} as hired`}
+                          title="Mark as hired"
                         >
-                          <BadgeCheck className="size-3.5" strokeWidth={1.5} />
+                          <BadgeCheck className="size-3.5" strokeWidth={1.75} aria-hidden />
                         </button>
                       )}
+
                       <button
-                        onClick={(e) => { e.stopPropagation(); handleViewCandidate(candidate) }}
-                        className="ml-auto flex size-7 items-center justify-center rounded-md text-muted transition-colors duration-120 hover:bg-surface-secondary hover:text-ink"
-                        aria-label="View details"
-                      >
-                        <Eye className="size-3.5" strokeWidth={1.5} />
-                      </button>
-                      <button
-                        onClick={(e) => { e.stopPropagation(); setEmailCandidate(candidate) }}
+                        type="button"
+                        onClick={() => setEmailCandidate(candidate)}
                         disabled={!candidate.email}
-                        title={candidate.email ? `Send outreach to ${candidate.full_name || "candidate"}` : "No email on file"}
-                        className="flex size-7 items-center justify-center rounded-md text-muted transition-colors duration-120 hover:bg-surface-secondary hover:text-ink disabled:opacity-40"
-                        aria-label="Send email"
+                        title={
+                          candidate.email
+                            ? `Email ${candidate.full_name || "candidate"}`
+                            : "No email address on file"
+                        }
+                        className="flex size-7 items-center justify-center rounded-md text-faint transition-colors duration-120 hover:bg-surface-secondary hover:text-ink disabled:opacity-35"
+                        aria-label={`Email ${candidate.full_name || "candidate"}`}
                       >
                         <GmailLogo className="size-3.5" />
                       </button>
+
+                      <button
+                        type="button"
+                        onClick={() => handleViewCandidate(candidate)}
+                        className="ml-auto flex items-center gap-1 rounded-md px-2 py-1 text-[11.5px] font-medium text-muted transition-colors duration-120 hover:bg-surface-secondary hover:text-ink"
+                      >
+                        <Eye className="size-3.5" strokeWidth={1.75} aria-hidden />
+                        View profile
+                      </button>
                     </div>
-                  </div>
-                </div>
+                  </article>
+                </li>
               )
             })}
-          </div>
+          </ul>
 
-          {/* Pagination */}
-          {totalPages > 1 && (
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <p className="text-[12px] text-muted">
-                Showing <span className="font-data">{startRow}–{endRow}</span> of{" "}
-                <span className="font-data">{candidatesData?.total}</span> candidates
-              </p>
-              <div className="flex items-center gap-1">
-                <button
-                  disabled={page <= 1}
-                  onClick={() => setPage((p) => Math.max(1, p - 1))}
-                  className="flex size-8 items-center justify-center rounded-md border border-border bg-surface text-muted transition-colors duration-120 hover:bg-surface-secondary hover:text-ink disabled:cursor-not-allowed disabled:opacity-30"
-                  aria-label="Previous page"
-                >
-                  <ChevronLeft className="size-3.5" strokeWidth={1.5} />
-                </button>
-                {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
-                  let pageNum: number
-                  if (totalPages <= 5) pageNum = i + 1
-                  else if (page <= 3) pageNum = i + 1
-                  else if (page >= totalPages - 2) pageNum = totalPages - 4 + i
-                  else pageNum = page - 2 + i
-                  return (
-                    <button
-                      key={pageNum}
-                      onClick={() => setPage(pageNum)}
-                      className={cn(
-                        "flex size-8 items-center justify-center rounded-md text-[12px] font-medium transition-colors duration-120",
-                        pageNum === page
-                          ? "bg-ink text-canvas"
-                          : "border border-border bg-surface text-muted hover:bg-surface-secondary hover:text-ink",
-                      )}
-                    >
-                      {pageNum}
-                    </button>
-                  )
-                })}
-                <button
-                  disabled={page >= totalPages}
-                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                  className="flex size-8 items-center justify-center rounded-md border border-border bg-surface text-muted transition-colors duration-120 hover:bg-surface-secondary hover:text-ink disabled:cursor-not-allowed disabled:opacity-30"
-                  aria-label="Next page"
-                >
-                  <ChevronRight className="size-3.5" strokeWidth={1.5} />
-                </button>
-              </div>
-            </div>
-          )}
+          <Pagination
+            page={page}
+            totalPages={totalPages}
+            onPageChange={setPage}
+            summary={
+              candidatesData?.total
+                ? `Showing ${startRow}–${endRow} of ${candidatesData.total} candidates`
+                : undefined
+            }
+          />
         </>
       )}
 
-      {/* Hire confirmation */}
-      <Dialog open={showHireConfirm} onOpenChange={(o) => { if (!o) { setShowHireConfirm(false); setHireCandidate(null) } }}>
+      <Dialog
+        open={showHireConfirm}
+        onOpenChange={(o) => {
+          if (!o) {
+            setShowHireConfirm(false)
+            setHireCandidate(null)
+          }
+        }}
+      >
         <DialogContent className="sm:max-w-md">
-          <div className="px-6 pt-6 pb-2">
+          <div className="px-6 pb-2 pt-6">
             <div className="mb-3 flex items-center gap-2 text-success">
-              <BadgeCheck className="size-5" strokeWidth={1.5} />
-              <h2 className="text-[15px] font-medium text-ink">Mark as Hired</h2>
+              <BadgeCheck className="size-5" strokeWidth={1.75} aria-hidden />
+              <h2 className="text-[15px] font-medium text-ink">Mark as hired</h2>
             </div>
-            <p className="text-[13px] text-muted">
-              Confirm that <strong className="text-ink">{hireCandidate?.full_name || "this candidate"}</strong> has been hired.
+            <p className="text-[13px] leading-relaxed text-muted">
+              This records that{" "}
+              <strong className="font-medium text-ink">
+                {hireCandidate?.full_name || "this candidate"}
+              </strong>{" "}
+              accepted and started. Hired is a terminal stage — it cannot be undone from
+              the pipeline.
             </p>
           </div>
           <div className="flex justify-end gap-2 px-6 pb-6">
-            <Button variant="outline" size="sm" onClick={() => { setShowHireConfirm(false); setHireCandidate(null) }} disabled={hireLoading}>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setShowHireConfirm(false)
+                setHireCandidate(null)
+              }}
+              disabled={hireLoading}
+            >
               Cancel
             </Button>
-            <Button size="sm" onClick={confirmHire} disabled={hireLoading}>
-              {hireLoading && <Loader2 className="size-3.5 animate-spin" />}
-              Confirm Hired
+            <Button variant="action" size="sm" onClick={confirmHire} disabled={hireLoading}>
+              {hireLoading && <Loader2 className="animate-spin" />}
+              Confirm hire
             </Button>
           </div>
         </DialogContent>
@@ -572,8 +667,11 @@ function CandidatesContent() {
 
       <CandidateDetailModal
         open={showDetailModal}
-        onClose={() => { setShowDetailModal(false); setSelectedCandidate(null) }}
-        candidate={selectedCandidate || null}
+        onClose={() => {
+          setShowDetailModal(false)
+          setSelectedCandidate(null)
+        }}
+        candidate={selectedCandidate}
         onStatusChange={() => mutateCandidates()}
       />
 
@@ -592,7 +690,23 @@ function CandidatesContent() {
 
 export default function CandidatesPage() {
   return (
-    <Suspense fallback={null}>
+    <Suspense
+      fallback={
+        <div className="space-y-5">
+          <div className="h-9 w-56 animate-pulse-soft rounded-lg bg-track" />
+          <div className="grid grid-cols-2 gap-2.5 xl:grid-cols-4">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <Skeleton key={i} className="h-[104px] rounded-xl" />
+            ))}
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <Skeleton key={i} className="h-[240px] rounded-xl" />
+            ))}
+          </div>
+        </div>
+      }
+    >
       <CandidatesContent />
     </Suspense>
   )

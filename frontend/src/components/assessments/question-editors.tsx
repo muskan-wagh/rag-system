@@ -7,7 +7,7 @@ export const inputCls =
   "w-full h-9 px-3 text-sm rounded-lg border border-border bg-surface focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary disabled:opacity-60"
 export const textareaCls =
   "w-full px-3 py-2 text-sm rounded-lg border border-border bg-surface focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary disabled:opacity-60"
-export const labelCls = "text-xs font-medium text-muted-foreground mb-1 block"
+export const labelCls = "text-xs font-medium text-muted mb-1 block"
 export const monoCls =
   "w-full px-3 py-2 text-[13px] font-mono rounded-lg border border-border bg-surface focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
 

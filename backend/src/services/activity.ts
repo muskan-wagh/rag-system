@@ -17,6 +17,7 @@ export type ActionType =
   | 'candidate_added_to_pool'
   | 'assessment_created'
   | 'assessment_published'
+  | 'assessment_generated'
   | 'assessment_invite_sent';
 
 export async function logActivity(params: {

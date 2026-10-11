@@ -51,12 +51,12 @@ interface ResumeDrawerProps {
 function statusClasses(status?: string): string {
   const s = (status || "").toLowerCase()
   if (s === "hired" || s === "offered" || s === "pending offer")
-    return "border-green-500/25 bg-green-500/10 text-green-700 dark:text-green-400"
-  if (s === "rejected") return "border-red-500/25 bg-red-500/10 text-red-600 dark:text-red-400"
+    return "border-success/25 bg-success/10 text-success dark:text-success"
+  if (s === "rejected") return "border-danger/25 bg-danger/10 text-danger dark:text-danger"
   if (s.includes("interview") || s === "technical round" || s === "hr round")
-    return "border-blue-500/25 bg-blue-500/10 text-blue-700 dark:text-blue-400"
+    return "border-info/25 bg-info/10 text-info dark:text-info"
   if (s === "applied" || s === "screening" || s === "shortlisted")
-    return "border-amber-500/25 bg-amber-500/10 text-amber-700 dark:text-amber-400"
+    return "border-warning/25 bg-warning/10 text-warning dark:text-warning"
   return "border-border bg-surface-secondary text-muted"
 }
 
@@ -293,7 +293,7 @@ export function ResumeDrawer({ candidate, result, onClose, onAddToPool, onEmail 
                   size="xs"
                   onClick={handleScreening}
                   disabled={screening || isTerminal || status === "Screening"}
-                  className="h-8 border-amber-500/25 text-[12px] text-amber-700 hover:bg-amber-500/10 hover:text-amber-800 dark:text-amber-400 dark:hover:text-amber-300"
+                  className="h-8 border-warning/25 text-[12px] text-warning hover:bg-warning/10 hover:text-warning dark:text-warning dark:hover:text-warning"
                 >
                   <Search className="size-3.5" strokeWidth={1.75} />
                   {screening ? "Updating..." : "Screening"}
@@ -303,7 +303,7 @@ export function ResumeDrawer({ candidate, result, onClose, onAddToPool, onEmail 
                   size="xs"
                   onClick={() => setShowScheduleModal(true)}
                   disabled={isTerminal}
-                  className="h-8 border-blue-500/25 text-[12px] text-blue-700 hover:bg-blue-500/10 dark:text-blue-400"
+                  className="h-8 border-info/25 text-[12px] text-info hover:bg-info/10 dark:text-info"
                 >
                   <Calendar className="size-3.5" strokeWidth={1.75} />
                   Interview
@@ -312,7 +312,7 @@ export function ResumeDrawer({ candidate, result, onClose, onAddToPool, onEmail 
                   size="xs"
                   onClick={() => setShowOfferModal(true)}
                   disabled={isTerminal || isHired}
-                  className="h-8 bg-green-600 text-[12px] text-white hover:bg-green-700"
+                  className="h-8 bg-success text-[12px] text-white hover:bg-success"
                 >
                   <CircleCheck className="size-3.5" strokeWidth={1.75} />
                   Hire
@@ -322,7 +322,7 @@ export function ResumeDrawer({ candidate, result, onClose, onAddToPool, onEmail 
                   size="xs"
                   onClick={() => setShowRejectModal(true)}
                   disabled={isTerminal}
-                  className="h-8 border-red-500/25 text-[12px] text-red-600 hover:bg-red-500/10 dark:text-red-400"
+                  className="h-8 border-danger/25 text-[12px] text-danger hover:bg-danger/10 dark:text-danger"
                 >
                   <CircleX className="size-3.5" strokeWidth={1.75} />
                   Reject

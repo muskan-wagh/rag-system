@@ -66,14 +66,15 @@ export function EmailCandidateModal({
     try {
       const res = await api.sendInterviewEmail(candidateId, undefined, subject, body)
       if (res.success) {
-        toast.success(`Email sent to ${candidateName}`)
+        // Queued, not delivered — the worker still has to hand it to Resend.
+        toast.success(`Email queued for ${candidateName}`)
         onClose()
         onSuccess?.()
       } else {
-        toast.error(res.error || "Failed to send email")
+        toast.error(res.error || "Failed to queue email")
       }
     } catch {
-      toast.error("Failed to send email")
+      toast.error("Failed to queue email")
     } finally {
       setSending(false)
     }
@@ -87,7 +88,7 @@ export function EmailCandidateModal({
             <Mail className="h-5 w-5 text-primary" />
             <h2 className="text-lg font-semibold">Send Email to {candidateName}</h2>
           </div>
-          <p className="text-sm text-muted-foreground mt-0.5">
+          <p className="text-sm text-muted mt-0.5">
             AI-generated interview invitation — review and edit before sending
           </p>
         </div>
@@ -96,13 +97,13 @@ export function EmailCandidateModal({
           <div className="flex items-center justify-center py-12">
             <div className="flex flex-col items-center gap-2">
               <Sparkles className="h-8 w-8 text-primary animate-pulse" />
-              <p className="text-sm text-muted-foreground">Generating email template with AI...</p>
+              <p className="text-sm text-muted">Generating email template with AI...</p>
             </div>
           </div>
         ) : (
           <div className="space-y-4 px-6 pb-6">
             <div>
-              <label className="text-xs font-medium text-muted-foreground mb-1 block">Subject</label>
+              <label className="text-xs font-medium text-muted mb-1 block">Subject</label>
               <input
                 type="text"
                 value={subject}
@@ -111,7 +112,7 @@ export function EmailCandidateModal({
               />
             </div>
             <div>
-              <label className="text-xs font-medium text-muted-foreground mb-1 block">Email Body</label>
+              <label className="text-xs font-medium text-muted mb-1 block">Email Body</label>
               <textarea
                 value={body}
                 onChange={(e) => setBody(e.target.value)}

@@ -161,7 +161,7 @@ export default function JobScreeningPage() {
   return (
     <div className="pt-6 space-y-6">
       <Link href={ROUTES.jobs}>
-        <span className="mb-1 inline-flex items-center text-xs text-muted-foreground hover:text-foreground">
+        <span className="mb-1 inline-flex items-center text-xs text-muted hover:text-foreground">
           <ArrowLeft className="mr-1.5 h-3.5 w-3.5" /> Back to Jobs
         </span>
       </Link>
@@ -193,8 +193,8 @@ export default function JobScreeningPage() {
           <Skeleton className="h-48 w-full" />
         </div>
       ) : error ? (
-        <div className="rounded-xl border border-red-500/25 bg-red-500/5 p-6 text-center">
-          <p role="alert" className="text-sm text-red-600">{error}</p>
+        <div className="rounded-xl border border-danger/25 bg-danger/5 p-6 text-center">
+          <p role="alert" className="text-sm text-danger">{error}</p>
           <Button size="sm" variant="outline" className="mt-3" onClick={() => { setLoading(true); loadAll(); }}>
             <RotateCcw className="h-3.5 w-3.5 mr-1" /> Retry
           </Button>
@@ -206,21 +206,21 @@ export default function JobScreeningPage() {
               <Badge variant={isLive ? "secondary" : isFailed ? "destructive" : "success"}>
                 {queueLabel(status?.queueState || "none")}
               </Badge>
-              <span className="text-xs text-muted-foreground tabular-nums">
+              <span className="text-xs text-muted tabular-nums">
                 {status?.screened || 0} / {status?.totalCandidates || 0} screened
                 {status?.lastUpdated ? ` · updated ${new Date(status.lastUpdated).toLocaleString()}` : ""}
               </span>
               <span className="ml-auto flex gap-3 text-xs tabular-nums">
-                <span className="text-emerald-600">✓ {status?.passed || 0} passed</span>
-                <span className="text-red-600">✗ {status?.failed || 0} failed</span>
-                <span className="text-amber-600">◐ {status?.overridden || 0} overridden</span>
+                <span className="text-success">✓ {status?.passed || 0} passed</span>
+                <span className="text-danger">✗ {status?.failed || 0} failed</span>
+                <span className="text-warning">◐ {status?.overridden || 0} overridden</span>
               </span>
             </div>
             <div className="mt-3">
               <ProgressBar value={progressPct} />
             </div>
             {isFailed ? (
-              <p className="mt-2 text-xs text-red-600">
+              <p className="mt-2 text-xs text-danger">
                 The bulk job failed (partial results preserved). Retry re-queues safely — completed work is not duplicated.
               </p>
             ) : null}
@@ -256,14 +256,14 @@ export default function JobScreeningPage() {
                             </Link>
                             <Badge variant={statusVariant(row.status)}>{row.status}</Badge>
                             {row.recruiter_override ? (
-                              <span className="text-[11px] text-muted-foreground" title={row.override_reason}>
+                              <span className="text-[11px] text-muted" title={row.override_reason}>
                                 override: {row.override_reason.slice(0, 60)}
                               </span>
                             ) : (
-                              <span className="text-[11px] text-muted-foreground">AI: {row.ai_status}</span>
+                              <span className="text-[11px] text-muted">AI: {row.ai_status}</span>
                             )}
                           </div>
-                          <div className="mt-1.5 grid max-w-xl grid-cols-2 gap-x-4 gap-y-1 text-[11px] text-muted-foreground tabular-nums md:grid-cols-4">
+                          <div className="mt-1.5 grid max-w-xl grid-cols-2 gap-x-4 gap-y-1 text-[11px] text-muted tabular-nums md:grid-cols-4">
                             <span>Semantic {Math.round(row.semantic_score)}%</span>
                             <span>Skills {Math.round(row.skills_score)}%</span>
                             <span>Exp {Math.round(row.experience_score)}%</span>
@@ -281,18 +281,18 @@ export default function JobScreeningPage() {
 
                       <div className="mt-2 flex flex-wrap gap-1.5">
                         {(row.matched_skills || []).slice(0, 8).map((s) => (
-                          <span key={`m-${s}`} className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-[11px] text-emerald-700 dark:text-emerald-300">
+                          <span key={`m-${s}`} className="rounded-full bg-success/10 px-2 py-0.5 text-[11px] text-success dark:text-success">
                             ✓ {s}
                           </span>
                         ))}
                         {(row.missing_skills || []).slice(0, 8).map((s) => (
-                          <span key={`x-${s}`} className="rounded-full bg-red-500/10 px-2 py-0.5 text-[11px] text-red-600 dark:text-red-400">
+                          <span key={`x-${s}`} className="rounded-full bg-danger/10 px-2 py-0.5 text-[11px] text-danger dark:text-danger">
                             ✗ {s}
                           </span>
                         ))}
                       </div>
                       {row.explanation ? (
-                        <p className="mt-2 max-w-3xl text-xs text-muted-foreground">{row.explanation}</p>
+                        <p className="mt-2 max-w-3xl text-xs text-muted">{row.explanation}</p>
                       ) : null}
 
                       {open ? (

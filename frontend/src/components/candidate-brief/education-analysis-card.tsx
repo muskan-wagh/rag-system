@@ -13,7 +13,7 @@ export function EducationAnalysisCard({ level, field, details }: EducationAnalys
     <div className="bg-surface rounded-xl border border-border p-5">
       <div className="flex items-center gap-2 mb-3">
         <GraduationCap className="h-4 w-4 text-brand" />
-        <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Education</h3>
+        <h3 className="text-xs font-medium text-muted uppercase tracking-wider">Education</h3>
       </div>
 
       <div className="flex items-center gap-3">
@@ -25,7 +25,7 @@ export function EducationAnalysisCard({ level, field, details }: EducationAnalys
             {level || "N/A"}{field ? ` in ${field}` : ""}
           </p>
           {details && (
-            <p className="text-xs text-muted-foreground mt-0.5">{details}</p>
+            <p className="text-xs text-muted mt-0.5">{details}</p>
           )}
         </div>
       </div>

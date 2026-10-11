@@ -5,10 +5,11 @@ import { candidateApi } from "@/lib/candidate-api"
 import { CodingEditor } from "@/components/assessment-take/coding-editor"
 import { HiringProgressTracker } from "@/components/hiring-progress-tracker"
 import { useInterviewRealtime } from "@/hooks/use-interview-realtime"
+import { InterviewVideoRoom } from "@/components/interview/interview-video-room"
 
 /**
  * Secure interview waiting room + SHARED live coding workspace.
- * Video stays external via meeting_link (provider-agnostic).
+ * Video/audio runs in-app over LiveKit (media only).
  * No private notes / evaluations / hidden scores are ever fetched here.
  * Server (REST + persisted coding session) is the source of truth;
  * WS only triggers refetch. Code edits debounce to REST with version
@@ -104,14 +105,14 @@ export function InterviewJoinView({ token, expectedStage }: { token: string; exp
     return (
       <main className="mx-auto max-w-3xl p-6">
         <h1 className="text-xl font-semibold">{expectedStage}</h1>
-        <p role="alert" className="mt-2 text-sm text-red-600">{error}</p>
+        <p role="alert" className="mt-2 text-sm text-danger">{error}</p>
       </main>
     )
   }
   if (!info) {
     return (
       <main className="mx-auto max-w-3xl p-6">
-        <p className="text-sm text-muted-foreground">Validating your secure interview link…</p>
+        <p className="text-sm text-muted">Validating your secure interview link…</p>
       </main>
     )
   }
@@ -129,7 +130,7 @@ export function InterviewJoinView({ token, expectedStage }: { token: string; exp
   return (
     <main className="mx-auto max-w-4xl space-y-4 p-4 md:p-6">
       <h1 className="text-xl font-semibold">{String(info.stage || expectedStage)}</h1>
-      <p className="text-sm text-muted-foreground">
+      <p className="text-sm text-muted">
         {String(info.scheduled_date || "")} {String(info.scheduled_time || "")} · {String(info.interview_type || "online")} · Status: {String(info.status || "")}
       </p>
 
@@ -137,35 +138,28 @@ export function InterviewJoinView({ token, expectedStage }: { token: string; exp
 
       <div className="rounded-xl border border-border p-4">
         <h2 className="mb-2 text-sm font-medium">Waiting room</h2>
-        <p className="text-sm text-muted-foreground">
-          Your interviewer will join shortly. Keep this page open. When it&apos;s time, join via the meeting link below, then return here for shared coding.
+        <p className="text-sm text-muted">
+          Your interviewer will join shortly. Keep this page open. Join the call below, then return
+          here for shared coding.
         </p>
-        {meetingLink ? (
-          <a
-            href={meetingLink}
-            target="_blank"
-            rel="noreferrer"
-            className="mt-3 inline-block rounded-md bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground"
-          >
-            Join meeting
-          </a>
-        ) : (
-          <p className="mt-3 text-sm">Meeting link will appear here once your recruiter adds it.</p>
-        )}
+        <div className="mt-3">
+          {/* LiveKit handles video/audio; coding sync stays on the WebSocket layer. */}
+          <InterviewVideoRoom role="candidate" fallbackUrl={meetingLink} />
+        </div>
       </div>
 
       <div className="rounded-xl border border-border p-4">
         <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
           <h2 className="text-sm font-medium">Shared coding workspace</h2>
-          <span className="text-xs text-muted-foreground">{workspaceStatus}</span>
+          <span className="text-xs text-muted">{workspaceStatus}</span>
         </div>
         {problem ? (
           <div className="mb-2 text-xs">
             <p className="font-medium">{String(problem.title)}</p>
-            <p className="mt-1 whitespace-pre-wrap text-muted-foreground">{String(problem.description || "").slice(0, 2000)}</p>
+            <p className="mt-1 whitespace-pre-wrap text-muted">{String(problem.description || "").slice(0, 2000)}</p>
           </div>
         ) : (
-          <p className="mb-2 text-xs text-muted-foreground">No coding problem shared yet — your interviewer will push one when ready (JavaScript).</p>
+          <p className="mb-2 text-xs text-muted">No coding problem shared yet — your interviewer will push one when ready (JavaScript).</p>
         )}
         <CodingEditor value={code} onChange={onCodeChange} language="javascript" height={300} />
         <div className="mt-2 flex gap-2">
@@ -177,7 +171,7 @@ export function InterviewJoinView({ token, expectedStage }: { token: string; exp
           </button>
         </div>
         {output ? (
-          <pre className="mt-2 max-h-44 overflow-auto rounded-md bg-black/80 p-2 text-[11px] text-green-200">
+          <pre className="mt-2 max-h-44 overflow-auto rounded-md bg-black/80 p-2 text-[11px] text-success">
             {String(output.stdout || output.stderr || JSON.stringify(output).slice(0, 2000))}
           </pre>
         ) : null}

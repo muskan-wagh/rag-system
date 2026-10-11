@@ -120,7 +120,7 @@ export default function PoolDetailPage() {
                   </Link>
                   <button
                     onClick={() => handleRemove(pc.candidate_id)}
-                    className="p-1.5 rounded-lg hover:bg-red-50 text-muted hover:text-red-500"
+                    className="p-1.5 rounded-lg hover:bg-danger/8 text-muted hover:text-danger"
                   >
                     <Trash2 className="h-3.5 w-3.5" />
                   </button>

@@ -13,9 +13,9 @@ export function ResumePreviewCard({ rawResumeText, resumeFileUrl }: ResumePrevie
       <div className="bg-surface rounded-xl border border-border p-5">
         <div className="flex items-center gap-2 mb-2">
           <FileText className="h-4 w-4 text-brand" />
-          <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Resume</h3>
+          <h3 className="text-xs font-medium text-muted uppercase tracking-wider">Resume</h3>
         </div>
-        <p className="text-sm text-muted-foreground">No resume data available.</p>
+        <p className="text-sm text-muted">No resume data available.</p>
       </div>
     )
   }
@@ -25,7 +25,7 @@ export function ResumePreviewCard({ rawResumeText, resumeFileUrl }: ResumePrevie
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
           <FileText className="h-4 w-4 text-brand" />
-          <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Resume</h3>
+          <h3 className="text-xs font-medium text-muted uppercase tracking-wider">Resume</h3>
         </div>
         {resumeFileUrl && (
           <a
@@ -41,7 +41,7 @@ export function ResumePreviewCard({ rawResumeText, resumeFileUrl }: ResumePrevie
       </div>
 
       {rawResumeText && (
-        <div className="max-h-60 overflow-y-auto text-xs text-muted-foreground leading-relaxed whitespace-pre-wrap font-mono bg-muted/30 rounded-lg p-3">
+        <div className="max-h-60 overflow-y-auto text-xs text-muted leading-relaxed whitespace-pre-wrap font-mono bg-muted/30 rounded-lg p-3">
           {rawResumeText}
         </div>
       )}

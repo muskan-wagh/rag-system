@@ -96,7 +96,7 @@ export const CandidateCard = memo(function CandidateCard({
       transition={{ duration: 0.35, delay: Math.min(index * 0.04, 0.3) }}
       className="h-full"
     >
-      <div className="flex h-full flex-col rounded-xl border border-border bg-surface p-4 transition-all duration-150 hover:border-border-hover hover:shadow-[0_8px_28px_rgba(0,0,0,0.28)] sm:p-5">
+      <div className="flex h-full flex-col rounded-xl border border-border bg-surface p-4 transition-all duration-150 hover:border-border-hover hover:shadow-lg sm:p-5">
         {/* Header: avatar + name + score */}
         <div className="flex items-start gap-3">
           <div className="flex size-11 shrink-0 items-center justify-center rounded-full bg-soft ring-1 ring-border">

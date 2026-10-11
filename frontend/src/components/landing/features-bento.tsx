@@ -1,108 +1,159 @@
 "use client"
 
 import { motion } from "framer-motion"
-import { Brain, Search, GitCompare, FileText, Shield, Zap, Sparkles, Clock, BarChart3 } from "lucide-react"
+import {
+  Bot,
+  CalendarClock,
+  Code2,
+  FileBarChart,
+  Layers,
+  Send,
+  ShieldCheck,
+  Users,
+} from "lucide-react"
+import type { LucideIcon } from "lucide-react"
+import { MarketingSection } from "@/components/ui/marketing-section"
 import { SectionHeader } from "@/components/ui/section-header"
+import { cn } from "@/lib/utils"
 
-const features = [
+interface Feature {
+  icon: LucideIcon
+  title: string
+  body: string
+  /** Columns out of 6 on large screens. */
+  span: 2 | 3 | 4 | 6
+  /** Rendered under the copy on the lead card only. */
+  visual?: React.ReactNode
+}
+
+const FEATURES: Feature[] = [
   {
-    icon: Brain,
-    title: "Resume Intelligence",
-    description: "AI extracts structured data from resumes with high accuracy — skills, experience, education, and more.",
-    metric: "98% accuracy",
-    metricIcon: Sparkles,
+    icon: Bot,
+    title: "Semantic screening, not keyword counting",
+    body: "Resumes are embedded and retrieved against the job description, so a candidate who solved the problem without using your exact keyword still ranks. Every score ships with the reasoning that produced it, and you can override any of them.",
+    span: 4,
+    visual: (
+      <ul className="mt-6 grid gap-2 sm:grid-cols-3">
+        {[
+          { label: "Semantic", value: 35 },
+          { label: "Skills", value: 30 },
+          { label: "Experience", value: 20 },
+        ].map((w) => (
+          <li key={w.label} className="rounded-lg border border-white/[0.08] bg-white/[0.02] p-3">
+            <p className="flex items-baseline justify-between">
+              <span className="text-[11.5px] text-white/50">{w.label}</span>
+              <span className="font-data text-[13px] font-medium text-white">{w.value}%</span>
+            </p>
+            <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-white/[0.08]">
+              <div
+                className="h-full rounded-full bg-gradient-to-r from-[#CBE2D2]/80 to-white/90"
+                style={{ width: `${w.value * 2.5}%` }}
+              />
+            </div>
+          </li>
+        ))}
+      </ul>
+    ),
   },
   {
-    icon: Zap,
-    title: "Smart Ranking",
-    description: "Hybrid ranking engine combines semantic similarity with weighted skill, experience, and education scores.",
-    metric: "95% faster screening",
-    metricIcon: Clock,
+    icon: Users,
+    title: "Compare before you decide",
+    body: "Put candidates side by side on score, skills and gaps, then act on the difference.",
+    span: 2,
   },
   {
-    icon: Search,
-    title: "Semantic Search",
-    description: "Find candidates by meaning, not keywords. Natural language understanding surfaces the best matches.",
-    metric: "3x more matches",
-    metricIcon: BarChart3,
+    icon: CalendarClock,
+    title: "Scheduling built in",
+    body: "Invite candidates to a stage and send the confirmation automatically.",
+    span: 2,
   },
   {
-    icon: GitCompare,
-    title: "Side-by-Side Comparison",
-    description: "Compare candidates head-to-head with AI-powered breakdowns of strengths, weaknesses, and fit.",
-    metric: "10x faster decisions",
-    metricIcon: Zap,
+    icon: Code2,
+    title: "Live coding, observed live",
+    body: "Push a problem into the shared editor and watch the code and its test results as it is written.",
+    span: 2,
   },
   {
-    icon: FileText,
-    title: "One-Click Resume Dropbox",
-    description: "Generate a unique application link. Candidates upload directly — no manual collection needed.",
-    metric: "Zero manual work",
-    metricIcon: Sparkles,
+    icon: FileBarChart,
+    title: "Reports, not screenshots",
+    body: "Generate a candidate report from the full history, download it as a PDF, and send it to the candidate.",
+    span: 2,
   },
   {
-    icon: Shield,
-    title: "Bias Detection",
-    description: "AI scans job descriptions for biased language and suggests inclusive alternatives automatically.",
-    metric: "Fair hiring guaranteed",
-    metricIcon: Shield,
+    icon: Layers,
+    title: "Pools and saved searches",
+    body: "Group candidates into talent pools and save a search with its filters to re-run later.",
+    span: 2,
+  },
+  {
+    icon: Send,
+    title: "Outreach in one place",
+    body: "Draft and send candidate emails from the profile, with the thread kept against the record.",
+    span: 2,
+  },
+  {
+    icon: ShieldCheck,
+    title: "Transitions you cannot get wrong",
+    body: "Stages never skip or move backwards, and Offer to Hired is recruiter-only — no score or automation can hire on your behalf.",
+    span: 6,
   },
 ]
 
-const containerVariants = {
-  hidden: { opacity: 0 },
-  visible: {
-    opacity: 1,
-    transition: { staggerChildren: 0.08 },
-  },
-}
-
-const cardVariants = {
-  hidden: { opacity: 0, y: 24 },
-  visible: { opacity: 1, y: 0, transition: { duration: 0.4, ease: [0.25, 0.1, 0.25, 1] as const } },
-}
-
 export function FeaturesBento() {
   return (
-    <section id="features" className="w-full py-20 md:py-28 relative overflow-hidden">
-      <div className="mx-auto max-w-7xl px-4 md:px-8 relative">
-        <SectionHeader
-          label="Features"
-          title="Everything you need to"
-          highlight="hire smarter"
-          description="AI-powered tools that transform how you discover, evaluate, and rank candidates"
-        />
+    <MarketingSection id="features">
+      <SectionHeader
+        label="Capabilities"
+        title={
+          <>
+            Everything the workflow needs,{" "}
+            <span className="text-white/45">nothing it doesn&rsquo;t.</span>
+          </>
+        }
+        description="Each capability is part of one connected system, so a decision made at screening is the same decision you can defend at offer stage."
+      />
 
-        <motion.div
-          variants={containerVariants}
-          initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true, margin: "-60px" }}
-          className="grid md:grid-cols-2 lg:grid-cols-3 gap-4"
-        >
-          {features.map((feature) => (
-            <motion.div key={feature.title} variants={cardVariants}>
-              <div className="h-full flex flex-col bg-surface border border-border rounded-xl hover:border-border-hover transition-all duration-120 p-6">
-                <div className="flex h-11 w-11 items-center justify-center rounded-[10px] bg-info mb-5">
-                  <feature.icon className="h-5 w-5 text-white" />
-                </div>
-                <h3 className="text-[15px] font-medium text-ink mb-2" style={{ fontFamily: "var(--font-inter)" }}>{feature.title}</h3>
-                <p className="text-sm text-muted leading-relaxed flex-1" style={{ fontFamily: "var(--font-inter)" }}>{feature.description}</p>
-                <div className="mt-5 pt-4 border-t border-border flex items-center gap-2">
-                  <feature.metricIcon className="h-3.5 w-3.5 text-muted" />
-                  <span className="text-xs font-medium text-muted" style={{ fontFamily: "var(--font-inter)" }}>
-                    {(() => {
-                      const num = feature.metric.match(/^[\d]+[%x]?/)?.[0]
-                      const txt = num ? feature.metric.slice(num.length).trim() : feature.metric
-                      return <>{num && <span className="font-data text-ink">{num} </span>}{txt}</>
-                    })()}
-                  </span>
-                </div>
+      <div className="mt-14 grid gap-3 sm:grid-cols-2 lg:grid-cols-6">
+        {FEATURES.map((feature, i) => (
+          <motion.article
+            key={feature.title}
+            initial={{ opacity: 0, y: 18 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, margin: "-40px" }}
+            transition={{ duration: 0.5, delay: (i % 3) * 0.06, ease: [0.16, 1, 0.3, 1] }}
+            className={cn(
+              "group relative flex flex-col overflow-hidden rounded-2xl border border-white/[0.08] bg-white/[0.025] p-5 backdrop-blur-xl",
+              "transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)]",
+              "hover:-translate-y-1 hover:border-[#CBE2D2]/30 hover:bg-white/[0.045]",
+              "hover:shadow-[0_24px_60px_-28px_rgba(203,226,210,0.3)] sm:p-6",
+              feature.span === 2 && "lg:col-span-2",
+              feature.span === 3 && "lg:col-span-3",
+              feature.span === 4 && "lg:col-span-4",
+              feature.span === 6 && "lg:col-span-6",
+            )}
+          >
+            {/* Hairline that lights up along the top edge on hover. */}
+            <span
+              className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/25 to-transparent opacity-0 transition-opacity duration-500 group-hover:opacity-100"
+              aria-hidden
+            />
+
+            <div className="flex items-start gap-4">
+              <span className="flex size-9 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] text-[#CBE2D2] transition-all duration-500 group-hover:border-[#CBE2D2]/30 group-hover:bg-[#CBE2D2]/10 group-hover:shadow-[0_0_24px_-6px_rgba(203,226,210,0.5)]">
+                <feature.icon className="size-4" strokeWidth={1.75} aria-hidden />
+              </span>
+              <div className="min-w-0">
+                <h3 className="text-balance text-[15px] font-medium leading-snug tracking-tight text-white">
+                  {feature.title}
+                </h3>
+                <p className="mt-2 text-[13px] leading-relaxed text-white/50">{feature.body}</p>
               </div>
-            </motion.div>
-          ))}
-        </motion.div>
+            </div>
+
+            {feature.visual && <div className="mt-auto pt-6">{feature.visual}</div>}
+          </motion.article>
+        ))}
       </div>
-    </section>
+    </MarketingSection>
   )
 }

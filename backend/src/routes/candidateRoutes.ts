@@ -55,8 +55,15 @@ import {
   sendReportSchema,
   finalDecisionSchema,
 } from '@/middleware/validate';
+import { requireOwnedCandidateMiddleware } from '@/middleware/ownership';
 
 const router = Router();
+
+// Ownership boundary for every `/:id` route below. The recruiter auth
+// middleware only proves identity; this proves the candidate belongs to that
+// recruiter. Without it, any authenticated recruiter could read PII, private
+// notes, and mutate (hire/reject/email) any candidate in the system.
+router.use('/:id', requireOwnedCandidateMiddleware);
 
 router.get('/', getAllCandidatesHandler);
 router.post('/search', validate(searchSchema), searchCandidatesHandler);

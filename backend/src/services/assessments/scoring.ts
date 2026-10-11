@@ -66,6 +66,17 @@ function questionRequiresOrder(payload: Record<string, unknown>): boolean {
   return /order\s+by|sorted|in\s+order/.test(text);
 }
 
+/** Collapse whitespace, strip trailing semicolons and unify spacing for text compare. */
+export function normalizeSqlText(value: unknown): string {
+  return String(value ?? '')
+    .replace(/--[^\n]*/g, ' ')
+    .replace(/\/\*[\s\S]*?\*\//g, ' ')
+    .replace(/[;\s]+/g, ' ')
+    .replace(/\s*([(),=<>])\s*/g, '$1')
+    .trim()
+    .toLowerCase();
+}
+
 export function scoreQuestion(input: ScoreInput): QuestionScore {
   const maxScore = Number(input.marks) || 0;
   const answer = input.answer || {};
@@ -91,23 +102,56 @@ export function scoreQuestion(input: ScoreInput): QuestionScore {
       return { score, maxScore, isCorrect: ratio === 1 };
     }
     case 'sql': {
-      const expected = parseResultSet(
-        input.payload.expected_result ?? input.payload.expected_query_result,
-      );
-      const given = parseResultSet(
+      // Two supported grading modes.
+      //
+      // 1. RESULT-SET mode — a SQL executor produced rows for the candidate's
+      //    query. Compare normalized result sets.
+      // 2. QUERY-TEXT mode — no executor is configured (Judge0 CE cannot run
+      //    SQL), so the submitted query text is compared against
+      //    `expected_query`.
+      //
+      // Previously this read only `result`/`rows`/`query_result`, but the
+      // candidate UI persists answers as `{ query }`. Nothing ever matched, so
+      // EVERY SQL question scored 0 regardless of the answer.
+      const givenRows = parseResultSet(
         (answer as Record<string, unknown>).result ??
           (answer as Record<string, unknown>).rows ??
           (answer as Record<string, unknown>).query_result,
       );
-      // Empty submission never passes.
-      if (given.length === 0) return { score: 0, maxScore, isCorrect: false };
-      const respectOrder = questionRequiresOrder(input.payload);
-      const ok =
-        normalizeSqlResultSet(given, respectOrder) === normalizeSqlResultSet(expected, respectOrder);
+      const expectedRows = parseResultSet(
+        input.payload.expected_result ?? input.payload.expected_query_result,
+      );
+
+      if (expectedRows.length > 0) {
+        if (givenRows.length === 0) return { score: 0, maxScore, isCorrect: false };
+        const respectOrder = questionRequiresOrder(input.payload);
+        const ok =
+          normalizeSqlResultSet(givenRows, respectOrder) ===
+          normalizeSqlResultSet(expectedRows, respectOrder);
+        return { score: ok ? maxScore : 0, maxScore, isCorrect: ok };
+      }
+
+      const submittedQuery = String(
+        (answer as Record<string, unknown>).query ??
+          (answer as Record<string, unknown>).sql ??
+          '',
+      ).trim();
+      if (!submittedQuery) return { score: 0, maxScore, isCorrect: false };
+
+      const expectedQuery = String(
+        input.payload.expected_query ?? input.payload.expected_sql ?? '',
+      ).trim();
+      if (!expectedQuery) {
+        // Neither an expected result set nor an expected query: nothing
+        // gradable was authored, so never award marks.
+        return { score: 0, maxScore, isCorrect: false };
+      }
+      const ok = normalizeSqlText(submittedQuery) === normalizeSqlText(expectedQuery);
       return { score: ok ? maxScore : 0, maxScore, isCorrect: ok };
     }
     case 'subjective': {
-      // Manual review only — NULL, never zero (correction #13).
+      // Manual review only — NULL, never zero. A recruiter must grade these
+      // through the grading endpoint; an ungraded answer is never a failure.
       return { score: null, maxScore, isCorrect: null };
     }
     default:

@@ -83,7 +83,7 @@ export default function NewAssessmentPage() {
         title="New assessment"
         description="Start a draft — you will add questions, settings, and invitations next."
       />
-      <div className="space-y-4 rounded-lg border border-border bg-surface p-4 sm:p-5">
+      <div className="space-y-4 rounded-xl border border-border bg-surface p-4 shadow-xs sm:p-5">
         <div>
           <label className={labelCls}>Assessment name</label>
           <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Backend Engineer Screen" className={inputCls} />

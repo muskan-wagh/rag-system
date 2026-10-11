@@ -75,7 +75,7 @@ export default function SavedSearchesPage() {
       />
 
       {showNewForm && (
-        <form onSubmit={handleCreate} className="space-y-3 rounded-lg border border-border bg-surface p-4">
+        <form onSubmit={handleCreate} className="space-y-3 rounded-xl border border-border bg-surface p-4 shadow-xs">
           <div className="flex items-start justify-between gap-3">
             <p className="text-[13px] font-medium text-ink">Save a new search</p>
             <button

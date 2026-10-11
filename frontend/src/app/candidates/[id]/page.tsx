@@ -37,7 +37,8 @@ import useSWR, { useSWRConfig } from "swr"
 import { useApi } from "@/hooks/use-api"
 import { ROUTES, getInitials } from "@/lib/constants"
 import { formatDate } from "@/lib/helpers"
-import { StatusDot } from "@/components/ui/status-dot"
+import { StageBadge } from "@/components/ui/stage-badge"
+import { stageRank, isTerminalStage } from "@/lib/pipeline"
 import { Button } from "@/components/ui/button"
 import type { CandidateBrief, ApiResponse } from "@/lib/types"
 import { GmailOutreachModal } from "@/components/gmail-outreach-modal"
@@ -75,18 +76,6 @@ const TABS = [
   { id: "resume", label: "Resume", icon: FileText },
   { id: "parsed", label: "Parsed Data", icon: Database },
 ]
-
-function statusClasses(status?: string): string {
-  const s = (status || "").toLowerCase()
-  if (s === "hired" || s === "offered" || s === "pending offer")
-    return "border-green-500/25 bg-green-500/10 text-green-700 dark:text-green-400"
-  if (s === "rejected") return "border-red-500/25 bg-red-500/10 text-red-600 dark:text-red-400"
-  if (s.includes("interview") || s === "technical round" || s === "hr round")
-    return "border-blue-500/25 bg-blue-500/10 text-blue-700 dark:text-blue-400"
-  if (s === "applied" || s === "screening" || s === "shortlisted")
-    return "border-amber-500/25 bg-amber-500/10 text-amber-700 dark:text-amber-400"
-  return "border-border bg-surface-secondary text-muted"
-}
 
 function cleanUrlLabel(url: string): string {
   try {
@@ -155,12 +144,12 @@ function Section({
   children: React.ReactNode
 }) {
   return (
-    <section className="rounded-xl border border-border bg-surface p-4 sm:p-5">
-      <div className="mb-3 flex items-center gap-2">
-        <span className="flex size-7 shrink-0 items-center justify-center rounded-md bg-surface-secondary text-muted">
-          <Icon className="size-3.5" strokeWidth={1.75} />
+    <section className="rounded-xl border border-border bg-surface p-4 shadow-xs sm:p-5">
+      <div className="mb-3.5 flex items-center gap-2">
+        <span className="flex size-7 shrink-0 items-center justify-center rounded-lg border border-border bg-canvas text-muted">
+          <Icon className="size-3.5" strokeWidth={1.75} aria-hidden />
         </span>
-        <h3 className="text-[11px] font-semibold uppercase tracking-[0.07em] text-muted">{title}</h3>
+        <h3 className="text-[11px] font-medium uppercase tracking-[0.07em] text-muted">{title}</h3>
       </div>
       {children}
     </section>
@@ -170,24 +159,24 @@ function Section({
 function BriefSkeleton() {
   return (
     <div className="mx-auto w-full max-w-7xl flex-1 px-4 py-6 md:px-6 md:py-8">
-      <div className="mb-6 h-4 w-32 animate-pulse rounded bg-muted" />
+      <div className="mb-6 h-4 w-32 animate-pulse-soft rounded bg-track" />
       <div className="grid gap-5 lg:grid-cols-3">
         <div className="space-y-5 lg:col-span-2">
           {[1, 2, 3].map((i) => (
-            <div key={i} className="animate-pulse rounded-xl border border-border bg-surface p-5">
-              <div className="mb-3 h-3 w-24 rounded bg-muted" />
+            <div key={i} className="animate-pulse-soft rounded-xl border border-border bg-surface p-5">
+              <div className="mb-3 h-3 w-24 rounded bg-track" />
               <div className="space-y-2">
-                <div className="h-3 w-full rounded bg-muted" />
-                <div className="h-3 w-3/4 rounded bg-muted" />
+                <div className="h-3 w-full rounded bg-track" />
+                <div className="h-3 w-3/4 rounded bg-track" />
               </div>
             </div>
           ))}
         </div>
         <div className="space-y-5">
           {[1, 2].map((i) => (
-            <div key={i} className="animate-pulse rounded-xl border border-border bg-surface p-5">
-              <div className="mb-3 h-3 w-24 rounded bg-muted" />
-              <div className="h-3 w-2/3 rounded bg-muted" />
+            <div key={i} className="animate-pulse-soft rounded-xl border border-border bg-surface p-5">
+              <div className="mb-3 h-3 w-24 rounded bg-track" />
+              <div className="h-3 w-2/3 rounded bg-track" />
             </div>
           ))}
         </div>
@@ -232,12 +221,12 @@ export default function CandidateDetailPage() {
     return (
       <div className="mx-auto w-full max-w-5xl flex-1 px-4 py-6 md:px-6 md:py-8">
         <Link href={ROUTES.candidateSearch}>
-          <span className="mb-4 inline-flex items-center text-xs text-muted-foreground hover:text-foreground">
+          <span className="mb-4 inline-flex items-center text-xs text-muted hover:text-ink">
             <ArrowLeft className="mr-1.5 h-3.5 w-3.5" strokeWidth={1.75} /> Back to Search
           </span>
         </Link>
         <div className="rounded-xl border border-border bg-surface p-10 text-center">
-          <p className="text-sm text-muted-foreground">{briefErr || "Candidate not found"}</p>
+          <p className="text-sm text-muted">{briefErr || "Candidate not found"}</p>
         </div>
       </div>
     )
@@ -260,14 +249,21 @@ export default function CandidateDetailPage() {
   const hasRisk = !!(record.flightRisk || record.growthTrajectory)
   const hasAiData = !!(candidate.summary || strengths.length > 0 || weaknesses.length > 0 || scores)
 
-  const nextStep =
-    status === "Applied" ? "Move to Screening to review fit"
-    : status === "Screening" ? "Schedule an interview to verify skills"
-    : status === "Interview Scheduled" ? "Complete the interview and record feedback"
-    : status === "Offered" ? "Close the offer and confirm joining"
-    : status === "Hired" ? "Candidate hired — no further action"
-    : status === "Rejected" ? "Candidate rejected — no further action"
-    : "Review and advance to the next stage"
+  // Derived from the canonical pipeline so the prompt always matches the real
+  // stage — including legacy status strings still present on older rows.
+  const nextStep = (() => {
+    if (isTerminalStage(status)) return "Hired — this candidate has been marked as hired."
+    const key = status.toLowerCase()
+    if (status === "Rejected" || status === "Withdrawn" || status === "Hold")
+      return `${status} — this candidate is out of the pipeline.`
+    if (key === "applied" || key === "shortlisted") return "Move to Screening to review fit."
+    if (key === "screening") return "Invite to an assessment, or schedule a screening call."
+    if (key === "assessment") return "Review the submitted assessment, then move to the technical round."
+    if (stageRank(status) === 3) return "Run the technical round and record the evaluation."
+    if (stageRank(status) === 4) return "Complete the HR round and record the outcome."
+    if (stageRank(status) === 5) return "Send the offer and confirm the joining date."
+    return "Review the evidence and advance to the next stage."
+  })()
 
   async function handleScreening() {
     setScreening(true)
@@ -308,7 +304,7 @@ export default function CandidateDetailPage() {
       </Link>
 
       {/* Header */}
-      <div className="mb-5 rounded-xl border border-border bg-surface p-4 sm:p-5 md:p-6">
+      <div className="mb-5 rounded-xl border border-border bg-surface p-4 shadow-xs sm:p-5 md:p-6">
         <div className="flex flex-col gap-4">
           <div className="flex items-start gap-3.5">
             <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-soft ring-1 ring-border">
@@ -319,15 +315,7 @@ export default function CandidateDetailPage() {
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5">
                 <h1 className="truncate text-[18px] font-semibold tracking-tight text-ink">{candidate.name}</h1>
-                <span
-                  className={cn(
-                    "inline-flex shrink-0 items-center gap-1.5 rounded-full border px-2 py-0.5 text-[11px] font-medium",
-                    statusClasses(status),
-                  )}
-                >
-                  <StatusDot status={status} />
-                  {status}
-                </span>
+                <StageBadge stage={status} showDot />
               </div>
               {(record.currentTitle || record.currentCompany) && (
                 <p className="mt-1 flex items-center gap-1.5 truncate text-[13px] text-muted">
@@ -369,7 +357,7 @@ export default function CandidateDetailPage() {
               size="sm"
               onClick={handleScreening}
               disabled={screening || isTerminal || status === "Screening"}
-              className="border-amber-500/25 text-[12.5px] text-amber-700 hover:bg-amber-500/10 dark:text-amber-400"
+              className="border-warning/25 text-[12.5px] text-warning hover:bg-warning/10 dark:text-warning"
             >
               <Search className="size-3.5" strokeWidth={1.75} />
               {screening ? "Updating..." : "Screening"}
@@ -379,7 +367,7 @@ export default function CandidateDetailPage() {
               size="sm"
               onClick={() => setShowScheduleModal(true)}
               disabled={isTerminal}
-              className="border-blue-500/25 text-[12.5px] text-blue-700 hover:bg-blue-500/10 dark:text-blue-400"
+              className="border-info/25 text-[12.5px] text-info hover:bg-info/10 dark:text-info"
             >
               <Calendar className="size-3.5" strokeWidth={1.75} />
               Schedule Interview
@@ -388,7 +376,7 @@ export default function CandidateDetailPage() {
               size="sm"
               onClick={() => setShowOfferModal(true)}
               disabled={isTerminal || isHired}
-              className="bg-green-600 text-[12.5px] text-white hover:bg-green-700"
+              className="bg-success text-[12.5px] text-white hover:bg-success"
             >
               <CircleCheck className="size-3.5" strokeWidth={1.75} />
               Hire
@@ -398,7 +386,7 @@ export default function CandidateDetailPage() {
               size="sm"
               onClick={() => setShowRejectModal(true)}
               disabled={isTerminal}
-              className="border-red-500/25 text-[12.5px] text-red-600 hover:bg-red-500/10 dark:text-red-400"
+              className="border-danger/25 text-[12.5px] text-danger hover:bg-danger/10 dark:text-danger"
             >
               <CircleX className="size-3.5" strokeWidth={1.75} />
               Reject

@@ -44,7 +44,7 @@ export function FooterSection() {
                 Recruit<span className="text-primary">IQ</span>
               </span>
             </div>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-xs text-muted">
               AI-Powered Recruitment Intelligence
             </p>
           </motion.div>
@@ -60,7 +60,7 @@ export function FooterSection() {
               <Link
                 key={link.label}
                 href={link.href}
-                className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-all"
+                className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs text-muted hover:text-foreground hover:bg-muted/60 transition-all"
               >
                 <link.icon className="h-3.5 w-3.5" />
                 {link.label}
@@ -75,7 +75,7 @@ export function FooterSection() {
           viewport={{ once: true }}
           className="mt-8 pt-6 border-t border-border text-center md:text-left"
         >
-          <p className="text-[11px] text-muted-foreground/60">
+          <p className="text-[11px] text-muted/60">
             Built with Next.js, Express, GPT-OSS-120B, FastEmbed, and Qdrant
           </p>
         </motion.div>

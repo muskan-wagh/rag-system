@@ -23,6 +23,11 @@ import {
 } from '@/controllers/interviewLiveController';
 import { candidateAuthMiddleware } from '@/middleware/candidateAuth';
 import {
+  getLiveKitStatusHandler,
+  postRecruiterLivekitTokenHandler,
+  postCandidateLivekitTokenHandler,
+} from '@/controllers/interviewVideoController';
+import {
   validate,
   interviewEvaluationSchema,
   scheduleStageInterviewSchema,
@@ -77,10 +82,20 @@ interviewLiveRecruiterRouter.post(
 );
 interviewLiveRecruiterRouter.post('/:interviewId/end', endInterviewHandler);
 
+// LiveKit video/audio tokens (recruiter). Media only — live coding stays on the
+// WebSocket layer above.
+interviewLiveRecruiterRouter.get('/livekit/status', getLiveKitStatusHandler);
+interviewLiveRecruiterRouter.post('/:interviewId/livekit-token', postRecruiterLivekitTokenHandler);
+
 // Candidate (public exchange + session authed status + live coding).
 export const interviewCandidateRouter = Router();
 interviewCandidateRouter.post('/interview/exchange', exchangeInterviewTokenHandler);
 interviewCandidateRouter.get('/interview', candidateAuthMiddleware, getCandidateInterviewHandler);
+interviewCandidateRouter.post(
+  '/interview/livekit-token',
+  candidateAuthMiddleware,
+  postCandidateLivekitTokenHandler,
+);
 interviewCandidateRouter.get('/interview/coding-session', candidateAuthMiddleware, getCandidateCodingSessionHandler);
 interviewCandidateRouter.patch(
   '/interview/coding-session/code',

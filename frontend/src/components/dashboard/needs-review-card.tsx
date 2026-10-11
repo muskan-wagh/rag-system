@@ -14,7 +14,7 @@ export function NeedsReviewCard({ items }: { items: NeedsReviewItem[] }) {
       <PanelHeader
         title="Needs Review"
         description="Candidates waiting >48h"
-        className="mb-2"
+        className="mb-2.5"
         action={
           items.length > 0 ? (
             <Link
@@ -27,7 +27,7 @@ export function NeedsReviewCard({ items }: { items: NeedsReviewItem[] }) {
           ) : undefined
         }
       />
-      <div className="overflow-hidden rounded-md border border-border bg-surface">
+      <div className="overflow-hidden rounded-xl border border-border bg-surface shadow-xs">
         {items.length === 0 ? (
           <EmptyState
             icon={Inbox}

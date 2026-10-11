@@ -62,11 +62,35 @@ export const scheduleStageInterviewHandler = asyncHandler(async (req: Request, r
   if (!['Technical Interview', 'Managerial/HR'].includes(stage)) {
     throw new AppError('Invalid stage', 400, ErrorCodes.VALIDATION_ERROR);
   }
+  // Optional job linkage (job-centric workflow): verified ownership when given,
+  // otherwise resolved from the candidate's latest progression event.
+  let scheduleJobId: string | null = null;
+  const rawJobId = String(req.body?.job_id || '').trim();
   const supabase = getSupabaseClient();
+  if (rawJobId) {
+    const { data: owned } = await supabase
+      .from('jobs')
+      .select('id')
+      .eq('id', rawJobId)
+      .eq('recruiter_id', recruiter.id)
+      .maybeSingle();
+    if (!owned) throw new AppError('Job not found', 404, ErrorCodes.NOT_FOUND);
+    scheduleJobId = rawJobId;
+  } else {
+    const { data: lastEvent } = await supabase
+      .from('hiring_progression_events')
+      .select('job_id')
+      .eq('candidate_id', candidateId)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    scheduleJobId = ((lastEvent as { job_id?: string | null } | null)?.job_id || null) as string | null;
+  }
   const { data: interview, error } = await supabase
     .from('interviews')
     .insert({
       candidate_id: candidateId,
+      ...(scheduleJobId ? { job_id: scheduleJobId } : {}),
       scheduled_date: String(scheduledDate || new Date().toISOString().slice(0, 10)),
       scheduled_time: String(scheduledTime || '10:00'),
       interview_type: 'google_meet',
@@ -85,6 +109,7 @@ export const scheduleStageInterviewHandler = asyncHandler(async (req: Request, r
     interview_id: interviewId,
     candidate_id: candidateId,
     recruiter_id: recruiter.id,
+    ...(scheduleJobId ? { job_id: scheduleJobId } : {}),
     stage,
     token_hash: hashInviteToken(token),
     token_encrypted: encryptInviteToken(token),

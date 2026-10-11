@@ -23,14 +23,14 @@ export default function CandidateReportPage() {
     return (
       <main className="mx-auto max-w-3xl p-6">
         <h1 className="text-xl font-semibold">My Report</h1>
-        <p role="alert" className="mt-2 text-sm text-muted-foreground">{error}</p>
+        <p role="alert" className="mt-2 text-sm text-muted">{error}</p>
       </main>
     )
   }
   if (!report) {
     return (
       <main className="mx-auto max-w-3xl p-6">
-        <p className="text-sm text-muted-foreground">Loading your report…</p>
+        <p className="text-sm text-muted">Loading your report…</p>
       </main>
     )
   }
@@ -39,7 +39,7 @@ export default function CandidateReportPage() {
   return (
     <main className="mx-auto max-w-3xl space-y-4 p-4 md:p-6">
       <h1 className="text-xl font-semibold">My Hiring Report</h1>
-      <p className="text-xs text-muted-foreground">
+      <p className="text-xs text-muted">
         Version {String(report.version || "")} · Generated {String(report.generated_at || "").slice(0, 16).replace("T", " ")}
       </p>
       <pre className="overflow-auto rounded-xl border border-border p-4 text-xs">
@@ -51,7 +51,7 @@ export default function CandidateReportPage() {
       >
         Download PDF
       </a>
-      <p className="text-[11px] text-muted-foreground">Candidate-safe copy only — no internal notes or confidential details.</p>
+      <p className="text-[11px] text-muted">Candidate-safe copy only — no internal notes or confidential details.</p>
     </main>
   )
 }

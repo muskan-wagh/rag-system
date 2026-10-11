@@ -116,7 +116,7 @@ export function CandidateSearchInput({ index, selected, onSelect }: CandidateSea
         </div>
       ) : (
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted" />
           <input
             placeholder={`Search candidate ${index + 1} by name...`}
             value={query}
@@ -125,7 +125,7 @@ export function CandidateSearchInput({ index, selected, onSelect }: CandidateSea
             className="w-full bg-muted/30 text-sm text-foreground placeholder-muted-foreground/50 outline-none rounded-xl border border-border pl-9 pr-3 py-2 focus:border-primary/30 transition-colors"
           />
           {searching && (
-            <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 animate-spin text-muted-foreground" />
+            <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 animate-spin text-muted" />
           )}
         </div>
       )}
@@ -152,7 +152,7 @@ export function CandidateSearchInput({ index, selected, onSelect }: CandidateSea
                 <p className="text-sm font-medium text-foreground truncate">
                   {candidate.full_name || "Unknown"}
                 </p>
-                <p className="text-[11px] text-muted-foreground truncate">
+                <p className="text-[11px] text-muted truncate">
                   {candidate.current_title || ""}
                   {candidate.current_title && candidate.current_company ? " @ " : ""}
                   {candidate.current_company || ""}
@@ -165,7 +165,7 @@ export function CandidateSearchInput({ index, selected, onSelect }: CandidateSea
 
       {isOpen && query.trim() && !searching && results.length === 0 && (
         <div className="absolute z-50 mt-1 w-full bg-surface rounded-xl border border-border shadow-lg p-3">
-          <p className="text-xs text-muted-foreground text-center">No candidates found</p>
+          <p className="text-xs text-muted text-center">No candidates found</p>
         </div>
       )}
     </div>

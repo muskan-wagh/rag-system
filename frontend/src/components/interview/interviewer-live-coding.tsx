@@ -5,6 +5,7 @@ import { useApi } from "@/hooks/use-api"
 import { useAuth } from "@clerk/nextjs"
 import { CodingEditor } from "@/components/assessment-take/coding-editor"
 import { useInterviewRealtime } from "@/hooks/use-interview-realtime"
+import { InterviewVideoRoom } from "@/components/interview/interview-video-room"
 import { toast } from "sonner"
 
 /**
@@ -111,6 +112,11 @@ export function InterviewerLiveCoding({ interviewId }: { interviewId: string }) 
 
   return (
     <div className="space-y-3 rounded-lg border border-border p-3">
+      {/* Video/audio only — live coding below stays on the WebSocket layer. */}
+      <section aria-label="Interview video">
+        <h3 className="mb-2 text-xs font-medium text-muted">Video call</h3>
+        <InterviewVideoRoom role="recruiter" interviewId={interviewId} />
+      </section>
       <div className="flex flex-wrap items-center gap-2">
         <select
           aria-label="Coding problem"
@@ -132,22 +138,22 @@ export function InterviewerLiveCoding({ interviewId }: { interviewId: string }) 
         <button onClick={() => void refresh()} className="rounded-md border border-border px-3 py-1.5 text-sm">
           Refresh
         </button>
-        <button onClick={end} disabled={busy || ended} className="rounded-md border border-red-300 px-3 py-1.5 text-sm text-red-600 disabled:opacity-50">
+        <button onClick={end} disabled={busy || ended} className="rounded-md border border-danger px-3 py-1.5 text-sm text-danger disabled:opacity-50">
           {ended ? "Ended" : "End interview"}
         </button>
       </div>
       {problem ? (
         <div className="text-xs">
           <p className="font-medium">{String(problem.title)}</p>
-          <p className="mt-1 whitespace-pre-wrap text-muted-foreground">{String(problem.description || "").slice(0, 1000)}</p>
+          <p className="mt-1 whitespace-pre-wrap text-muted">{String(problem.description || "").slice(0, 1000)}</p>
         </div>
       ) : (
-        <p className="text-xs text-muted-foreground">No problem pushed yet.</p>
+        <p className="text-xs text-muted">No problem pushed yet.</p>
       )}
       <CodingEditor value={String(session?.candidate_code || "// waiting for candidate…")} language="javascript" height={240} readOnly />
-      <p className="text-[11px] text-muted-foreground">Read-only observer view · version {String(session?.version ?? "—")} · run: {String(session?.run_state ?? "—")}</p>
+      <p className="text-[11px] text-muted">Read-only observer view · version {String(session?.version ?? "—")} · run: {String(session?.run_state ?? "—")}</p>
       {output ? (
-        <pre className="max-h-40 overflow-auto rounded-md bg-black/80 p-2 text-[11px] text-green-200">
+        <pre className="max-h-40 overflow-auto rounded-md bg-black/80 p-2 text-[11px] text-success">
           {String(output.stdout || output.stderr || JSON.stringify(output).slice(0, 2000))}
         </pre>
       ) : null}

@@ -12,7 +12,7 @@ export function TalentPoolsSummary({ items }: { items: TopTalentPool[] }) {
       <PanelHeader
         title="Talent Pools"
         description="Your curated candidate collections"
-        className="mb-2"
+        className="mb-2.5"
         action={
           items.length > 0 ? (
             <Link
@@ -26,7 +26,7 @@ export function TalentPoolsSummary({ items }: { items: TopTalentPool[] }) {
         }
       />
       {items.length === 0 ? (
-        <div className="rounded-md border border-border bg-surface">
+        <div className="rounded-xl border border-border bg-surface shadow-xs">
           <EmptyState
             icon={Layers}
             title="No talent pools yet"
@@ -34,12 +34,12 @@ export function TalentPoolsSummary({ items }: { items: TopTalentPool[] }) {
           />
         </div>
       ) : (
-        <div className="grid gap-2 sm:grid-cols-2 sm:gap-2.5 xl:grid-cols-4">
+        <div className="grid gap-2.5 sm:grid-cols-2 xl:grid-cols-4">
           {items.map((pool) => (
             <Link
               key={pool.id}
               href={`/pools/${pool.id}`}
-              className="group min-w-0 rounded-md border border-border bg-surface p-3 transition-all duration-120 hover:border-border-hover hover:shadow-sm active:scale-[0.99]"
+              className="group min-w-0 rounded-xl border border-border bg-surface p-3.5 transition-all duration-150 hover:border-border-hover hover:shadow-md"
             >
               <div className="flex min-w-0 items-center gap-2">
                 <div className="flex size-7 shrink-0 items-center justify-center rounded-md bg-surface-secondary text-info transition-colors duration-120">

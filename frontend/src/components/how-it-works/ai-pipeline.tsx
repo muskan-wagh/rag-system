@@ -22,7 +22,7 @@ export function AiPipeline() {
             <h2 className="text-2xl md:text-3xl font-semibold text-foreground">
               Interactive AI <span className="text-primary">Pipeline</span>
             </h2>
-            <p className="mt-3 text-sm text-muted-foreground max-w-lg mx-auto">
+            <p className="mt-3 text-sm text-muted max-w-lg mx-auto">
               Click any component to learn how it powers your candidate search
             </p>
           </motion.div>
@@ -50,7 +50,7 @@ export function AiPipeline() {
                     <span className="text-xs font-medium text-foreground text-center max-w-[100px] leading-tight">
                       {step.label}
                     </span>
-                    <span className="text-[10px] text-muted-foreground/60 group-hover:text-primary transition-colors flex items-center gap-0.5">
+                    <span className="text-[10px] text-muted/60 group-hover:text-primary transition-colors flex items-center gap-0.5">
                       Learn more <ChevronRight className="h-3 w-3" />
                     </span>
                   </motion.button>
@@ -92,9 +92,9 @@ export function AiPipeline() {
                     </div>
                     <div className="flex-1 min-w-0">
                       <span className="text-sm font-medium text-foreground block truncate">{step.label}</span>
-                      <span className="text-xs text-muted-foreground/60">Click to learn more</span>
+                      <span className="text-xs text-muted/60">Click to learn more</span>
                     </div>
-                    <ChevronRight className="h-4 w-4 text-muted-foreground/40" />
+                    <ChevronRight className="h-4 w-4 text-muted/40" />
                   </button>
                   {i < pipelineSteps.length - 1 && (
                     <div className="flex justify-center py-1">

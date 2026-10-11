@@ -313,7 +313,7 @@ export default function AssessmentDetailPage({ params }: { params: Promise<{ id:
             </div>
           ) : (
             questions.map((q, i) => (
-              <div key={q.id} className="rounded-lg border border-border bg-surface p-4">
+              <div key={q.id} className="rounded-xl border border-border bg-surface p-4 shadow-xs">
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="text-sm font-medium text-ink">Q{i + 1}.</span>
                   <Badge variant="secondary">{QUESTION_TYPE_LABELS[q.type] || q.type}</Badge>
