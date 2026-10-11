@@ -60,6 +60,14 @@ export interface HiringReport {
     codeQuality: number | null;
     recommendation: string | null;
     summary: string | null;
+    // Factual video-session metadata only (no recordings exist; camera/mic
+    // signals are neutral observations, never verdicts). Safe for candidates.
+    video?: {
+      startedAt: string | null;
+      endedAt: string | null;
+      durationSeconds: number | null;
+      signalCount: number;
+    } | null;
     // internal-only:
     privateNotes?: string | null;
     codingProblem?: string | null;
@@ -233,6 +241,27 @@ export async function buildInternalReport(input: {
   const tech = await stageInterview('Technical Interview');
   const hr = await stageInterview('Managerial/HR');
 
+  /** Factual video metadata (tolerates pre-migration rows lacking columns). */
+  function buildVideoMetadata(interview: Record<string, unknown>): {
+    startedAt: string | null;
+    endedAt: string | null;
+    durationSeconds: number | null;
+    signalCount: number;
+  } | null {
+    const startedAt = (interview.video_started_at as string | null) || null;
+    const endedAt = (interview.video_ended_at as string | null) || null;
+    const signals = Array.isArray(interview.video_signals)
+      ? (interview.video_signals as Array<unknown>)
+      : [];
+    if (!startedAt && !endedAt && signals.length === 0) return null;
+    let durationSeconds: number | null = null;
+    if (startedAt && endedAt) {
+      const ms = new Date(endedAt).getTime() - new Date(startedAt).getTime();
+      if (Number.isFinite(ms) && ms >= 0) durationSeconds = Math.round(ms / 1000);
+    }
+    return { startedAt, endedAt, durationSeconds, signalCount: signals.length };
+  }
+
   const technicalInterview: HiringReport['technicalInterview'] = tech?.interview
     ? {
         date: (tech.interview.scheduled_date as string | null) || null,
@@ -249,6 +278,7 @@ export async function buildInternalReport(input: {
         codingProblem: tech.problemTitle,
         codingLanguage: (tech.coding?.language as string | null) || null,
         codingRuns: (tech.coding?.version as number | null) ?? null,
+        video: buildVideoMetadata(tech.interview),
       }
     : null;
 

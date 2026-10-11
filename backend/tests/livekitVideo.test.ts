@@ -2,207 +2,289 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import express from 'express';
 import request from 'supertest';
 
-// LiveKit credentials are read from a mutable object so the service can be
-// exercised both configured and unconfigured within one process.
-const livekitEnv = vi.hoisted(() => ({ url: '', apiKey: '', apiSecret: '' }));
-
-vi.mock('@/config', async (importOriginal) => {
-  const actual = (await importOriginal()) as { config: Record<string, unknown> };
-  return { config: { ...actual.config, livekit: livekitEnv } };
-});
-
-// Supabase + candidate session are stubbed. The LiveKit SDK runs for real, so
-// assertions are made against a genuinely signed JWT.
-const inviteQuery = {
-  select: vi.fn(() => inviteQuery),
-  eq: vi.fn(() => inviteQuery),
-  maybeSingle: vi.fn(),
-};
-const candidateQuery = {
-  select: vi.fn(() => candidateQuery),
-  eq: vi.fn(() => candidateQuery),
-  maybeSingle: vi.fn(),
-};
-const inviteResult: { current: { data: unknown; error: unknown } } = {
-  current: { data: null, error: null },
-};
+// Supabase is fully mocked; per-test rows are driven through hoisted state.
+const supabaseState = vi.hoisted(() => ({ ctx: {} as Record<string, Record<string, unknown>> }));
 
 vi.mock('@/services/supabase/client', () => ({
-  getSupabaseClient: () => ({
-    from: (table: string) => {
-      if (table === 'interview_invites') return inviteQuery;
-      if (table === 'candidates') return candidateQuery;
-      return { select: vi.fn(() => ({ eq: vi.fn(() => ({ maybeSingle: vi.fn() })) })) };
-    },
+  getSupabaseClient: vi.fn(() => {
+    const resolveSingle = (table: string): Record<string, unknown> | null => {
+      if (table === 'interview_invites') return supabaseState.ctx.invite ?? null;
+      if (table === 'interviews') return supabaseState.ctx.interview ?? null;
+      if (table === 'candidates') return supabaseState.ctx.candidate ?? null;
+      return null;
+    };
+    const chainFor = (table: string) => {
+      const chain = {
+        select: () => chain,
+        eq: () => chain,
+        order: () => chain,
+        limit: () => chain,
+        maybeSingle: async () => ({ data: resolveSingle(table) }),
+        single: async () => ({ data: resolveSingle(table), error: null }),
+        update: () => ({ eq: async () => ({ data: null, error: null }) }),
+      };
+      return chain;
+    };
+    return { from: (table: string) => chainFor(table) };
   }),
 }));
 
-vi.mock('@/services/hiring/candidateSession', () => ({
-  verifyCandidateSession: vi.fn(),
-  parseCookies: vi.fn(() => ({})),
-}));
+const LIVEKIT_ENV = {
+  LIVEKIT_URL: 'https://video.example.test',
+  LIVEKIT_API_KEY: 'test-api-key',
+  LIVEKIT_API_SECRET: 'test-api-secret-that-must-never-leak',
+};
 
-import { createLiveKitToken, interviewRoomName, isLiveKitConfigured } from '@/services/livekit/service';
-import { verifyCandidateSession } from '@/services/hiring/candidateSession';
-import { postCandidateLivekitTokenHandler } from '@/controllers/interviewVideoController';
-import { errorHandler } from '@/middleware/errorHandler';
-
-const SECRET = 'super-secret-livekit-api-secret-value';
-
-interface CandidateTokenBody {
-  success: boolean;
-  data?: { token: string; roomName: string; url: string; expiresIn: number };
-  error?: string;
+interface LoadedModules {
+  svc: typeof import('@/services/livekit/service');
+  ctrl: typeof import('@/controllers/interviewVideoController');
+  // Error middleware from the SAME module registry so `instanceof AppError`
+  // keeps working after vi.resetModules().
+  errorHandler: (err: Error, req: never, res: never, next: never) => void;
 }
 
-function decodeJwt(token: string): Record<string, unknown> {
-  return JSON.parse(Buffer.from(token.split('.')[1], 'base64').toString('utf-8'));
+async function loadModules(): Promise<LoadedModules> {
+  vi.resetModules();
+  Object.assign(process.env, LIVEKIT_ENV);
+  const svc = await import('@/services/livekit/service');
+  const ctrl = await import('@/controllers/interviewVideoController');
+  const { errorHandler } = await import('@/middleware/errorHandler');
+  return { svc, ctrl, errorHandler: errorHandler as never };
 }
 
-function session(overrides: Record<string, unknown> = {}) {
-  return {
-    id: 'sess-1',
-    candidate_id: 'cand-1',
-    invite_id: null,
-    interview_invite_id: 'inv-1',
-    scope: 'interview',
-    expires_at: new Date(Date.now() + 60_000).toISOString(),
-    ...overrides,
-  };
+async function loadUnconfigured(): Promise<LoadedModules> {
+  vi.resetModules();
+  // NB: config reloads backend/.env via dotenv on every import, so blanking
+  // (not deleting) is required to simulate "credentials absent".
+  process.env.LIVEKIT_URL = '';
+  process.env.LIVEKIT_API_KEY = '';
+  process.env.LIVEKIT_API_SECRET = '';
+  const svc = await import('@/services/livekit/service');
+  const ctrl = await import('@/controllers/interviewVideoController');
+  const { errorHandler } = await import('@/middleware/errorHandler');
+  return { svc, ctrl, errorHandler: errorHandler as never };
 }
 
-async function invokeCandidateHandler(sessionHeader?: string) {
-  const header = sessionHeader === undefined ? 'tok' : sessionHeader;
+function candidateApp(
+  mods: LoadedModules,
+  handler: (req: never, res: never, next: never) => unknown,
+) {
   const app = express();
   app.use(express.json());
-  app.post('/candidate/interview/livekit-token', postCandidateLivekitTokenHandler);
-  app.use(errorHandler);
-  const req = request(app)
-    .post('/candidate/interview/livekit-token')
-    .send({});
-  if (header) req.set('x-candidate-session', header);
-  const res = await req;
-  return { status: res.status, body: res.body as CandidateTokenBody };
+  app.use((req, _res, next) => {
+    (req as unknown as { candidate: unknown }).candidate = {
+      candidateId: 'cand-1',
+      interviewInviteId: 'inv-1',
+      scope: 'interview',
+      sessionId: 'sess-1',
+    };
+    next();
+  });
+  app.post('/t', handler as never);
+  app.use(mods.errorHandler as never);
+  return app;
 }
 
-describe('LiveKit configuration', () => {
-  beforeEach(() => {
-    livekitEnv.url = '';
-    livekitEnv.apiKey = '';
-    livekitEnv.apiSecret = '';
+function recruiterApp(
+  mods: LoadedModules,
+  handler: (req: never, res: never, next: never) => unknown,
+) {
+  const app = express();
+  app.use(express.json());
+  app.use((req, _res, next) => {
+    (req as unknown as { recruiter: unknown }).recruiter = { id: 'rec-1' };
+    next();
   });
+  app.post('/t/:interviewId', handler as never);
+  app.use(mods.errorHandler as never);
+  return app;
+}
 
-  it('reports unconfigured and refuses to mint a token without credentials', async () => {
-    expect(isLiveKitConfigured()).toBe(false);
-    await expect(
-      createLiveKitToken({ roomName: 'r', participantName: 'n', participantId: 'p', canPublish: false }),
-    ).rejects.toThrow(/not configured/i);
-  });
-});
+const RECRUITER_PATH = '/t/int-1';
 
-describe('LiveKit room naming', () => {
-  it('derives a stable, URL-safe room from the interview id', () => {
-    expect(interviewRoomName('abc-123')).toBe('interview-abc-123');
-  });
+const LIVE_INVITE = {
+  id: 'inv-1',
+  interview_id: 'int-1',
+  candidate_id: 'cand-1',
+  status: 'sent',
+  expires_at: null,
+};
 
-  it('strips characters that could manipulate the room name', () => {
-    // Traversal segments and separators must not survive into the room name.
-    expect(interviewRoomName('../../other-room')).toBe('interview-other-room');
-    expect(interviewRoomName('a b;c')).toBe('interview-abc');
-    expect(interviewRoomName('a/b?c=d')).toBe('interview-abcd');
-  });
-});
-
-describe('Candidate LiveKit token', () => {
+describe('livekit service (video layer only)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    livekitEnv.url = 'wss://example.livekit.cloud';
-    livekitEnv.apiKey = 'APIkey';
-    livekitEnv.apiSecret = SECRET;
-    inviteResult.current = { data: null, error: null };
-    inviteQuery.maybeSingle.mockImplementation(() => Promise.resolve(inviteResult.current));
-    candidateQuery.maybeSingle.mockResolvedValue({ data: { id: 'cand-1', full_name: 'Ada Lovelace' }, error: null });
   });
 
-  it('mints a room-scoped token that never carries the API secret', async () => {
-    inviteResult.current = {
-      data: { id: 'inv-1', interview_id: 'int-1', candidate_id: 'cand-1', status: 'sent' },
-      error: null,
-    };
-    (verifyCandidateSession as ReturnType<typeof vi.fn>).mockResolvedValue(session());
-
-    const res = await invokeCandidateHandler();
-    expect(res.status).toBe(200);
-    expect(res.body.success).toBe(true);
-    expect(res.body.data?.roomName).toBe('interview-int-1');
-    expect(res.body.data?.url).toBe('wss://example.livekit.cloud');
-    // The API secret must never reach the browser.
-    expect(JSON.stringify(res.body)).not.toContain(SECRET);
-
-    const video = decodeJwt(res.body.data!.token).video as Record<string, unknown>;
-    expect(video.roomJoin).toBe(true);
-    expect(video.room).toBe('interview-int-1');
-    // Candidates join as subscribers — the interviewer publishes.
-    expect(video.canPublish).toBe(false);
+  it('room names are deterministic per interview and sanitized', async () => {
+    const { svc } = await loadModules();
+    expect(svc.livekitRoomName('int-1')).toBe(svc.livekitRoomName('int-1'));
+    expect(svc.livekitRoomName('int-1')).not.toBe(svc.livekitRoomName('int-2'));
+    expect(svc.livekitRoomName('../../evil room!!')).toMatch(/^hs-interview-[a-z0-9]+$/);
   });
 
-  it('refuses a revoked invitation and never returns a token', async () => {
-    inviteResult.current = {
-      data: { id: 'inv-1', interview_id: 'int-1', candidate_id: 'cand-1', status: 'revoked' },
-      error: null,
-    };
-    (verifyCandidateSession as ReturnType<typeof vi.fn>).mockResolvedValue(session());
-    const res = await invokeCandidateHandler();
-    expect(res.status).toBe(403);
-    expect(JSON.stringify(res.body)).not.toContain('token');
-  });
-
-  it('refuses when the invite belongs to a different candidate', async () => {
-    inviteResult.current = {
-      data: { id: 'inv-1', interview_id: 'int-1', candidate_id: 'someone-else', status: 'sent' },
-      error: null,
-    };
-    (verifyCandidateSession as ReturnType<typeof vi.fn>).mockResolvedValue(session());
-    const res = await invokeCandidateHandler();
-    expect(res.status).toBe(404);
-    expect(JSON.stringify(res.body)).not.toContain('token');
-  });
-
-  it('refuses an assessment-scoped session (wrong scope)', async () => {
-    (verifyCandidateSession as ReturnType<typeof vi.fn>).mockResolvedValue(
-      session({ scope: 'assessment', interview_invite_id: null }),
-    );
-    const res = await invokeCandidateHandler();
-    expect(res.status).toBe(401);
-  });
-
-  it('refuses an invalid session', async () => {
-    (verifyCandidateSession as ReturnType<typeof vi.fn>).mockResolvedValue(null);
-    const res = await invokeCandidateHandler();
-    expect(res.status).toBe(401);
-  });
-
-  it('refuses when no session cookie is presented at all', async () => {
-    // No session header and no cookie: must be rejected before any DB work.
-    const res = await invokeCandidateHandler('');
-    expect(res.status).toBe(401);
-    expect(verifyCandidateSession).not.toHaveBeenCalled();
-  });
-
-  it('clamps the TTL so a caller cannot request an unbounded token', async () => {
-    inviteResult.current = {
-      data: { id: 'inv-1', interview_id: 'int-1', candidate_id: 'cand-1', status: 'sent' },
-      error: null,
-    };
-    (verifyCandidateSession as ReturnType<typeof vi.fn>).mockResolvedValue(session());
-    const huge = await createLiveKitToken({
-      roomName: interviewRoomName('int-1'),
-      participantName: 'Ada',
-      participantId: 'candidate:cand-1',
-      canPublish: false,
-      ttlSeconds: 60 * 60 * 24 * 365,
+  it('minted JWT is scoped to one room with a short TTL and exposes no secret', async () => {
+    const { svc } = await loadModules();
+    const minted = await svc.mintLivekitToken({
+      interviewId: 'int-1',
+      role: 'candidate',
+      subjectId: 'cand-1',
+      displayName: 'Ada',
     });
-    expect(huge.expiresIn).toBe(24 * 3600);
-    expect(decodeJwt(huge.token).exp).toBeLessThan(Math.floor(Date.now() / 1000) + 24 * 3600 + 60);
+    expect(minted.room).toBe(svc.livekitRoomName('int-1'));
+    expect(minted.url).toBe(LIVEKIT_ENV.LIVEKIT_URL);
+    const payload = JSON.parse(Buffer.from(minted.token.split('.')[1], 'base64url').toString('utf-8')) as {
+      sub: string;
+      exp: number;
+      nbf: number;
+      video: { room: string; roomJoin: boolean };
+    };
+    expect(payload.sub).toContain('cand-1');
+    expect(payload.video.room).toBe(minted.room);
+    expect(payload.video.roomJoin).toBe(true);
+    expect(payload.exp - payload.nbf).toBe(2 * 60 * 60);
+    expect(JSON.stringify(minted)).not.toContain(LIVEKIT_ENV.LIVEKIT_API_SECRET);
+  });
+
+  it('minting without credentials fails closed (callers map to videoEnabled:false)', async () => {
+    const { svc } = await loadUnconfigured();
+    expect(svc.isLivekitConfigured()).toBe(false);
+    await expect(
+      svc.mintLivekitToken({ interviewId: 'int-1', role: 'candidate', subjectId: 'c', displayName: 'C' }),
+    ).rejects.toThrow('not configured');
+  });
+});
+
+describe('POST /candidate/interview/livekit-token', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    supabaseState.ctx = {
+      invite: { ...LIVE_INVITE },
+      interview: { id: 'int-1', status: 'joined' },
+      candidate: { full_name: 'Ada Lovelace' },
+    };
+  });
+
+  it('valid candidate receives a scoped token and the secret never appears', async () => {
+    const mods = await loadModules();
+    const res = await request(candidateApp(mods, mods.ctrl.postCandidateLivekitTokenHandler)).post('/t').send({});
+    expect(res.status).toBe(200);
+    expect(res.body.data.videoEnabled).toBe(true);
+    expect(typeof res.body.data.token).toBe('string');
+    expect(res.body.data.url).toBe(LIVEKIT_ENV.LIVEKIT_URL);
+    expect(res.body.data.room).toMatch(/^hs-interview-/);
+    expect(JSON.stringify(res.body)).not.toContain(LIVEKIT_ENV.LIVEKIT_API_SECRET);
+    expect(JSON.stringify(res.body)).not.toContain('apiSecret');
+  });
+
+  it('wrong candidate (session/invite mismatch) is rejected without a token', async () => {
+    const mods = await loadModules();
+    supabaseState.ctx.invite = { ...LIVE_INVITE, candidate_id: 'cand-OTHER' };
+    const res = await request(candidateApp(mods, mods.ctrl.postCandidateLivekitTokenHandler)).post('/t').send({});
+    expect(res.status).toBe(403);
+    expect(res.body.data?.token).toBeUndefined();
+  });
+
+  it.each(['cancelled', 'completed', 'no_show'])('interview status %s is rejected', async (status) => {
+    const mods = await loadModules();
+    supabaseState.ctx.interview = { id: 'int-1', status };
+    const res = await request(candidateApp(mods, mods.ctrl.postCandidateLivekitTokenHandler)).post('/t').send({});
+    expect(res.status).toBe(410);
+    expect(res.body.data?.token).toBeUndefined();
+  });
+
+  it('expired and revoked invites are rejected', async () => {
+    const mods = await loadModules();
+    supabaseState.ctx.invite = { ...LIVE_INVITE, expires_at: new Date(Date.now() - 1000).toISOString() };
+    const expired = await request(candidateApp(mods, mods.ctrl.postCandidateLivekitTokenHandler)).post('/t').send({});
+    expect(expired.status).toBe(410);
+
+    supabaseState.ctx.invite = { ...LIVE_INVITE, status: 'revoked' };
+    const revoked = await request(candidateApp(mods, mods.ctrl.postCandidateLivekitTokenHandler)).post('/t').send({});
+    expect(revoked.status).toBe(410);
+  });
+
+  it('no LiveKit credentials → safe fallback, nothing breaks', async () => {
+    const mods = await loadUnconfigured();
+    const res = await request(candidateApp(mods, mods.ctrl.postCandidateLivekitTokenHandler)).post('/t').send({});
+    expect(res.status).toBe(200);
+    expect(res.body.data).toEqual({ videoEnabled: false });
+  });
+});
+
+describe('POST /candidate/interview/video-event', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    supabaseState.ctx = {
+      invite: { ...LIVE_INVITE },
+      interview: { id: 'int-1', status: 'in_progress', video_signals: [] },
+      candidate: { full_name: 'Ada' },
+    };
+  });
+
+  it('records observable camera/mic signals without verdicts', async () => {
+    const mods = await loadModules();
+    const res = await request(candidateApp(mods, mods.ctrl.postCandidateVideoEventHandler))
+      .post('/t')
+      .send({ type: 'camera_disabled' });
+    expect(res.status).toBe(200);
+    expect(res.body.data).toEqual({ logged: true });
+  });
+
+  it('rejects unknown event types', async () => {
+    const mods = await loadModules();
+    const res = await request(candidateApp(mods, mods.ctrl.postCandidateVideoEventHandler))
+      .post('/t')
+      .send({ type: 'cheating_detected' });
+    expect(res.status).toBe(400);
+  });
+});
+
+describe('POST /interviews/:interviewId/livekit-token (recruiter)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    supabaseState.ctx = {
+      interview: { id: 'int-1', candidate_id: 'cand-1', status: 'scheduled', interviewer_name: 'Jane' },
+      candidate: { recruiter_id: 'rec-1' },
+    };
+  });
+
+  it('owning recruiter receives a token scoped to the interview room', async () => {
+    const mods = await loadModules();
+    const res = await request(recruiterApp(mods, mods.ctrl.postRecruiterLivekitTokenHandler)).post(RECRUITER_PATH).send({});
+    expect(res.status).toBe(200);
+    expect(res.body.data.videoEnabled).toBe(true);
+    expect(res.body.data.room).toMatch(/^hs-interview-/);
+    expect(JSON.stringify(res.body)).not.toContain(LIVEKIT_ENV.LIVEKIT_API_SECRET);
+  });
+
+  it('wrong recruiter (ownership mismatch) gets 404 without a token', async () => {
+    const mods = await loadModules();
+    supabaseState.ctx.candidate = { recruiter_id: 'rec-OTHER' };
+    const res = await request(recruiterApp(mods, mods.ctrl.postRecruiterLivekitTokenHandler)).post(RECRUITER_PATH).send({});
+    expect(res.status).toBe(404);
+    expect(res.body.data?.token).toBeUndefined();
+  });
+
+  it('cancelled interviews are rejected and unconfigured backends fall back safely', async () => {
+    const mods = await loadModules();
+    supabaseState.ctx.interview = {
+      id: 'int-1',
+      candidate_id: 'cand-1',
+      status: 'cancelled',
+      interviewer_name: 'Jane',
+    };
+    const cancelled = await request(recruiterApp(mods, mods.ctrl.postRecruiterLivekitTokenHandler)).post(RECRUITER_PATH).send({});
+    expect(cancelled.status).toBe(410);
+
+    supabaseState.ctx.interview = {
+      id: 'int-1',
+      candidate_id: 'cand-1',
+      status: 'scheduled',
+      interviewer_name: 'Jane',
+    };
+    const unconfigured = await loadUnconfigured();
+    const fallback = await request(recruiterApp(unconfigured, unconfigured.ctrl.postRecruiterLivekitTokenHandler)).post(RECRUITER_PATH).send({});
+    expect(fallback.status).toBe(200);
+    expect(fallback.body.data).toEqual({ videoEnabled: false });
   });
 });

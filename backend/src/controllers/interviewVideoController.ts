@@ -3,123 +3,187 @@ import { asyncHandler } from '@/utils/asyncHandler';
 import { getSupabaseClient } from '@/services/supabase/client';
 import { AppError } from '@/middleware/errorHandler';
 import { ErrorCodes } from '@/middleware/errorCodes';
-import { createLiveKitToken, interviewRoomName, isLiveKitConfigured } from '@/services/livekit/service';
-import { verifyCandidateSession, parseCookies } from '@/services/hiring/candidateSession';
+import {
+  isLivekitConfigured,
+  mintLivekitToken,
+} from '@/services/livekit/service';
 
 /**
- * LiveKit token issuance for technical interviews.
- *
- * Two entry points, each with its own authorization:
- *  - Recruiter: Clerk-authed, must own the interview's candidate.
- *  - Candidate: must present the opaque `hs_candidate` session cookie that is
- *    bound to this exact interview invite.
- *
- * A token is never minted from a client-supplied room or identity — the room
- * is always derived from an authorized interview id.
+ * LiveKit video/audio layer (video ONLY — coding/WS untouched).
+ * - Candidate auth: existing HttpOnly session (req.candidate), scoped to
+ *   its OWN interview invite. A session can never mint a token for another
+ *   candidate's room (room derives from the session's interview).
+ * - Recruiter auth: existing Clerk + candidate-ownership check.
+ * - Secrets never leave the server: only the short-lived participant JWT
+ *   (+ public URL + room metadata) is returned. No secrets in the DB.
+ * - Statuses: video allowed only for scheduled/joined/in_progress.
+ *   cancelled/completed/no_show (and expired/revoked invites) are rejected.
  */
 
+const VIDEO_ALLOWED_STATUSES = ['scheduled', 'joined', 'in_progress'];
+
+// GET /interviews/livekit/status — lets the UI pick the video or fallback path
+// without attempting (and failing) a token mint.
 export const getLiveKitStatusHandler = asyncHandler(async (_req: Request, res: Response) => {
-  res.json({
-    success: true,
-    data: { configured: isLiveKitConfigured() },
-  });
+  res.json({ success: true, data: { configured: isLivekitConfigured() } });
 });
 
-async function loadAuthorizedInterview(interviewId: string, recruiterId: string) {
-  const supabase = getSupabaseClient();
-  const { data: interview } = await supabase
-    .from('interviews')
-    .select('id, candidate_id, status')
-    .eq('id', interviewId)
-    .maybeSingle();
-  if (!interview) {
-    throw new AppError('Interview not found', 404, ErrorCodes.NOT_FOUND);
+function assertVideoAllowed(status: string): void {
+  if (!VIDEO_ALLOWED_STATUSES.includes(status)) {
+    throw new AppError(`Video is not available for ${status} interviews`, 410, ErrorCodes.NOT_FOUND);
   }
-  const { data: candidate } = await supabase
-    .from('candidates')
-    .select('id, recruiter_id, full_name')
-    .eq('id', (interview as { candidate_id: string }).candidate_id)
-    .maybeSingle();
-  if (!candidate || (candidate as { recruiter_id: string }).recruiter_id !== recruiterId) {
-    // 404 rather than 403 — no existence leak across recruiters.
-    throw new AppError('Interview not found', 404, ErrorCodes.NOT_FOUND);
-  }
-  return { interview, candidate };
 }
 
-/** POST /interviews/:interviewId/livekit-token (recruiter) */
-export const postRecruiterLivekitTokenHandler = asyncHandler(async (req: Request, res: Response) => {
-  const recruiterId = req.recruiter?.id as string;
-  const interviewId = String((req.params as Record<string, unknown>).interviewId || '');
-  if (!recruiterId) throw new AppError('Not authenticated', 401, ErrorCodes.UNAUTHORIZED);
-  if (!interviewId) throw new AppError('Interview not found', 404, ErrorCodes.NOT_FOUND);
-
-  const { candidate } = await loadAuthorizedInterview(interviewId, recruiterId);
-
-  const { data: recruiter } = await getSupabaseClient()
-    .from('recruiters')
-    .select('first_name, last_name')
-    .eq('id', recruiterId)
-    .maybeSingle();
-  const interviewerName =
-    [String((recruiter as { first_name?: string } | null)?.first_name || ''),
-     String((recruiter as { last_name?: string } | null)?.last_name || '')]
-      .filter(Boolean)
-      .join(' ') || 'Interviewer';
-
-  const result = await createLiveKitToken({
-    roomName: interviewRoomName(interviewId),
-    participantName: interviewerName,
-    participantId: `recruiter:${recruiterId}`,
-    canPublish: true,
-  });
-
-  res.json({ success: true, data: { ...result, candidateName: (candidate as { full_name?: string }).full_name || '' } });
-});
-
-/** POST /candidate/interview/livekit-token (candidate session) */
-export const postCandidateLivekitTokenHandler = asyncHandler(async (req: Request, res: Response) => {
-  const sessionToken =
-    (req.headers['x-candidate-session'] as string | undefined) ||
-    parseCookies(req.headers.cookie).hs_candidate;
-  if (!sessionToken) {
-    throw new AppError('Candidate session required', 401, ErrorCodes.UNAUTHORIZED);
+async function requireOwnedInterviewRow(recruiterId: string, interviewId: string) {
+  const supabase = getSupabaseClient();
+  const { data: interview } = await supabase.from('interviews').select('id, candidate_id, status, interviewer_name').eq('id', interviewId).maybeSingle();
+  if (!interview) throw new AppError('Interview not found', 404, ErrorCodes.NOT_FOUND);
+  const row = interview as { id: string; candidate_id: string; status: string; interviewer_name?: string };
+  const { data: cand } = await supabase.from('candidates').select('recruiter_id').eq('id', row.candidate_id).maybeSingle();
+  if (!cand || (cand as { recruiter_id: string }).recruiter_id !== recruiterId) {
+    throw new AppError('Interview not found', 404, ErrorCodes.NOT_FOUND);
   }
+  return row;
+}
 
-  const session = await verifyCandidateSession(sessionToken);
-  if (!session || session.scope !== 'interview' || !session.interview_invite_id) {
-    throw new AppError('Candidate session required', 401, ErrorCodes.UNAUTHORIZED);
+interface CandidateVideoContext {
+  interviewId: string;
+  candidateId: string;
+  status: string;
+  candidateName: string;
+}
+
+async function resolveCandidateVideoContext(req: Request): Promise<CandidateVideoContext> {
+  const ctx = req.candidate;
+  if (!ctx || ctx.scope !== 'interview' || !ctx.interviewInviteId) {
+    throw new AppError('No interview session', 401, ErrorCodes.NOT_FOUND);
   }
-
   const supabase = getSupabaseClient();
   const { data: invite } = await supabase
     .from('interview_invites')
-    .select('id, interview_id, candidate_id, status')
-    .eq('id', session.interview_invite_id)
+    .select('id, interview_id, candidate_id, status, expires_at')
+    .eq('id', ctx.interviewInviteId)
     .maybeSingle();
-  if (!invite) throw new AppError('Interview not found', 404, ErrorCodes.NOT_FOUND);
-  const inv = invite as { interview_id: string; candidate_id: string; status: string };
-  if (inv.status === 'revoked') {
-    throw new AppError('This interview invitation has been revoked', 403, ErrorCodes.FORBIDDEN);
+  if (!invite) throw new AppError('Invite not found', 404, ErrorCodes.NOT_FOUND);
+  const inv = invite as { interview_id: string; candidate_id: string; status: string; expires_at: string | null };
+  if (inv.candidate_id !== ctx.candidateId) throw new AppError('Forbidden', 403, ErrorCodes.NOT_FOUND);
+  if (inv.status === 'revoked') throw new AppError('Invitation revoked', 410, ErrorCodes.NOT_FOUND);
+  if (inv.expires_at && new Date(inv.expires_at).getTime() <= Date.now()) {
+    throw new AppError('Invitation expired', 410, ErrorCodes.NOT_FOUND);
   }
-  // Bind to the session's own candidate — never to a client-supplied id.
-  if (inv.candidate_id !== session.candidate_id) {
-    throw new AppError('Interview not found', 404, ErrorCodes.NOT_FOUND);
+  const { data: interview } = await supabase.from('interviews').select('id, status').eq('id', inv.interview_id).maybeSingle();
+  if (!interview) throw new AppError('Interview not found', 404, ErrorCodes.NOT_FOUND);
+  const status = String((interview as { status: string }).status);
+  assertVideoAllowed(status);
+  const { data: cand } = await supabase.from('candidates').select('full_name').eq('id', inv.candidate_id).maybeSingle();
+  return {
+    interviewId: inv.interview_id,
+    candidateId: inv.candidate_id,
+    status,
+    candidateName: String((cand as { full_name?: string } | null)?.full_name || 'Candidate'),
+  };
+}
+
+/** Best-effort audit stamp (tolerates pre-migration DBs — never blocks video). */
+async function stampVideoStart(interviewId: string, room: string): Promise<void> {
+  try {
+    const supabase = getSupabaseClient();
+    const { data } = await supabase.from('interviews').select('video_started_at').eq('id', interviewId).maybeSingle();
+    if (!data) return;
+    const row = data as { video_started_at?: string | null };
+    if ('video_started_at' in row && !row.video_started_at) {
+      await supabase
+        .from('interviews')
+        .update({ video_room: room, video_started_at: new Date().toISOString() })
+        .eq('id', interviewId);
+    }
+  } catch { /* audit only — video still works */ }
+}
+
+/** Best-effort end stamp used by the interview end path. */
+export async function stampVideoEnd(interviewId: string): Promise<void> {
+  try {
+    const supabase = getSupabaseClient();
+    await supabase.from('interviews').update({ video_ended_at: new Date().toISOString() }).eq('id', interviewId);
+  } catch { /* audit only */ }
+}
+
+// POST /candidate/interview/livekit-token — candidate video token.
+export const postCandidateLivekitTokenHandler = asyncHandler(async (req: Request, res: Response) => {
+  const vctx = await resolveCandidateVideoContext(req);
+  if (!isLivekitConfigured()) {
+    res.json({ success: true, data: { videoEnabled: false } });
+    return;
   }
-
-  const { data: candidate } = await supabase
-    .from('candidates')
-    .select('id, full_name')
-    .eq('id', inv.candidate_id)
-    .maybeSingle();
-
-  const result = await createLiveKitToken({
-    roomName: interviewRoomName(inv.interview_id),
-    participantName: (candidate as { full_name?: string } | null)?.full_name || 'Candidate',
-    participantId: `candidate:${inv.candidate_id}`,
-    // Candidates join as subscribers; the interviewer publishes.
-    canPublish: false,
+  const minted = await mintLivekitToken({
+    interviewId: vctx.interviewId,
+    role: 'candidate',
+    subjectId: vctx.candidateId,
+    displayName: vctx.candidateName,
   });
+  await stampVideoStart(vctx.interviewId, minted.room);
+  res.json({
+    success: true,
+    data: {
+      videoEnabled: true,
+      token: minted.token,
+      url: minted.url,
+      room: minted.room,
+      identity: minted.identity,
+      expiresIn: minted.expiresIn,
+    },
+  });
+});
 
-  res.json({ success: true, data: result });
+const VIDEO_SIGNAL_TYPES = ['camera_disabled', 'mic_disabled', 'camera_enabled', 'mic_enabled'] as const;
+
+// POST /candidate/interview/video-event { type } — observable a/v signal only.
+// Camera/mic-off is recorded as a neutral fact; NEVER a cheating verdict.
+export const postCandidateVideoEventHandler = asyncHandler(async (req: Request, res: Response) => {
+  const vctx = await resolveCandidateVideoContext(req);
+  const type = String(req.body?.type || '');
+  if (!(VIDEO_SIGNAL_TYPES as readonly string[]).includes(type)) {
+    throw new AppError('Invalid video event type', 400, ErrorCodes.VALIDATION_ERROR);
+  }
+  try {
+    const supabase = getSupabaseClient();
+    const { data } = await supabase.from('interviews').select('video_signals').eq('id', vctx.interviewId).maybeSingle();
+    const current = Array.isArray((data as { video_signals?: unknown } | null)?.video_signals)
+      ? ((data as { video_signals: Array<Record<string, unknown>> }).video_signals)
+      : [];
+    const next = [...current, { type, at: new Date().toISOString() }].slice(-100);
+    await supabase.from('interviews').update({ video_signals: next }).eq('id', vctx.interviewId);
+  } catch { /* signal loss is acceptable; video unaffected */ }
+  res.json({ success: true, data: { logged: true } });
+});
+
+// POST /interviews/:interviewId/livekit-token — interviewer video token.
+export const postRecruiterLivekitTokenHandler = asyncHandler(async (req: Request, res: Response) => {
+  const recruiter = req.recruiter;
+  if (!recruiter) throw new AppError('Unauthorized', 401, ErrorCodes.NOT_FOUND);
+  const interviewId = String((req.params as Record<string, unknown>).interviewId || '');
+  const row = await requireOwnedInterviewRow(recruiter.id, interviewId);
+  assertVideoAllowed(row.status);
+  if (!isLivekitConfigured()) {
+    res.json({ success: true, data: { videoEnabled: false } });
+    return;
+  }
+  const minted = await mintLivekitToken({
+    interviewId,
+    role: 'interviewer',
+    subjectId: recruiter.id,
+    displayName: String(row.interviewer_name || 'Interviewer'),
+  });
+  await stampVideoStart(interviewId, minted.room);
+  res.json({
+    success: true,
+    data: {
+      videoEnabled: true,
+      token: minted.token,
+      url: minted.url,
+      room: minted.room,
+      identity: minted.identity,
+      expiresIn: minted.expiresIn,
+    },
+  });
 });

@@ -21,12 +21,13 @@ import {
   updateCandidateCodeHandler,
   runCandidateCodeHandler,
 } from '@/controllers/interviewLiveController';
-import { candidateAuthMiddleware } from '@/middleware/candidateAuth';
 import {
   getLiveKitStatusHandler,
-  postRecruiterLivekitTokenHandler,
   postCandidateLivekitTokenHandler,
+  postCandidateVideoEventHandler,
+  postRecruiterLivekitTokenHandler,
 } from '@/controllers/interviewVideoController';
+import { candidateAuthMiddleware } from '@/middleware/candidateAuth';
 import {
   validate,
   interviewEvaluationSchema,
@@ -36,6 +37,7 @@ import {
   pushCodingProblemSchema,
   updateLiveCodeSchema,
   runLiveCodeSchema,
+  videoEventSchema,
 } from '@/middleware/validate';
 
 const router = Router();
@@ -91,11 +93,6 @@ interviewLiveRecruiterRouter.post('/:interviewId/livekit-token', postRecruiterLi
 export const interviewCandidateRouter = Router();
 interviewCandidateRouter.post('/interview/exchange', exchangeInterviewTokenHandler);
 interviewCandidateRouter.get('/interview', candidateAuthMiddleware, getCandidateInterviewHandler);
-interviewCandidateRouter.post(
-  '/interview/livekit-token',
-  candidateAuthMiddleware,
-  postCandidateLivekitTokenHandler,
-);
 interviewCandidateRouter.get('/interview/coding-session', candidateAuthMiddleware, getCandidateCodingSessionHandler);
 interviewCandidateRouter.patch(
   '/interview/coding-session/code',
@@ -108,6 +105,14 @@ interviewCandidateRouter.post(
   candidateAuthMiddleware,
   validate(runLiveCodeSchema),
   runCandidateCodeHandler,
+);
+// Candidate video token + observable a/v signals (LiveKit video layer only).
+interviewCandidateRouter.post('/interview/livekit-token', candidateAuthMiddleware, postCandidateLivekitTokenHandler);
+interviewCandidateRouter.post(
+  '/interview/video-event',
+  candidateAuthMiddleware,
+  validate(videoEventSchema),
+  postCandidateVideoEventHandler,
 );
 
 export default router;

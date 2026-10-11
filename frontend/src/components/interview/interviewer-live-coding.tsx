@@ -4,8 +4,8 @@ import { useCallback, useEffect, useState } from "react"
 import { useApi } from "@/hooks/use-api"
 import { useAuth } from "@clerk/nextjs"
 import { CodingEditor } from "@/components/assessment-take/coding-editor"
+import { VideoRoom, type VideoConnection } from "@/components/interview/video-room"
 import { useInterviewRealtime } from "@/hooks/use-interview-realtime"
-import { InterviewVideoRoom } from "@/components/interview/interview-video-room"
 import { toast } from "sonner"
 
 /**
@@ -21,6 +21,9 @@ export function InterviewerLiveCoding({ interviewId }: { interviewId: string }) 
   const [selected, setSelected] = useState("")
   const [busy, setBusy] = useState(false)
   const [wsQuery, setWsQuery] = useState("")
+  const [videoConn, setVideoConn] = useState<VideoConnection | null>(null)
+  const [videoUnavailable, setVideoUnavailable] = useState(false)
+  const [joiningVideo, setJoiningVideo] = useState(false)
 
   const refresh = useCallback(async () => {
     const res = await api.getCodingSession(interviewId)
@@ -90,6 +93,25 @@ export function InterviewerLiveCoding({ interviewId }: { interviewId: string }) 
     }
   }
 
+  async function joinVideo() {
+    setJoiningVideo(true)
+    try {
+      const res = await api.getLivekitToken(interviewId)
+      if (res.success && res.data && res.data.videoEnabled && res.data.token && res.data.url) {
+        setVideoConn({ url: String(res.data.url), token: String(res.data.token) })
+        setVideoUnavailable(false)
+      } else {
+        setVideoUnavailable(true)
+        toast.error("Video service is not configured — use the meeting link.")
+      }
+    } catch (e) {
+      // Expired/cancelled/ended interviews land here.
+      toast.error(e instanceof Error ? e.message : "Could not join video.")
+    } finally {
+      setJoiningVideo(false)
+    }
+  }
+
   async function end() {
     if (!confirm("End this interview? The coding workspace will lock.")) return
     setBusy(true)
@@ -112,11 +134,25 @@ export function InterviewerLiveCoding({ interviewId }: { interviewId: string }) 
 
   return (
     <div className="space-y-3 rounded-lg border border-border p-3">
-      {/* Video/audio only — live coding below stays on the WebSocket layer. */}
-      <section aria-label="Interview video">
-        <h3 className="mb-2 text-xs font-medium text-muted">Video call</h3>
-        <InterviewVideoRoom role="recruiter" interviewId={interviewId} />
-      </section>
+      {videoConn && !ended ? (
+        <VideoRoom
+          key={videoConn.token.slice(-12)}
+          connection={videoConn}
+          localLabel="You (interviewer)"
+          remoteLabel="Candidate"
+          onLeave={() => setVideoConn(null)}
+          onRejoin={joinVideo}
+        />
+      ) : (
+        <div className="flex flex-wrap items-center gap-2">
+          <button onClick={joinVideo} disabled={joiningVideo || ended} className="rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground disabled:opacity-50">
+            {joiningVideo ? "Joining video…" : "Join video"}
+          </button>
+          {videoUnavailable ? (
+            <span className="text-xs text-muted-foreground">Video service is not configured — use the meeting link.</span>
+          ) : null}
+        </div>
+      )}
       <div className="flex flex-wrap items-center gap-2">
         <select
           aria-label="Coding problem"
@@ -138,22 +174,22 @@ export function InterviewerLiveCoding({ interviewId }: { interviewId: string }) 
         <button onClick={() => void refresh()} className="rounded-md border border-border px-3 py-1.5 text-sm">
           Refresh
         </button>
-        <button onClick={end} disabled={busy || ended} className="rounded-md border border-danger px-3 py-1.5 text-sm text-danger disabled:opacity-50">
+        <button onClick={end} disabled={busy || ended} className="rounded-md border border-red-300 px-3 py-1.5 text-sm text-red-600 disabled:opacity-50">
           {ended ? "Ended" : "End interview"}
         </button>
       </div>
       {problem ? (
         <div className="text-xs">
           <p className="font-medium">{String(problem.title)}</p>
-          <p className="mt-1 whitespace-pre-wrap text-muted">{String(problem.description || "").slice(0, 1000)}</p>
+          <p className="mt-1 whitespace-pre-wrap text-muted-foreground">{String(problem.description || "").slice(0, 1000)}</p>
         </div>
       ) : (
-        <p className="text-xs text-muted">No problem pushed yet.</p>
+        <p className="text-xs text-muted-foreground">No problem pushed yet.</p>
       )}
       <CodingEditor value={String(session?.candidate_code || "// waiting for candidate…")} language="javascript" height={240} readOnly />
-      <p className="text-[11px] text-muted">Read-only observer view · version {String(session?.version ?? "—")} · run: {String(session?.run_state ?? "—")}</p>
+      <p className="text-[11px] text-muted-foreground">Read-only observer view · version {String(session?.version ?? "—")} · run: {String(session?.run_state ?? "—")}</p>
       {output ? (
-        <pre className="max-h-40 overflow-auto rounded-md bg-black/80 p-2 text-[11px] text-success">
+        <pre className="max-h-40 overflow-auto rounded-md bg-black/80 p-2 text-[11px] text-green-200">
           {String(output.stdout || output.stderr || JSON.stringify(output).slice(0, 2000))}
         </pre>
       ) : null}

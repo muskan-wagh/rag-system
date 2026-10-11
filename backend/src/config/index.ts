@@ -132,10 +132,11 @@ export const config = Object.freeze({
     timeoutMs: parseInt(optional("JUDGE0_TIMEOUT_MS", "10000"), 10),
   },
 
-  // LiveKit powers in-app video/audio for technical interviews only.
-  // The live-coding collaboration layer remains the existing WebSocket
-  // system — these are deliberately separate concerns.
-  // Optional: when unset, interviews fall back to an external meeting link.
+  // LiveKit powers in-app video/audio for technical interviews only (video
+  // layer only — live coding stays on the existing WebSocket system).
+  // Optional: when unset, interviews fall back to the external meeting link
+  // and the token endpoints report videoEnabled:false instead of failing.
+  // Secrets never leave the server (tokens are minted here, never stored).
   livekit: {
     url: optional("LIVEKIT_URL", ""),
     apiKey: optional("LIVEKIT_API_KEY", ""),
