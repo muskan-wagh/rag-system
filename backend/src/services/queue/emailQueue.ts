@@ -40,6 +40,29 @@ export interface EnqueueEmailParams {
    * When omitted the job is fire-and-forget (legacy behavior).
    */
   jobId?: string;
+  /**
+   * Key of the `email_logs` row written at enqueue time.
+   *
+   * This field existed on the worker's `EmailJobData` from the start but no
+   * call site ever supplied it, so `recordDelivery()` in the worker could never
+   * match a row and delivery status stayed 'queued' forever. Every call site
+   * that writes an `email_logs` row MUST pass the same key.
+   */
+  idempotencyKey?: string;
+  /**
+   * When set, a successful send also marks this `candidate_reports` row as
+   * delivered. Without it `candidate_reports.email_status` was pinned at
+   * 'queued' even after the report genuinely arrived.
+   */
+  reportId?: string;
+  /**
+   * The `assessment_invites` row this email delivers, so the worker can write
+   * the REAL outcome into `assessment_invites.delivery_status`. Without it the
+   * recruiter UI could only ever show "queued".
+   */
+  inviteId?: string;
+  /** Candidate the invitation belongs to — extra scoping on the invite update. */
+  inviteCandidateId?: string;
 }
 
 function sanitizeJobId(jobId: string): string {

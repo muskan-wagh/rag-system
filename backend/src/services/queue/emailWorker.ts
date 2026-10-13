@@ -26,6 +26,14 @@ export interface EmailJobData {
   idempotencyKey?: string;
   /** Marks a `candidate_reports` row delivered when this email is its report. */
   reportId?: string;
+  /**
+   * The `assessment_invites` row this email delivers, so the recruiter UI can
+   * show a REAL send status (Sent / Failed / Pending) instead of a permanent
+   * "queued" that never resolved.
+   */
+  inviteId?: string;
+  /** Candidate the invitation belongs to, used to scope the invite update. */
+  inviteCandidateId?: string;
 }
 
 async function recordDelivery(
@@ -54,6 +62,16 @@ async function recordDelivery(
       .from('candidate_reports')
       .update({ email_status: 'sent', email_sent_at: new Date().toISOString(), email_error: null })
       .eq('id', data.reportId);
+  }
+
+  // Real invitation delivery outcome. The invite row itself stays `status:
+  // 'sent'` even when the email failed — the LINK is valid, the candidate just
+  // never received it — which is exactly why this lives in its own column
+  // rather than overwriting the invite status.
+  if (data.inviteId) {
+    let query = supabase.from('assessment_invites').update({ delivery_status: status }).eq('id', data.inviteId);
+    if (data.inviteCandidateId) query = query.eq('candidate_id', data.inviteCandidateId);
+    await query;
   }
 }
 

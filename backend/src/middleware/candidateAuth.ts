@@ -105,7 +105,9 @@ export async function lookupInviteByToken(token: string) {
   const supabase = getSupabaseClient();
   const { data, error } = await supabase
     .from('assessment_invites')
-    .select('id, assessment_id, candidate_id, recruiter_id, status, available_from, available_until')
+    .select(
+      'id, assessment_id, candidate_id, recruiter_id, status, available_from, available_until, snapshot_version',
+    )
     .eq('token_hash', hashInviteToken(token))
     .maybeSingle();
   if (error) throw new Error(`Invite lookup failed: ${error.message}`);
@@ -117,5 +119,11 @@ export async function lookupInviteByToken(token: string) {
     status: string;
     available_from: string | null;
     available_until: string | null;
+    /**
+     * Published question version this link was issued against. Pinned so a
+     * candidate's attempt grades against the set they actually saw, even after
+     * the recruiter republishes.
+     */
+    snapshot_version: number | null;
   };
 }

@@ -18,6 +18,10 @@ export class FakeDb {
   inserted: Record<string, Row[]> = {};
   /** Tables the code attempted to write; useful for "nothing was written". */
   writes: string[] = [];
+  /** Tables whose contents are computed on access (Postgres VIEWs). */
+  private derivedTables: Record<string, () => Row[]> = {};
+  /** Simulated UNIQUE constraints: table -> list of column tuples. */
+  private uniqueConstraints: Record<string, string[][]> = {};
 
   constructor(seed: Record<string, Row[]> = {}) {
     for (const [name, rows] of Object.entries(seed)) {
@@ -33,11 +37,56 @@ export class FakeDb {
   }
 
   rows(name: string): Row[] {
+    const derived = this.derivedTables[name];
+    if (derived) return derived();
     if (!this.tables[name]) {
       this.tables[name] = [];
       this.inserted[name] = [];
     }
     return this.tables[name];
+  }
+
+  /**
+   * Register a table whose contents are COMPUTED on every access.
+   *
+   * Production reads `job_pipeline`, a Postgres VIEW projecting
+   * `job_applications` as `current_stage AS stage`. Without this the fake would
+   * return an empty table, and every pipeline assertion would pass vacuously
+   * against zero rows. Registering it as derived also keeps it in sync with the
+   * backing table through writes.
+   */
+  derive(name: string, producer: () => Row[]): this {
+    this.derivedTables[name] = producer;
+    return this;
+  }
+
+  /**
+   * Declare a UNIQUE constraint so INSERT and UPSERT actually reject
+   * duplicates with PG code 23505.
+   *
+   * Without this, every idempotency guarantee in the codebase was untested:
+   * the code catches 23505 and re-reads the winning row, but a fake that
+   * silently appends duplicates means the dedupe path never ran and the tests
+   * passed while a double-click would have created duplicate records in
+   * production.
+   */
+  addUniqueConstraint(table: string, columns: string[]): this {
+    const list = this.uniqueConstraints[table] ?? [];
+    list.push(columns);
+    this.uniqueConstraints[table] = list;
+    return this;
+  }
+
+  /** First row of `table` that violates any declared UNIQUE constraint. */
+  private findUniqueViolation(table: string, row: Row): boolean {
+    const constraints = this.uniqueConstraints[table];
+    if (!constraints) return false;
+    return constraints.some((cols) => {
+      if (!cols.every((c) => row[c] !== undefined)) return false;
+      return this.rows(table).some(
+        (existing) => existing !== row && cols.every((c) => existing[c] === row[c]),
+      );
+    });
   }
 
   /** All rows in `name` matching the given [column, value] pairs. */
@@ -61,6 +110,18 @@ export function makeClient(db: FakeDb, rpcs: Record<string, (args: Record<string
     let payload: Row | Row[] = [];
     let ignoreDuplicates = false;
     let conflictCols: string[] = [];
+
+    /**
+     * Options passed to `.select(cols, { count, head })`.
+     *
+     * Production code uses `.select('id', { count: 'exact', head: true })` to ask
+     * "how many rows match" without transferring them. Without support here,
+     * `const { count } = await ...` silently destructured `undefined`, so every
+     * count-guarded branch (single-application mirroring, delete-guard,
+     * report versioning) took the wrong path in tests.
+     */
+    let selectCount: 'exact' | undefined;
+    let selectHead = false;
 
     const selectRows = (): Row[] => {
       let out = db.rows(table);
@@ -94,13 +155,35 @@ export function makeClient(db: FakeDb, rpcs: Record<string, (args: Record<string
       switch (kind) {
         case 'select': {
           let rows = applyOrder(selectRows());
+          if (selectHead) {
+            // PostgREST returns no rows for a HEAD request; only the count.
+            return {
+              data: null,
+              error: null,
+              count: selectCount === 'exact' ? rows.length : null,
+            };
+          }
           if (rangeState.from !== null && rangeState.to !== null) {
             rows = rows.slice(rangeState.from, rangeState.to + 1);
           }
-          return { data: rows, error: null };
+          return selectCount === 'exact'
+            ? { data: rows, error: null, count: rows.length }
+            : { data: rows, error: null };
         }
         case 'insert': {
           const list = Array.isArray(payload) ? payload : [payload];
+          const duplicate = list.find((r) => db.findUniqueViolation(table, r));
+          if (duplicate) {
+            db.writes.push(table);
+            return {
+              data: null,
+              error: {
+                code: '23505',
+                message: `duplicate key value violates unique constraint on ${table}`,
+                details: `${table} ${JSON.stringify(duplicate)}`,
+              },
+            };
+          }
           db.rows(table).push(...list.map((r) => ({ ...r })));
           db.inserted[table].push(...list.map((r) => ({ ...r })));
           db.writes.push(table);
@@ -125,8 +208,60 @@ export function makeClient(db: FakeDb, rpcs: Record<string, (args: Record<string
       }
     };
 
+    /**
+     * Performs the write for whichever verb is pending.
+     *
+     * Shared by `then`, `single()` and `maybeSingle()`. It used to live only
+     * inside `then`, which meant the extremely common production pattern
+     * `.upsert(row).select('*').maybeSingle()` created NOTHING — the upsert was
+     * never executed and the caller saw `data: null`.
+     */
+    const execute = (): { data: unknown; error: unknown } => {
+      if (kind === 'upsert') {
+        const list = Array.isArray(payload) ? payload : [payload];
+        const created: Row[] = [];
+        let failure: { code: string; message: string } | null = null;
+        for (const row of list) {
+          if (failure) break;
+          const cols = conflictCols.length ? conflictCols : ['id'];
+          // A conflict requires the payload to actually carry the key. A row
+          // with no `id` must not "conflict" with another row that also has no
+          // `id`.
+          const hasKey = cols.every((c) => row[c] !== undefined);
+          const existing = hasKey ? db.find(table, cols.map((c) => [c, row[c]] as [string, unknown])) : [];
+          if (existing.length && ignoreDuplicates) continue;
+          if (existing.length) Object.assign(existing[0], row);
+          else if (db.findUniqueViolation(table, row)) {
+            failure = {
+              code: '23505',
+              message: `duplicate key value violates unique constraint on ${table}`,
+            };
+            break;
+          } else {
+            const stored = { ...row };
+            if (stored.id === undefined && !cols.includes('id')) {
+              // Real Postgres assigns a generated PK; downstream code assumes
+              // an id exists on inserted rows.
+              stored.id = `gen-${table}-${db.rows(table).length + 1}`;
+            }
+            db.rows(table).push(stored);
+            created.push(stored);
+          }
+          db.inserted[table].push({ ...row });
+        }
+        db.writes.push(table);
+        if (failure) return { data: null, error: failure };
+        return { data: created[0] ?? null, error: null };
+      }
+      return terminal();
+    };
+
     const q: Record<string, unknown> = {
-      select: (_cols?: string) => q,
+      select: (_cols?: string, opts?: { count?: 'exact'; head?: boolean }) => {
+        selectCount = opts?.count;
+        selectHead = Boolean(opts?.head);
+        return q;
+      },
       eq: (col: string, val: unknown) => {
         filters.push([col, val]);
         return q;
@@ -175,40 +310,21 @@ export function makeClient(db: FakeDb, rpcs: Record<string, (args: Record<string
         conflictCols = (opts?.onConflict || '').split(',').map((c) => c.trim()).filter(Boolean);
         return q;
       },
+      // `.insert(...).select().single()` and `.upsert(...).select().maybeSingle()`
+      // are the two patterns production code uses everywhere, so both must run
+      // the pending write before resolving.
       single: () => {
-        const res = terminal();
+        const res = execute();
         const data = Array.isArray(res.data) ? (res.data[0] ?? null) : res.data;
         return Promise.resolve({ data, error: null });
       },
       maybeSingle: () => {
-        const res = terminal();
+        const res = execute();
         const data = Array.isArray(res.data) ? (res.data[0] ?? null) : res.data;
         return Promise.resolve({ data, error: null });
       },
       then: (res: (v: unknown) => unknown, rej?: (e: unknown) => unknown) => {
-        let out: { data: unknown; error: unknown };
-        if (kind === 'upsert') {
-          const list = Array.isArray(payload) ? payload : [payload];
-          const created: Row[] = [];
-          for (const row of list) {
-            const cols = conflictCols.length ? conflictCols : ['id'];
-            const existing = conflictCols.length
-              ? db.find(table, cols.map((c) => [c, row[c]] as [string, unknown]))
-              : [];
-            if (existing.length && ignoreDuplicates) continue;
-            if (existing.length) Object.assign(existing[0], row);
-            else {
-              db.rows(table).push({ ...row });
-              created.push(row);
-            }
-            db.inserted[table].push({ ...row });
-          }
-          db.writes.push(table);
-          out = { data: created[0] ?? null, error: null };
-        } else {
-          out = terminal();
-        }
-        return Promise.resolve(out).then(res, rej);
+        return Promise.resolve(execute()).then(res, rej);
       },
     };
     return q;

@@ -1,16 +1,16 @@
 import { Request, Response } from 'express';
 import { asyncHandler } from '@/utils/asyncHandler';
-import { listActivity } from '@/services/activity';
+import { listActivity, ACTION_TYPE_VALUES } from '@/services/activity';
 import { AppError } from '@/middleware/errorHandler';
 import { ErrorCodes } from '@/middleware/errorCodes';
 import { RecruiterRecord } from '@/services/supabase/database';
 
-const VALID_ACTION_TYPES = [
-  'resume_uploaded', 'resume_processed', 'search_executed', 'candidate_viewed',
-  'candidate_compared', 'status_changed', 'interview_scheduled', 'email_sent',
-  'offer_generated', 'note_added', 'saved_search_created', 'talent_pool_created',
-  'candidate_added_to_pool',
-];
+/**
+ * Validated against the shared constant in `services/activity.ts` rather than a
+ * hand-maintained copy. The local list had already drifted and was rejecting the
+ * four assessment action types with a 400.
+ */
+const VALID_ACTION_TYPES: readonly string[] = ACTION_TYPE_VALUES;
 
 export const getHistoryHandler = asyncHandler(async (req: Request, res: Response) => {
   const recruiter = req.recruiter as RecruiterRecord;

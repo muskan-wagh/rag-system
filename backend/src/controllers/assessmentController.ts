@@ -37,6 +37,16 @@ import {
   buildAssessmentInviteEmail,
   assessmentInviteSubject,
 } from '@/services/email/assessmentInvite';
+import {
+  buildSnapshot,
+  persistSnapshot,
+  resolveQuestionsForAttempt,
+  type SnapshotCapableAssessment,
+} from '@/services/assessments/snapshot';
+import { assertJobAccepts } from '@/services/hiring/jobLifecycleService';
+import { getApplicationRecord, setApplicationStage } from '@/services/hiring/applicationService';
+import { canSendAssessmentTo } from '@/services/hiring/decisionService';
+import { mergeProgressionConfig } from '@/controllers/jobWorkflowController';
 
 /**
  * Recruiter-side Assessment Builder.
@@ -95,6 +105,11 @@ interface InviteRow {
   last_sent_at: string;
   send_count: number;
   created_at: string;
+  /** Published question version this link is pinned to (20261010). */
+  snapshot_version?: number | null;
+  /** Real email outcome: pending | sent | failed (20261010). */
+  delivery_status?: string | null;
+  job_application_id?: string | null;
 }
 
 const DEFAULT_SETTINGS = {
@@ -229,13 +244,26 @@ export const listJobsHandler = asyncHandler(async (req: Request, res: Response) 
   const supabase = getSupabaseClient();
   const { data, error } = await supabase
     .from('jobs')
-    .select('id, title, description, upload_session_id, created_at')
+    // `status` is new in 20261008. Selecting a column that does not exist yet
+    // makes PostgREST return an error for the whole query, so the workspace job
+    // switcher falls back to a defaulted list rather than failing outright.
+    .select('id, title, description, upload_session_id, created_at, status, closed_at, progression_config')
     .eq('recruiter_id', recruiterId)
     .order('created_at', { ascending: false });
   if (error) {
     throw new AppError(`Failed to list jobs: ${error.message}`, 500, ErrorCodes.DATABASE_ERROR);
   }
-  res.status(200).json({ success: true, data: data || [] });
+  res.status(200).json({
+    success: true,
+    data: (data || []).map((row) => {
+      const r = row as Record<string, unknown>;
+      return {
+        ...r,
+        status: r.status === 'closed' ? 'closed' : 'open',
+        progression_config: mergeProgressionConfig(r.progression_config),
+      };
+    }),
+  });
 });
 
 export const createJobHandler = asyncHandler(async (req: Request, res: Response) => {
@@ -501,12 +529,16 @@ export const updateAssessmentHandler = asyncHandler(async (req: Request, res: Re
 export const publishAssessmentHandler = asyncHandler(async (req: Request, res: Response) => {
   const recruiterId = req.recruiter?.id as string;
   const assessmentId = req.params.assessmentId as string;
-  const assessment = await requireAssessment(recruiterId, assessmentId);
+  const assessment = (await requireAssessment(recruiterId, assessmentId)) as AssessmentRow & {
+    snapshot_version?: number;
+    published_snapshot?: unknown;
+  };
 
-  if (assessment.status === 'published') {
-    res.status(200).json({ success: true, data: assessment });
-    return;
-  }
+  // Republishing an already-published assessment is not a no-op: the recruiter
+  // may have edited the draft questions and wants a NEW version. Each publish
+  // therefore bumps the version and re-snapshots, which is exactly what makes
+  // the version meaningful. Returns the current state when nothing changed.
+  const previousVersion = Number(assessment.snapshot_version ?? 0);
 
   const questions = await getQuestions(assessmentId);
   const errors = validatePublish({
@@ -527,27 +559,41 @@ export const publishAssessmentHandler = asyncHandler(async (req: Request, res: R
     return;
   }
 
-  const supabase = getSupabaseClient();
-  const { data, error } = await supabase
-    .from('assessments')
-    .update({ status: 'published', updated_at: new Date().toISOString() })
-    .eq('id', assessmentId)
-    .eq('recruiter_id', recruiterId)
-    .select('*')
-    .single();
-  if (error || !data) {
-    throw new AppError(`Failed to publish: ${error?.message}`, 500, ErrorCodes.DATABASE_ERROR);
-  }
+  // Freeze the question set BEFORE flipping status to published, in one
+  // conditional write. If the version changed under us (a concurrent publish),
+  // persistSnapshot throws a 409 rather than silently overwriting and leaving
+  // two different question sets claiming the same version.
+  const snapshot = buildSnapshot({
+    assessment: assessment as unknown as SnapshotCapableAssessment,
+    questions,
+    nextVersion: previousVersion + 1,
+  });
 
-  broadcast('assessment:published', { assessmentId });
+  const { version } = await persistSnapshot({
+    assessmentId,
+    recruiterId,
+    previousVersion,
+    snapshot,
+  });
+
+  broadcast('assessment:published', { assessmentId, snapshotVersion: version });
   logActivity({
     recruiterId,
     actionType: 'assessment_published',
-    description: `Assessment published: ${assessment.name}`,
-    metadata: { assessmentId },
+    description: `Assessment published: ${assessment.name} (v${version})`,
+    metadata: { assessmentId, snapshotVersion: version, totalMarks: snapshot.total_marks },
   }).catch(() => {});
 
-  res.status(200).json({ success: true, data });
+  res.status(200).json({
+    success: true,
+    data: {
+      ...assessment,
+      status: 'published',
+      snapshot_version: version,
+      totalQuestions: snapshot.questions.length,
+      totalMarks: snapshot.total_marks,
+    },
+  });
 });
 
 export const unpublishAssessmentHandler = asyncHandler(async (req: Request, res: Response) => {
@@ -866,44 +912,56 @@ export const eligibleCandidatesHandler = asyncHandler(async (req: Request, res: 
 
   const supabase = getSupabaseClient();
 
-  // Eligibility source of truth: screening_results for the assessment's job.
-  // passed -> eligible; overridden -> eligible unless the recruiter rejected
-  // (rejection sets candidates.current_status='Rejected'). `all` lifts the
-  // gate so the recruiter can pick manually.
+  // ── Eligibility = SHORTLISTED on this job's application ─────────────────────
+  //
+  // This used to be derived from `screening_results.status IN ('passed',
+  // 'overridden')`, which made an AI score an implicit recruiter decision: a
+  // candidate the model happened to pass landed in the invitation queue whether
+  // or not a human had ever looked at them. Worse, it filtered on
+  // `candidates.current_status` — a GLOBAL column — to exclude rejections, so
+  // being rejected for Job B could remove someone from Job A's queue.
+  //
+  // It is now a query on `job_applications` for THIS job, which cannot leak
+  // across jobs. `all` still lifts the gate so a recruiter can pick manually.
   let eligibleIds: string[] | undefined;
   const screeningByCandidate = new Map<string, { status: string; overall: number }>();
+  let shortlistNoteByCandidate = new Map<string, string | null>();
+
   if (filter === 'eligible' && assessment.job_id) {
     const { data: rows } = await supabase
-      .from('screening_results')
-      .select('candidate_id, status, overall')
-      .eq('job_id', assessment.job_id);
-    const passed = ((rows || []) as Array<{ candidate_id: string; status: string; overall: number }>)
-      .filter((r) => r.status === 'passed');
-    const overridden = ((rows || []) as Array<{ candidate_id: string; status: string; overall: number }>)
-      .filter((r) => r.status === 'overridden');
-    for (const r of [...passed, ...overridden]) {
-      screeningByCandidate.set(r.candidate_id, { status: r.status, overall: Number(r.overall) || 0 });
+      .from('job_applications')
+      .select('candidate_id, shortlisted_at, shortlist_note')
+      .eq('job_id', assessment.job_id)
+      .eq('current_stage', 'Shortlisted');
+
+    const shortlisted = (rows || []) as Array<{
+      candidate_id: string;
+      shortlisted_at: string | null;
+      shortlist_note: string | null;
+    }>;
+    eligibleIds = shortlisted.map((r) => r.candidate_id);
+    shortlistNoteByCandidate = new Map(
+      shortlisted.map((r) => [r.candidate_id, r.shortlist_note ?? null]),
+    );
+
+    // Screening score is CONTEXT, not the gate. A candidate shortlisted without
+    // a screening run still shows up, with a null score, so the recruiter sees
+    // the truth rather than a fabricated number.
+    if (eligibleIds.length > 0) {
+      const { data: screeningRows } = await supabase
+        .from('screening_results')
+        .select('candidate_id, status, overall')
+        .eq('job_id', assessment.job_id)
+        .in('candidate_id', eligibleIds);
+      for (const r of (screeningRows || []) as Array<{ candidate_id: string; status: string; overall: number }>) {
+        screeningByCandidate.set(r.candidate_id, {
+          status: r.status,
+          overall: Number(r.overall) || 0,
+        });
+      }
     }
-    let candidates = [...passed, ...overridden].map((r) => r.candidate_id);
-    if (overridden.length > 0) {
-      // Exclude recruiter-rejected overrides (current_status='Rejected').
-      const { data: rejected } = await supabase
-        .from('candidates')
-        .select('id')
-        .in('id', overridden.map((r) => r.candidate_id))
-        .eq('current_status', 'Rejected');
-      const rejectedSet = new Set(((rejected || []) as Array<{ id: string }>).map((r) => r.id));
-      candidates = candidates.filter((id) => {
-        const s = screeningByCandidate.get(id)?.status;
-        return s === 'passed' || !rejectedSet.has(id);
-      });
-      for (const id of rejectedSet) screeningByCandidate.delete(id);
-    }
-    eligibleIds = candidates;
   }
 
-  // No job link (legacy standalone assessment): keep the previous
-  // shortlisted/screening status gate. `all` lifts every gate.
   const result = await getAllCandidatesPaginated({
     page,
     limit,
@@ -917,16 +975,28 @@ export const eligibleCandidatesHandler = asyncHandler(async (req: Request, res: 
 
   const { data: invites } = await supabase
     .from('assessment_invites')
-    .select('candidate_id, status, sent_at, last_sent_at, send_count')
+    .select('candidate_id, status, delivery_status, sent_at, last_sent_at, send_count, snapshot_version')
     .eq('assessment_id', assessmentId);
   const inviteMap = new Map(
-    ((invites || []) as Array<{ candidate_id: string; status: string; sent_at: string; last_sent_at: string; send_count: number }>)
-      .map((i) => [i.candidate_id, {
+    ((invites || []) as Array<{
+      candidate_id: string;
+      status: string;
+      delivery_status: string;
+      sent_at: string;
+      last_sent_at: string;
+      send_count: number;
+      snapshot_version: number | null;
+    }>).map((i) => [
+      i.candidate_id,
+      {
         status: i.status,
+        delivery_status: i.delivery_status,
         sent_at: i.sent_at,
         last_sent_at: i.last_sent_at,
         send_count: i.send_count,
-      }]),
+        snapshot_version: i.snapshot_version,
+      },
+    ]),
   );
 
   res.status(200).json({
@@ -936,6 +1006,7 @@ export const eligibleCandidatesHandler = asyncHandler(async (req: Request, res: 
         ...c,
         invite: inviteMap.get(c.id) || null,
         screening: screeningByCandidate.get(c.id) || null,
+        shortlistNote: shortlistNoteByCandidate.get(c.id) ?? null,
       })),
       total: result.total,
       page: result.page,
@@ -943,6 +1014,12 @@ export const eligibleCandidatesHandler = asyncHandler(async (req: Request, res: 
       totalPages: result.totalPages,
       filter,
       jobId: assessment.job_id,
+      eligibilityRule:
+        filter === 'eligible'
+          ? assessment.job_id
+            ? 'Shortlisted for this job'
+            : 'Legacy: candidate status shortlisted or screening'
+          : 'All owned candidates (gate lifted)',
     },
   });
 });
@@ -955,7 +1032,9 @@ export const listInvitesHandler = asyncHandler(async (req: Request, res: Respons
   const supabase = getSupabaseClient();
   const { data, error } = await supabase
     .from('assessment_invites')
-    .select('id, candidate_id, email, status, available_from, available_until, sent_at, last_sent_at, send_count, created_at, candidates(full_name, email)')
+    .select(
+      'id, candidate_id, email, status, delivery_status, snapshot_version, available_from, available_until, sent_at, last_sent_at, send_count, created_at, candidates(full_name, email)',
+    )
     .eq('assessment_id', assessmentId)
     .order('sent_at', { ascending: false });
   if (error) {
@@ -967,13 +1046,33 @@ export const listInvitesHandler = asyncHandler(async (req: Request, res: Respons
 export const createInvitesHandler = asyncHandler(async (req: Request, res: Response) => {
   const recruiterId = req.recruiter?.id as string;
   const assessmentId = req.params.assessmentId as string;
-  const assessment = await requireAssessment(recruiterId, assessmentId);
+  const assessment = (await requireAssessment(recruiterId, assessmentId)) as AssessmentRow & {
+    snapshot_version?: number;
+  };
 
   if (assessment.status !== 'published') {
     throw new AppError('Only a published assessment can be sent to candidates.', 409, ErrorCodes.VALIDATION_ERROR);
   }
   if (isWindowExpired(assessment.available_until)) {
     throw new AppError('The assessment availability window has already closed.', 409, ErrorCodes.VALIDATION_ERROR);
+  }
+
+  // The invite is pinned to the published version. Grading will read the
+  // snapshot, so a later republish cannot retroactively change what this link
+  // means for the candidate who received it today.
+  const snapshotVersion = Number(assessment.snapshot_version ?? 0);
+  if (snapshotVersion < 1) {
+    throw new AppError(
+      'This assessment has no published snapshot, so its questions cannot be pinned. Republish it, then send invitations.',
+      409,
+      ErrorCodes.CONFLICT,
+    );
+  }
+
+  // A closed job refuses new invitations unless the recruiter has explicitly
+  // enabled the override for this job. Fail-closed.
+  if (assessment.job_id) {
+    await assertJobAccepts(recruiterId, assessment.job_id, 'invite', { respectInviteOverride: true });
   }
 
   const rawIds = (req.body as { candidateIds?: unknown }).candidateIds;
@@ -1007,6 +1106,41 @@ export const createInvitesHandler = asyncHandler(async (req: Request, res: Respo
     return;
   }
 
+  // ── Eligibility is a SHORTLIST on this job's application ────────────────────
+  // Previously this handler only checked ownership, so anyone the recruiter
+  // happened to have in their candidate pool could be invited. Eligibility is
+  // now exactly "a recruiter put this person at Shortlisted on this job".
+  if (assessment.job_id) {
+    const ineligible: Array<{ candidateId: string; reason: string }> = [];
+    for (const candidateId of candidateIds) {
+      const permission = await canSendAssessmentTo(recruiterId, assessment.job_id, candidateId);
+      const application = await getApplicationRecord(assessment.job_id, candidateId);
+      if (!permission.allowed) {
+        ineligible.push({
+          candidateId,
+          reason: permission.reason ?? 'Not eligible for an assessment in this job.',
+        });
+        continue;
+      }
+      // Shortlist is the gate, not merely "still in the pipeline".
+      if (application?.current_stage !== 'Shortlisted') {
+        ineligible.push({
+          candidateId,
+          reason: `Candidate is at ${application?.current_stage ?? 'no stage'}. Shortlist them first.`,
+        });
+      }
+    }
+    if (ineligible.length > 0) {
+      res.status(409).json({
+        success: false,
+        code: ErrorCodes.CONFLICT,
+        error: `${ineligible.length} candidate(s) are not eligible for this assessment.`,
+        details: { ineligible },
+      });
+      return;
+    }
+  }
+
   const { data: existingInvites } = await supabase
     .from('assessment_invites')
     .select('candidate_id, status')
@@ -1034,12 +1168,28 @@ export const createInvitesHandler = asyncHandler(async (req: Request, res: Respo
   const skippedMissingEmail = freshIds.filter((id) => !(owned.get(id)?.email || '').trim());
   const sendableIds = freshIds.filter((id) => (owned.get(id)?.email || '').trim());
 
+  const { data: jobRow } = assessment.job_id
+    ? await supabase
+        .from('jobs')
+        .select('title, organization_name')
+        .eq('id', assessment.job_id)
+        .maybeSingle()
+    : { data: null };
+  const jobTitle = String((jobRow as { title?: string } | null)?.title ?? '');
+  const companyName =
+    String((jobRow as { organization_name?: string } | null)?.organization_name ?? '') || 'HireStack';
+
   const invited: Array<{ candidateId: string; email: string; link: string; sentAt: string }> = [];
+  const failed: Array<{ candidateId: string; reason: string }> = [];
 
   for (const candidateId of sendableIds) {
     const candidate = owned.get(candidateId) as { id: string; email: string; full_name: string };
     const token = generateInviteToken();
     const now = new Date().toISOString();
+    const application = assessment.job_id
+      ? await getApplicationRecord(assessment.job_id, candidateId)
+      : null;
+
     const { data: row, error: insertError } = await supabase
       .from('assessment_invites')
       .insert({
@@ -1056,8 +1206,13 @@ export const createInvitesHandler = asyncHandler(async (req: Request, res: Respo
         sent_at: now,
         last_sent_at: now,
         send_count: 1,
+        // Pinned to the job application and the published question version.
+        snapshot_version: snapshotVersion,
+        job_application_id: application?.id ?? null,
+        // Honest starting state: the email has not left the queue yet.
+        delivery_status: 'pending',
       })
-      .select('sent_at')
+      .select('id, sent_at')
       .single();
 
     if (insertError || !row) {
@@ -1066,7 +1221,13 @@ export const createInvitesHandler = asyncHandler(async (req: Request, res: Respo
         skippedAlreadyInvited.push(candidateId);
         continue;
       }
+      // Previously this candidate was silently dropped: not in `invited`, not in
+      // any skip list, and the response still said success. Surface it.
       logger.error('Failed to create assessment invite', { error: insertError?.message, assessmentId, candidateId });
+      failed.push({
+        candidateId,
+        reason: insertError?.message ?? 'Could not create the invitation record.',
+      });
       continue;
     }
 
@@ -1080,18 +1241,46 @@ export const createInvitesHandler = asyncHandler(async (req: Request, res: Respo
       availableUntil: assessment.available_until,
       instructions: assessment.instructions,
       assessmentLink: link,
+      jobTitle,
+      companyName,
     });
 
-    // Existing Resend queue/worker path (fire-and-forget, unchanged infra).
-    // Logged as `queued` — NOT `sent`: the worker has no delivery callback,
-    // so `sent` would overclaim. See report: remaining gap.
-    enqueueEmail({ to: candidate.email, subject, html }).catch(() => {});
+    // The idempotency key MUST reach the queue: the worker needs it to find
+    // this row and write the REAL delivery outcome into both `email_logs` and
+    // `assessment_invites.delivery_status`. Without it the invite sat at
+    // 'queued' forever and the UI could not tell sent from failed.
+    const idempotencyKey = inviteEmailKey(assessmentId, candidateId, 1);
+    const enqueued = await enqueueEmail({
+      to: candidate.email,
+      subject,
+      html,
+      idempotencyKey,
+      inviteId: ((row as { id?: string }).id || undefined),
+      inviteCandidateId: candidateId,
+    });
+    const deliveryStatus = enqueued.queued ? 'pending' : 'failed';
+
+    if (!enqueued.queued) {
+      await supabase
+        .from('assessment_invites')
+        .update({ delivery_status: 'failed' })
+        .eq('assessment_id', assessmentId)
+        .eq('candidate_id', candidateId)
+        .neq('status', 'revoked');
+      logger.error('Assessment invite could not be queued', {
+        assessmentId,
+        candidateId,
+        error: enqueued.error,
+      });
+    }
+
     await logEmail(
       candidateId,
       'assessment_invitation',
       subject,
       [
-        `Assessment: ${assessment.name}`,
+        `Assessment: ${assessment.name} (v${snapshotVersion})`,
+        `Job: ${jobTitle || '—'}`,
         `Duration: ${assessment.duration_minutes} minutes`,
         `Available from: ${assessment.available_from || '—'}`,
         `Available until: ${assessment.available_until || '—'}`,
@@ -1100,10 +1289,54 @@ export const createInvitesHandler = asyncHandler(async (req: Request, res: Respo
       {
         recruiterId,
         provider: 'resend',
-        status: 'queued',
-        idempotencyKey: inviteEmailKey(assessmentId, candidateId, 1),
+        status: deliveryStatus === 'failed' ? 'failed' : 'queued',
+        error: enqueued.queued ? undefined : enqueued.error,
+        idempotencyKey,
       },
     );
+
+    // ── Issuing the invitation IS the move into the Assessment stage ───────────
+    // Leaving the application at `Shortlisted` while an assessment is outstanding
+    // made the pipeline lie. Two concrete failures resulted:
+    //   1. On submit, progression is enqueued with `fromStage: 'Assessment'` from
+    //      the job payload. The central write path correctly re-reads the REAL
+    //      stage — `Shortlisted` — and rejects `Shortlisted → Technical Round` as
+    //      a skipped stage, so every auto-advance failed with a 409.
+    //   2. The workspace showed a candidate who had finished the assessment still
+    //      sitting in the shortlist stage.
+    // Sending an invitation is an explicit, recruiter-driven action, which is
+    // exactly the semantics `Shortlisted → Assessment` describes. The trigger id
+    // is keyed on the invite row, so a retry or a second click is a no-op.
+    if (assessment.job_id) {
+      try {
+        await setApplicationStage({
+          jobId: assessment.job_id,
+          candidateId,
+          recruiterId,
+          toStage: 'Assessment',
+          triggerType: 'manual',
+          triggerId: `assessment-invited:${(row as { id?: string }).id ?? `${assessmentId}:${candidateId}`}`,
+          metadata: {
+            action: 'assessment_invited',
+            assessment_id: assessmentId,
+            snapshot_version: snapshotVersion,
+          },
+        });
+      } catch (err) {
+        // The invitation is already persisted and the email is already queued.
+        // A stage-transition failure here must not lose the invitation, but it
+        // must be visible rather than silently leaving the pipeline wrong.
+        logger.error('[invites] could not move the application into Assessment', {
+          assessmentId,
+          candidateId,
+          error: err instanceof Error ? err.message : String(err),
+        });
+        failed.push({
+          candidateId,
+          reason: 'Invitation sent, but the candidate could not be moved to the Assessment stage. Open their application and retry.',
+        });
+      }
+    }
 
     invited.push({
       candidateId,
@@ -1118,14 +1351,24 @@ export const createInvitesHandler = asyncHandler(async (req: Request, res: Respo
       recruiterId,
       actionType: 'assessment_invite_sent',
       description: `Assessment invitations sent for "${assessment.name}" (${invited.length})`,
-      metadata: { assessmentId, candidateIds: invited.map((i) => i.candidateId) },
+      metadata: {
+        assessmentId,
+        snapshotVersion,
+        candidateIds: invited.map((i) => i.candidateId),
+      },
     }).catch(() => {});
-    broadcast('assessment:invite_sent', { assessmentId, count: invited.length });
+    broadcast('assessment:invite_sent', { assessmentId, count: invited.length, snapshotVersion });
   }
 
   res.status(200).json({
     success: true,
-    data: { invited, skippedAlreadyInvited, skippedMissingEmail },
+    data: {
+      invited,
+      skippedAlreadyInvited,
+      skippedMissingEmail,
+      failed,
+      snapshotVersion,
+    },
   });
 });
 
@@ -1184,12 +1427,14 @@ export const resendInviteHandler = asyncHandler(async (req: Request, res: Respon
     throw new AppError('Candidate not found or has no email address.', 404, ErrorCodes.NOT_FOUND);
   }
 
-  // Same token, same row: only counters move (correction #5).
+  // Same token, same row, SAME SNAPSHOT VERSION: only counters move
+  // (correction #5). An already-issued URL must keep meaning the same
+  // assessment, so a republish in between cannot change what this link delivers.
   const sendCount = row.send_count + 1;
   const now = new Date().toISOString();
   const { error: updateError } = await supabase
     .from('assessment_invites')
-    .update({ send_count: sendCount, last_sent_at: now })
+    .update({ send_count: sendCount, last_sent_at: now, delivery_status: 'pending' })
     .eq('id', row.id);
   if (updateError) {
     throw new AppError(`Failed to update invite: ${updateError.message}`, 500, ErrorCodes.DATABASE_ERROR);
@@ -1197,6 +1442,11 @@ export const resendInviteHandler = asyncHandler(async (req: Request, res: Respon
 
   const link = buildAssessmentLink(token);
   const subject = assessmentInviteSubject(assessment.name);
+
+  const { data: jobRow } = assessment.job_id
+    ? await supabase.from('jobs').select('title, organization_name').eq('id', assessment.job_id).maybeSingle()
+    : { data: null };
+
   const html = buildAssessmentInviteEmail({
     candidateName: candidateRow.full_name || 'Candidate',
     assessmentName: assessment.name,
@@ -1205,9 +1455,25 @@ export const resendInviteHandler = asyncHandler(async (req: Request, res: Respon
     availableUntil: row.available_until,
     instructions: assessment.instructions,
     assessmentLink: link,
+    jobTitle: String((jobRow as { title?: string } | null)?.title ?? ''),
+    companyName: String((jobRow as { organization_name?: string } | null)?.organization_name ?? '') || 'HireStack',
+    version: row.snapshot_version ?? null,
   });
 
-  enqueueEmail({ to: candidateRow.email, subject, html }).catch(() => {});
+  const idempotencyKey = inviteEmailKey(assessmentId, candidateId, sendCount);
+  const enqueued = await enqueueEmail({
+    to: candidateRow.email,
+    subject,
+    html,
+    idempotencyKey,
+    inviteId: row.id,
+    inviteCandidateId: candidateId,
+  });
+
+  if (!enqueued.queued) {
+    await supabase.from('assessment_invites').update({ delivery_status: 'failed' }).eq('id', row.id);
+  }
+
   await logEmail(
     candidateId,
     'assessment_invitation',
@@ -1216,8 +1482,9 @@ export const resendInviteHandler = asyncHandler(async (req: Request, res: Respon
     {
       recruiterId,
       provider: 'resend',
-      status: 'queued',
-      idempotencyKey: inviteEmailKey(assessmentId, candidateId, sendCount),
+      status: enqueued.queued ? 'queued' : 'failed',
+      error: enqueued.queued ? undefined : enqueued.error,
+      idempotencyKey,
     },
   );
   logActivity({
@@ -1225,10 +1492,19 @@ export const resendInviteHandler = asyncHandler(async (req: Request, res: Respon
     actionType: 'assessment_invite_sent',
     description: `Assessment invitation resent for "${assessment.name}" (#${sendCount})`,
     candidateId,
-    metadata: { assessmentId },
+    metadata: { assessmentId, sendCount },
   }).catch(() => {});
 
-  res.status(200).json({ success: true, data: { message: 'Invitation resent', sendCount, lastSentAt: now } });
+  res.status(200).json({
+    success: true,
+    data: {
+      message: 'Invitation resent',
+      sendCount,
+      lastSentAt: now,
+      deliveryStatus: enqueued.queued ? 'pending' : 'failed',
+      ...(enqueued.queued ? {} : { error: enqueued.error }),
+    },
+  });
 });
 
 export const revokeInviteHandler = asyncHandler(async (req: Request, res: Response) => {

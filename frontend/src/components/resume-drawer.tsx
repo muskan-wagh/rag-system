@@ -626,7 +626,7 @@ export function ResumeDrawer({ candidate, result, onClose, onAddToPool, onEmail 
             onClose={() => setShowScheduleModal(false)}
             candidateId={candidate.id}
             onSuccess={() => {
-              setLocalStatus("Interview Scheduled")
+              setLocalStatus("Interview")
             }}
           />
           <RejectModal
@@ -642,7 +642,7 @@ export function ResumeDrawer({ candidate, result, onClose, onAddToPool, onEmail 
             onClose={() => setShowOfferModal(false)}
             candidateId={candidate.id}
             onSuccess={() => {
-              setLocalStatus("Offered")
+              setLocalStatus("Final Decision")
             }}
           />
         </>

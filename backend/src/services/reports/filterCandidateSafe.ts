@@ -53,6 +53,18 @@ export function toCandidateSafeReport(internal: HiringReport): HiringReport {
           isMockExecution: internal.assessment.isMockExecution,
           questionCount: internal.assessment.questionCount,
           answeredCount: internal.assessment.answeredCount,
+          unansweredCount: internal.assessment.unansweredCount,
+          needsManualReview: internal.assessment.needsManualReview,
+          durationSeconds: internal.assessment.durationSeconds,
+          snapshotVersion: internal.assessment.snapshotVersion,
+          snapshotSource: internal.assessment.snapshotSource,
+          // Honest about what is and is not reproducible. A candidate must be
+          // able to see that their result came from a question set we no longer
+          // have, rather than being told it is verifiable when it is not.
+          gradingLimitation: internal.assessment.gradingLimitation,
+          // Per-skill breakdown is derived only from the candidate's own
+          // persisted scores, so it is safe to share.
+          skillBreakdown: internal.assessment.skillBreakdown,
           // answers / questions / proctoring counts deliberately omitted
         }
       : null,

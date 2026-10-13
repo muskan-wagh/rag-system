@@ -131,6 +131,8 @@ describe('progression config gating', () => {
       hr_to_offer: false,
       assessment_auto_invite: false,
       interview_auto_invite: false,
+      // 20261008: explicit, fail-closed override for inviting on a closed job.
+      allow_invites_when_closed: false,
     });
     expect(
       mergeProgressionConfig({ assessment_to_technical: true, evil: true } as never),
@@ -141,6 +143,8 @@ describe('progression config gating', () => {
       hr_to_offer: false,
       assessment_auto_invite: false,
       interview_auto_invite: false,
+      // 20261008: explicit, fail-closed override for inviting on a closed job.
+      allow_invites_when_closed: false,
     });
   });
 });

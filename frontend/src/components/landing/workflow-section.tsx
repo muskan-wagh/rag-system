@@ -31,13 +31,13 @@ const STEPS = [
     verb: "Publish",
   },
   {
-    stage: "Technical Interview",
+    stage: "Technical Round",
     title: "Video + live coding",
     body: "Schedule the round, push a coding problem into the shared session, and watch the candidate's code run against test cases as they write it.",
     verb: "Schedule",
   },
   {
-    stage: "Managerial/HR",
+    stage: "Interview",
     title: "Structured evaluation",
     body: "Interviewers score against a fixed rubric so feedback is comparable. Every rating is stored against the candidate, not lost in a calendar invite.",
     verb: "Evaluate",
@@ -89,9 +89,9 @@ export function WorkflowSection() {
                   {String(i + 1).padStart(2, "0")}
                 </span>
                 <span className="rounded-full border border-white/[0.08] bg-white/[0.03] px-2.5 py-1 text-[10.5px] font-medium uppercase tracking-[0.06em] text-white/50">
-                  {step.stage === "Technical Interview"
+                  {step.stage === "Technical Round"
                     ? "Technical"
-                    : step.stage === "Managerial/HR"
+                    : step.stage === "Interview"
                       ? "Managerial / HR"
                       : step.stage}
                 </span>

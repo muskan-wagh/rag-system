@@ -10,7 +10,6 @@ import {
   Search as SearchIcon,
   GitCompareArrows,
   Layers,
-  CalendarDays,
   Bookmark,
   History,
   Settings,
@@ -30,13 +29,18 @@ interface Command {
 
 const COMMANDS: Command[] = [
   { href: "/dashboard", label: "Dashboard", group: "Overview", icon: LayoutDashboard, keywords: "home overview metrics" },
-  { href: "/interview", label: "Interviews", group: "Overview", icon: CalendarDays, keywords: "schedule round meeting" },
 
-  { href: "/jobs", label: "All jobs", group: "Hiring", icon: Briefcase, keywords: "roles openings" },
+  { href: "/assessments", label: "Assessments workspace", group: "Hiring", icon: ClipboardList, keywords: "shortlist tests questions pipeline interview decision" },
+  { href: "/assessments?stage=shortlisting", label: "Shortlisting", group: "Hiring", icon: ClipboardList, keywords: "review screen decide shortlist" },
+  { href: "/assessments?stage=setup", label: "Assessment setup", group: "Hiring", icon: ClipboardList, keywords: "generate questions approve" },
+  { href: "/assessments?stage=invitations", label: "Assessment invitations", group: "Hiring", icon: ClipboardList, keywords: "send link email candidate" },
+  { href: "/assessments?stage=results", label: "Assessment results & reports", group: "Hiring", icon: ClipboardList, keywords: "scores report submit" },
+  { href: "/assessments?stage=technical", label: "Technical round", group: "Hiring", icon: ClipboardList, keywords: "interview coding schedule" },
+  { href: "/assessments?stage=interview", label: "Interview & decision", group: "Hiring", icon: ClipboardList, keywords: "hire reject hold feedback" },
+  { href: "/assessments?stage=jobs", label: "Jobs", group: "Hiring", icon: Briefcase, keywords: "roles openings close reopen" },
   { href: "/candidates", label: "All candidates", group: "Hiring", icon: Users, keywords: "people applicants" },
   { href: "/candidates/search", label: "AI candidate search", group: "Hiring", icon: SearchIcon, keywords: "semantic rag find" },
   { href: "/compare", label: "Compare candidates", group: "Hiring", icon: GitCompareArrows, keywords: "side by side" },
-  { href: "/assessments", label: "Assessments", group: "Hiring", icon: ClipboardList, keywords: "tests questions" },
 
   { href: "/pools", label: "Talent pools", group: "Library", icon: Layers, keywords: "groups lists" },
   { href: "/search", label: "Saved searches", group: "Library", icon: Bookmark, keywords: "bookmarks" },
@@ -44,7 +48,7 @@ const COMMANDS: Command[] = [
 
   { href: "/settings", label: "Settings", group: "Account", icon: Settings, keywords: "gmail integrations preferences" },
 
-  { href: "/jobs", label: "Create a job", group: "Create", icon: FilePlus2, keywords: "new role post" },
+  { href: "/assessments?stage=jobs", label: "Create a job", group: "Create", icon: FilePlus2, keywords: "new role post" },
   { href: "/assessments/new", label: "New assessment", group: "Create", icon: FilePlus2, keywords: "build test" },
 ]
 

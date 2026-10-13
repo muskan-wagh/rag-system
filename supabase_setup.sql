@@ -85,7 +85,13 @@ CREATE TABLE IF NOT EXISTS candidate_experience (
 CREATE TABLE IF NOT EXISTS candidate_status_log (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   candidate_id UUID REFERENCES candidates(id) ON DELETE CASCADE,
-  status TEXT NOT NULL CHECK (status IN ('Pending','Shortlisted','Interview','Offer','Hired','Rejected','Applied','Screening','Technical Interview','HR Interview')),
+  -- The authoritative value list lives in `candidate_status_log_status_check`
+  -- (added further below, and reconciled by migration 20261009). The inline
+  -- column CHECK is deliberately omitted: Postgres auto-names a column
+  -- constraint `<table>_<column>_check`, which silently defeats the
+  -- `DROP CONSTRAINT IF EXISTS candidate_status_log_status_check` that follows
+  -- and leaves a stale, narrow constraint behind.
+  status TEXT NOT NULL,
   changed_at TIMESTAMP DEFAULT NOW()
 );
 
@@ -134,8 +140,12 @@ CREATE TABLE IF NOT EXISTS interviews (
   interviewer_name TEXT DEFAULT '',
   notes TEXT DEFAULT '',
   meeting_link TEXT DEFAULT '',
-  status TEXT DEFAULT 'scheduled' CHECK (status IN ('scheduled','completed','cancelled')),
-  created_at TIMESTAMP DEFAULT NOW()
+  -- Named and table-level so it is droppable by name. `interviewLiveController`
+  -- writes 'joined'; the status endpoint also accepts 'in_progress'/'no_show'.
+  status TEXT DEFAULT 'scheduled',
+  created_at TIMESTAMP DEFAULT NOW(),
+  CONSTRAINT interviews_status_check
+    CHECK (status IN ('scheduled','joined','in_progress','completed','cancelled','no_show'))
 );
 
 -- 10. Offers table
@@ -153,10 +163,28 @@ CREATE TABLE IF NOT EXISTS offers (
 ALTER TABLE candidate_status_log ADD COLUMN IF NOT EXISTS changed_by TEXT DEFAULT '';
 ALTER TABLE candidate_status_log ADD COLUMN IF NOT EXISTS details JSONB DEFAULT '{}';
 
--- Update CHECK constraint on candidate_status_log.status to include new statuses
+-- Canonical CHECK constraint on candidate_status_log.status.
+--
+-- This was the last remaining narrow definition in this file and it was missing
+-- five values the application writes: `Assessment`, `Technical Round`,
+-- `Final Decision`, `Hold` and `Withdrawn`. `applicationService.appendStageTimeline`
+-- writes the DESTINATION stage on every move, so every shortlist past Screening,
+-- every advance to the technical round and every park/withdraw failed with a
+-- 23514 on a database provisioned from this file.
+--
+-- The list is a superset of every value any earlier version permitted, so no
+-- existing row can become invalid.
 ALTER TABLE candidate_status_log DROP CONSTRAINT IF EXISTS candidate_status_log_status_check;
 ALTER TABLE candidate_status_log ADD CONSTRAINT candidate_status_log_status_check
-  CHECK (status IN ('Applied','Shortlisted','Screening','Interview','Interview Scheduled','Interview Completed','Technical Round','HR Round','Offered','Hired','Rejected'));
+  CHECK (status IS NULL OR status IN (
+    -- canonical pipeline
+    'Applied','Screening','Shortlisted','Assessment','Technical Round','Interview','Final Decision','Hired',
+    -- outcomes
+    'Rejected','Withdrawn','Hold',
+    -- legacy read-only values
+    'Technical Interview','Managerial/HR','HR Round','HR Interview','Offer','Offered',
+    'Interview Scheduled','Interview Completed','Pending'
+  ));
 
 -- ============================================================
 -- 11. Recruiters table (Clerk-based authentication)
@@ -564,8 +592,17 @@ CREATE TABLE IF NOT EXISTS hiring_stages (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   job_id UUID NOT NULL REFERENCES jobs(id) ON DELETE CASCADE,
   recruiter_id UUID NOT NULL REFERENCES recruiters(id) ON DELETE CASCADE,
+  -- Canonical stage vocabulary matching `services/hiring/stageTypes.ts`, plus
+  -- the legacy values so a pre-rename row still validates.
   stage_type TEXT NOT NULL
-    CHECK (stage_type IN ('Screening','Assessment','Interview','Offer','Hired')),
+    CHECK (stage_type IN (
+      'Screening','Shortlisted','Assessment','Technical Round','Interview','Final Decision','Hired',
+      'Technical Interview','Managerial/HR',
+      -- Permitted but not written by the current progression service, which only
+      -- creates rows for destination stages. Listed so a future caller writing
+      -- one cannot hit a 23514 and so this list never needs narrowing.
+      'Applied','Rejected','Hold','Withdrawn'
+    )),
   position INT NOT NULL DEFAULT 0,
   config JSONB NOT NULL DEFAULT '{}',
   created_at TIMESTAMPTZ DEFAULT NOW(),
@@ -633,15 +670,21 @@ CREATE TABLE IF NOT EXISTS assessment_invites (
   -- server's service_role key — no new env vars). Needed so Resend can reuse
   -- the SAME token/link without generating a new one.
   token_encrypted TEXT,
-  status TEXT NOT NULL DEFAULT 'sent'
-    CHECK (status IN ('sent','opened','started','expired','revoked')),
+  -- `completed` is REQUIRED: `candidateAssessmentController` sets it once an
+  -- attempt is persisted and evaluated. Omitting it makes every submission fail
+  -- with a 23514 CHECK violation on a database provisioned from this file alone.
+  -- The constraint is named and table-level (see the end of this table) so that
+  -- `DROP CONSTRAINT IF EXISTS assessment_invites_status_check` matches by name.
+  status TEXT NOT NULL DEFAULT 'sent',
   available_from TIMESTAMPTZ,
   available_until TIMESTAMPTZ,
   sent_at TIMESTAMPTZ DEFAULT NOW(),
   last_sent_at TIMESTAMPTZ DEFAULT NOW(),
   send_count INT NOT NULL DEFAULT 1 CHECK (send_count >= 1),
   created_at TIMESTAMPTZ DEFAULT NOW(),
-  UNIQUE(assessment_id, candidate_id)
+  UNIQUE(assessment_id, candidate_id),
+  CONSTRAINT assessment_invites_status_check
+    CHECK (status IN ('sent','opened','started','expired','revoked','completed'))
 );
 
 CREATE INDEX IF NOT EXISTS idx_assessment_invites_assessment_candidate

@@ -247,9 +247,9 @@ export interface SessionStats {
   screening: number
   /** Candidates currently in the Assessment stage. */
   assessment: number
-  /** Candidates currently in the Technical Interview stage. */
+  /** Candidates currently in the Technical Round stage. */
   technical: number
-  /** Candidates currently in the Managerial/HR stage. */
+  /** Candidates currently in the Interview stage. */
   hr: number
   /** Candidates currently awaiting a final hiring decision. */
   finalDecision: number
@@ -413,6 +413,215 @@ export interface MinimalJob {
   description?: string
   upload_session_id?: string | null
   created_at?: string
+  /**
+   * Job lifecycle. A closed job accepts no new applications, invitations or
+   * progression, but every existing record stays readable — closing a job stops
+   * intake, it does not erase history.
+   */
+  status?: "open" | "closed"
+  closed_at?: string | null
+  /** Per-job automation rules, including the closed-job invite override. */
+  progression_config?: Record<string, boolean>
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Recruitment workspace
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Derived, per-candidate assessment state.
+ *
+ * Every value is backed by a real row. In particular `failed` means a recorded
+ * delivery failure — never "we gave up", and never a quiet success.
+ */
+export type AssessmentState =
+  | "not_created"
+  | "draft"
+  | "ready_to_send"
+  | "invited"
+  | "in_progress"
+  | "completed"
+  | "expired"
+  | "failed"
+
+export const ASSESSMENT_STATE_LABELS: Record<AssessmentState, string> = {
+  not_created: "Not created",
+  draft: "Draft",
+  ready_to_send: "Ready to send",
+  invited: "Invited",
+  in_progress: "In progress",
+  completed: "Completed",
+  expired: "Expired",
+  failed: "Failed",
+}
+
+export interface WorkspaceCandidate {
+  applicationId: string
+  candidateId: string
+  fullName: string
+  email: string
+  currentTitle: string
+  currentCompany: string
+  stage: string
+  stageChangedAt: string | null
+  shortlistedAt: string | null
+  screening: {
+    status: string
+    overall: number
+    overridden: boolean
+    matchedSkills: string[]
+    missingSkills: string[]
+  } | null
+  assessment: {
+    state: AssessmentState
+    assessmentId: string | null
+    assessmentName: string | null
+    /** Published question version this link is pinned to. */
+    snapshotVersion: number | null
+    inviteStatus: string | null
+    deliveryStatus: "pending" | "sent" | "failed" | null
+    sentAt: string | null
+    deadline: string | null
+    attemptStatus: string | null
+    startedAt: string | null
+    submittedAt: string | null
+    score: number | null
+    maxScore: number | null
+    percentage: number | null
+    passed: boolean | null
+  } | null
+  interview: {
+    interviewId: string
+    scheduledDate: string
+    scheduledTime: string
+    status: string
+    meetingLink: string
+  } | null
+  hasReport: boolean
+}
+
+export interface WorkspaceCounts {
+  applied: number
+  screening: number
+  shortlisted: number
+  assessment: number
+  technicalRound: number
+  interview: number
+  finalDecision: number
+  hired: number
+  rejected: number
+  hold: number
+  notCreated: number
+  draft: number
+  readyToSend: number
+  invited: number
+  inProgress: number
+  completed: number
+  expired: number
+  failed: number
+}
+
+export interface WorkspaceAssessmentSummary {
+  id: string
+  name: string
+  status: string
+  durationMinutes: number
+  passingScore: number
+  /** Published question version. 0 means never published under snapshotting. */
+  snapshotVersion: number
+  totalQuestions: number
+  totalMarks: number
+  availableUntil: string | null
+  inviteCount: number
+}
+
+export interface WorkspacePayload {
+  job: {
+    id: string
+    title: string
+    status: "open" | "closed"
+    closed_at: string | null
+    closed_by: string | null
+    assessmentCount: number
+    publishedAssessmentCount: number
+    shortlistedCount: number
+  }
+  counts: WorkspaceCounts
+  /** Job-scoped: never contains a candidate from another job. */
+  pipeline: WorkspaceCandidate[]
+  assessments: WorkspaceAssessmentSummary[]
+  /** True when the job refuses new recruitment activity. */
+  readOnly: boolean
+  /** Whether an authorized invite override is configured for a closed job. */
+  invitesAllowedWhenClosed: boolean
+}
+
+export interface ShortlistEligibility {
+  eligible: boolean
+  reason?: string
+  currentStage: string | null
+  applicationId: string | null
+  screening: { status: string; overall: number; overridden: boolean } | null
+}
+
+export interface ShortlistResult {
+  applicationId: string
+  jobId: string
+  candidateId: string
+  stage: string
+  previousStage: string
+  changed: boolean
+  deduplicated: boolean
+  usedOverride: boolean
+  screeningScore: number | null
+  shortlistedAt: string | null
+  message: string
+}
+
+export interface DecisionResult {
+  applicationId: string
+  fromStage: string
+  toStage: string
+  changed: boolean
+  deduplicated: boolean
+  interviewId?: string
+  interviewLink?: string
+  availableDecisions: string[]
+  message: string
+}
+
+export interface JourneyStep {
+  key: string
+  label: string
+  state: "completed" | "current" | "upcoming" | "blocked"
+  at: string | null
+  detail: string | null
+  href: string | null
+}
+
+export interface CandidateJourney {
+  job: { id: string; title: string; status: string }
+  application: { id: string; stage: string; stageChangedAt: string | null }
+  steps: JourneyStep[]
+}
+
+export interface ApplicationContext {
+  job: { id: string; title: string; status: "open" | "closed" }
+  readOnly: boolean
+  application: {
+    id: string
+    stage: string
+    stageChangedAt: string | null
+    shortlistedAt: string | null
+    shortlistedBy: string | null
+    shortlistNote: string
+    source: string
+    appliedAt: string
+  }
+  screening: WorkspaceCandidate["screening"]
+  assessment: WorkspaceCandidate["assessment"]
+  interview: WorkspaceCandidate["interview"]
+  availableDecisions: string[]
 }
 
 export interface AssessmentSettings {
@@ -496,4 +705,12 @@ export interface InviteResult {
   invited: Array<{ candidateId: string; email: string; link: string; sentAt: string }>
   skippedAlreadyInvited: string[]
   skippedMissingEmail: string[]
+  /**
+   * Invitations whose record could not be created. These used to be dropped
+   * silently, so a request could report success for a candidate who was never
+   * actually invited.
+   */
+  failed: Array<{ candidateId: string; reason: string }>
+  /** Published question version every invitation in this batch is pinned to. */
+  snapshotVersion: number
 }
