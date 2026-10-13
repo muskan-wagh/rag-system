@@ -14,16 +14,9 @@ with LLM-generated explanations for every result.
 ## Product Preview
 
 <p align="center">
-  <img src="./docs/images/home.png" width="48%" />
-  <img src="./docs/images/dashboard.png" width="48%" />
+  <img src="./docs/images/workspace.png" alt="AI Hiring Workspace" />
 </p>
-<p align="center"><em>Landing hero and the AI Hiring Workspace where JDs become ranked shortlists.</em></p>
-
-<p align="center">
-  <img src="./docs/images/features.png" width="48%" />
-  <img src="./docs/images/workflow.png" width="48%" />
-</p>
-<p align="center"><em>Platform capabilities and the resume-to-hire pipeline.</em></p>
+<p align="center"><em>The AI Hiring Workspace, where job descriptions become ranked shortlists.</em></p>
 
 ## Why This Project?
 
