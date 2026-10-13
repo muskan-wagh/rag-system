@@ -3,7 +3,8 @@ import { getSupabaseClient } from '@/services/supabase/client';
 import { logger } from '@/utils/logger';
 import { logActivity } from '@/services/activity';
 import { enqueueEmail } from '@/services/queue/emailQueue';
-import { nextStageAfter, isValidTransition, type PipelineStage } from './stageTypes';
+import { nextStageAfter, normalizeStage, type PipelineStage } from './stageTypes';
+import { setApplicationStage, type StageWriteTrigger } from './applicationService';
 import {
   generateInviteToken,
   hashInviteToken,
@@ -20,10 +21,20 @@ import { buildHrInviteEmail, hrInviteSubject } from '@/services/email/hrInvite';
  * controllers or individual stage handlers.
  *
  * Flow:
- *   Assessment result  -> progressionService -> Technical Interview
- *   Technical eval     -> progressionService -> Managerial/HR
- *   HR eval            -> progressionService -> Offer / Rejected / Hold
- *   Offer accepted     -> Hired
+ *   Assessment result  -> progressionService -> Technical Round
+ *   Technical eval     -> progressionService -> Interview
+ *   HR eval            -> progressionService -> Final Decision / Rejected / Hold
+ *   Final decision     -> Hired
+ *
+ * WHERE THE STAGE ACTUALLY LANDS
+ * ───────────────────────────────
+ * This service no longer writes `candidates.current_status`. It delegates the
+ * write to `applicationService.setApplicationStage`, which persists
+ * `job_applications.current_stage` — the authoritative, per-job stage — and
+ * refreshes `candidates.current_status` only for single-application candidates.
+ * Keeping the write here would have reintroduced exactly the split-brain this
+ * refactor removes: the global column saying one thing and the job application
+ * saying another.
  *
  * Idempotency (correction #8): every transition is keyed by
  * (trigger_type, trigger_id) in hiring_progression_events.
@@ -37,13 +48,7 @@ import { buildHrInviteEmail, hrInviteSubject } from '@/services/email/hrInvite';
  * independently retryable and guarded by the idempotency row.
  */
 
-export type TriggerType =
-  | 'assessment_submission'
-  | 'technical_evaluation'
-  | 'hr_evaluation'
-  | 'screening'
-  | 'manual'
-  | 'offer';
+export type TriggerType = StageWriteTrigger;
 
 interface ProgressionEvent {
   id: string;
@@ -128,12 +133,13 @@ async function markEvent(eventId: string, status: ProgressionEvent['status'], er
 /**
  * Append to the immutable hiring timeline (candidate_status_log).
  *
- * The return value of `.insert()` was previously discarded, so a CHECK
- * constraint rejection was silent: the candidate status advanced while the
- * history row vanished. Errors are now surfaced.
+ * Used for events that are NOT stage moves (parking a passed candidate,
+ * recording an interview). Actual stage moves write their timeline row inside
+ * `applicationService.setApplicationStage`, so they carry the application id and
+ * the recruiter override flag.
  *
- * `job_id`/`recruiter_id` are written so a timeline entry is attributable and
- * scoped to the job it belongs to.
+ * The return value of `.insert()` is checked — a CHECK constraint rejection was
+ * previously silent, so history vanished while the product moved on.
  */
 async function appendTimeline(
   candidateId: string,
@@ -156,34 +162,26 @@ async function appendTimeline(
   }
 }
 
-async function setCandidateStatus(candidateId: string, status: string): Promise<void> {
-  const supabase = getSupabaseClient();
-  const { error } = await supabase
-    .from('candidates')
-    .update({ current_status: status })
-    .eq('id', candidateId);
-  if (error) {
-    throw new Error(`Failed to update candidate status: ${error.message}`);
-  }
-}
-
 /** Map a completed stage to its per-job auto-progression toggle. */
 export function autoProgressionFlagFor(fromStage: string): string | null {
-  switch (fromStage) {
-    // Completing screening (from Applied) is what makes a candidate
-    // assessment-eligible, so the Screening toggle governs this step too.
+  switch (normalizeStage(fromStage)) {
     case 'Applied':
-    case 'Shortlisted':
-    case 'Screening':
       return 'screening_to_assessment';
+    case 'Screening':
+      // Shortlisting is recruiter-only and is NOT automatable, so this toggle
+      // governs what happens once a candidate has been shortlisted and their
+      // assessment is complete.
+      return 'screening_to_assessment';
+    case 'Shortlisted':
+      return 'assessment_to_technical';
     case 'Assessment':
       return 'assessment_to_technical';
-    case 'Technical Interview':
-    case 'Interview':
+    case 'Technical Round':
       return 'technical_to_hr';
-    case 'Managerial/HR':
+    case 'Interview':
       return 'hr_to_offer';
     default:
+      // `Final Decision` has no toggle: hiring is never automatable.
       return null;
   }
 }
@@ -320,8 +318,16 @@ function interviewEmailKey(stage: string, interviewId: string): string {
 function buildInterviewLink(token: string, stage: string): string {
   // Provider-agnostic join link; video stays external (correction #14).
   const base = (process.env.CLIENT_URL || 'http://localhost:3000').replace(/\/+$/, '');
-  const path = stage === 'Managerial/HR' ? 'hr-interview/join' : 'interview/join';
+  const path = stage === 'Interview' ? 'hr-interview/join' : 'interview/join';
   return `${base}/${path}/${token}`;
+}
+
+/** The two stages that create a scheduled interview + invite. */
+export const INTERVIEW_STAGES = ['Technical Round', 'Interview'] as const;
+export type InterviewStage = (typeof INTERVIEW_STAGES)[number];
+
+export function isInterviewStage(stage: string): stage is InterviewStage {
+  return (INTERVIEW_STAGES as readonly string[]).includes(stage);
 }
 
 /**
@@ -333,7 +339,7 @@ export async function createNextStage(input: {
   candidateId: string;
   jobId?: string | null;
   recruiterId: string;
-  toStage: 'Technical Interview' | 'Managerial/HR';
+  toStage: InterviewStage;
   interviewerName?: string;
 }): Promise<{ interviewId: string; inviteToken: string; inviteLink: string; deduplicated: boolean }> {
   const supabase = getSupabaseClient();
@@ -399,15 +405,23 @@ export async function createNextStage(input: {
     .select('full_name, email')
     .eq('id', input.candidateId)
     .maybeSingle();
-  const to = (candidate as { email?: string } | null)?.email || '';
-  const name = (candidate as { full_name?: string } | null)?.full_name || 'Candidate';
-  if (to) {
-    const isHr = input.toStage === 'Managerial/HR';
+  const to = candidate as { email?: string; full_name?: string } | null;
+  const toAddress = to?.email || '';
+  const name = to?.full_name || 'Candidate';
+  if (toAddress) {
+    const isHr = input.toStage === 'Interview';
     const subject = isHr ? hrInviteSubject() : technicalInviteSubject();
     const html = isHr
       ? buildHrInviteEmail({ candidateName: name, interviewLink: link, interviewerName: input.interviewerName })
       : buildTechnicalInviteEmail({ candidateName: name, interviewLink: link, interviewerName: input.interviewerName });
-    await enqueueEmail({ to, subject, html });
+
+    // The idempotency key MUST reach the queue. Without it the email worker
+    // cannot find the `email_logs` row it wrote at enqueue time, so delivery
+    // status was never updated and the UI could not distinguish sent from
+    // failed.
+    const idempotencyKey = interviewEmailKey(input.toStage, interviewId);
+    const { queued } = await enqueueEmail({ to: toAddress, subject, html, idempotencyKey });
+
     try {
       await supabase.from('email_logs').insert({
         candidate_id: input.candidateId,
@@ -416,8 +430,9 @@ export async function createNextStage(input: {
         subject,
         body: html,
         provider: 'resend',
-        status: 'queued',
-        idempotency_key: interviewEmailKey(input.toStage, interviewId),
+        status: queued ? 'queued' : 'failed',
+        error: queued ? null : 'Could not be handed to the email queue',
+        idempotency_key: idempotencyKey,
       });
     } catch {
       // UNIQUE violation on retry = already logged; safe to ignore.
@@ -429,17 +444,23 @@ export async function createNextStage(input: {
 
 /**
  * Advance a candidate to the next stage. Idempotent per trigger.
- * Creates: stage row, interview+invite (for interview stages),
- * timeline event, candidate status, activity log.
+ *
+ * Creates: stage row, interview+invite (for interview stages), timeline event,
+ * application stage write, activity log.
+ *
+ * The stage write itself is delegated to `applicationService`, which persists
+ * `job_applications.current_stage` and mirrors to `candidates.current_status`
+ * only for single-application candidates. This function owns the STAGE
+ * DECISION and the SIDE EFFECTS (interview creation, activity) around it.
  */
 export async function advanceCandidate(input: AdvanceInput): Promise<{ deduplicated: boolean; toStage: string | null }> {
   const toStage = input.toStage ?? null;
-  const timelineContext = { jobId: input.jobId ?? null, recruiterId: input.recruiterId ?? null };
 
-  // A candidate is NEVER hired by automation. `nextStageAfter('Offer')` returns
-  // 'Hired', so any caller routing an offer through this function would have
-  // silently marked someone hired with no recruiter decision. Hiring is a
-  // recruiter action and must go through the final-decision path.
+  // A candidate is NEVER hired by automation. `nextStageAfter('Final Decision')`
+  // returns 'Hired', so any caller routing a final decision through this
+  // function would have silently marked someone hired with no recruiter
+  // involvement. Hiring is a recruiter action and must go through the
+  // final-decision path.
   if (toStage === 'Hired') {
     logger.warn('[progression] Blocked automated hire; recruiter final-decision required', {
       candidateId: input.candidateId,
@@ -449,92 +470,104 @@ export async function advanceCandidate(input: AdvanceInput): Promise<{ deduplica
     throw new Error('Automated hiring is not permitted; use the final-decision flow');
   }
 
-  // Enforce the documented state-transition matrix. Previously `fromStage` and
-  // `toStage` were both trusted straight from the caller, so a rejected
-  // candidate could be moved to Hired or jumped from Applied to Assessment.
   if (toStage) {
-    const check = isValidTransition(input.fromStage, toStage);
-    if (!check.valid) {
-      logger.warn('[progression] Rejected invalid stage transition', {
+    await ensureStageRow(input.jobId, input.recruiterId, toStage);
+  }
+
+  let change:
+    | Awaited<ReturnType<typeof setApplicationStage>>
+    | undefined;
+
+  if (toStage) {
+    // `setApplicationStage` enforces the documented transition matrix itself
+    // and owns the audit + idempotency row, so this service does not record a
+    // second progression event — doing so previously produced two events and
+    // two timeline rows for one move.
+    change = await setApplicationStage({
+      jobId: requireJobId(input.jobId),
+      candidateId: input.candidateId,
+      recruiterId: input.recruiterId,
+      toStage,
+      triggerType: input.triggerType,
+      triggerId: input.triggerId,
+      metadata: input.metadata,
+    });
+  }
+
+  if (change?.deduplicated) {
+    logger.info('[progression] Duplicate trigger suppressed', {
+      triggerType: input.triggerType,
+      triggerId: input.triggerId,
+    });
+    return { deduplicated: true, toStage: change.toStage };
+  }
+
+  if (toStage) {
+    if (isInterviewStage(toStage)) {
+      await createNextStage({
         candidateId: input.candidateId,
-        from: input.fromStage,
-        to: toStage,
-        reason: check.reason,
-      });
-      throw new Error(`Invalid hiring transition ${input.fromStage} → ${toStage}: ${check.reason}`);
-    }
-  }
-
-  const { event, created } = await recordTransition({
-    candidateId: input.candidateId,
-    jobId: input.jobId,
-    fromStage: input.fromStage,
-    toStage: toStage ?? input.fromStage,
-    triggerType: input.triggerType,
-    triggerId: input.triggerId,
-  });
-  if (!created && event.status === 'completed') {
-    logger.info('[progression] Duplicate trigger suppressed', { triggerType: input.triggerType, triggerId: input.triggerId });
-    return { deduplicated: true, toStage: event.to_stage || null };
-  }
-
-  try {
-    if (toStage) {
-      await ensureStageRow(input.jobId, input.recruiterId, toStage);
-      if (toStage === 'Technical Interview' || toStage === 'Managerial/HR') {
-        await createNextStage({
-          candidateId: input.candidateId,
-          jobId: input.jobId,
-          recruiterId: input.recruiterId,
-          toStage,
-        });
-      }
-      // Timeline + status are the single source of truth for the tracker.
-      await appendTimeline(
-        input.candidateId,
+        jobId: input.jobId,
+        recruiterId: input.recruiterId,
         toStage,
-        {
-          from: input.fromStage,
-          trigger: input.triggerType,
-          ...(input.metadata || {}),
-        },
-        timelineContext,
-      );
-      await setCandidateStatus(input.candidateId, toStage);
-    } else {
-      await appendTimeline(
-        input.candidateId,
-        input.fromStage,
-        {
-          outcome: 'terminal',
-          trigger: input.triggerType,
-          ...(input.metadata || {}),
-        },
-        timelineContext,
-      );
+      });
     }
 
     try {
       await logActivity({
         recruiterId: input.recruiterId,
-        actionType: 'status_changed',
-        description: `Candidate advanced ${input.fromStage} → ${toStage ?? '(outcome)'}`,
+        actionType: 'candidate_advanced',
+        description: `Candidate advanced ${change?.fromStage ?? input.fromStage} → ${toStage}`,
         candidateId: input.candidateId,
-        metadata: { triggerType: input.triggerType, triggerId: input.triggerId },
+        metadata: {
+          job_id: input.jobId ?? null,
+          application_id: change?.applicationId ?? null,
+          from: change?.fromStage ?? input.fromStage,
+          to: toStage,
+          triggerType: input.triggerType,
+          triggerId: input.triggerId,
+        },
       });
     } catch {
       // Activity is best-effort; progression already recorded.
     }
-
-    await markEvent(event.id, 'completed');
-    return { deduplicated: false, toStage };
-  } catch (err) {
-    await markEvent(event.id, 'failed', err instanceof Error ? err.message.slice(0, 500) : String(err));
-    throw err;
+  } else {
+    await appendTimeline(
+      input.candidateId,
+      input.fromStage,
+      {
+        outcome: 'terminal',
+        trigger: input.triggerType,
+        ...(input.metadata || {}),
+      },
+      { jobId: input.jobId ?? null, recruiterId: input.recruiterId ?? null },
+    );
   }
+
+  return { deduplicated: false, toStage };
 }
 
-/** Record a rejection/hold outcome (status outcome, not a pipeline stage). */
+/**
+ * A stage transition cannot exist without a job — `job_applications` is keyed
+ * by `job_id`. Callers that only had a candidate id used to write a GLOBAL
+ * status change here; that silently put the candidate into every job's
+ * pipeline at once. Failing loudly is the correct behaviour.
+ */
+function requireJobId(jobId: string | null | undefined): string {
+  if (!jobId) {
+    throw new Error(
+      'A jobId is required for every stage transition. Refusing to write a job-scoped stage without one.',
+    );
+  }
+  return jobId;
+}
+
+/**
+ * Record a rejection/hold outcome against ONE job application.
+ *
+ * Previously this wrote `candidates.current_status`, which rejected the
+ * candidate in every job they were ever associated with. It now moves the
+ * application and leaves other jobs' applications untouched.
+ */
 export async function rejectCandidate(input: {
   candidateId: string;
   jobId?: string | null;
@@ -545,34 +578,21 @@ export async function rejectCandidate(input: {
   triggerId: string;
   reason?: string;
 }): Promise<{ deduplicated: boolean }> {
-  const { event, created } = await recordTransition({
+  const result = await setApplicationStage({
+    jobId: requireJobId(input.jobId),
     candidateId: input.candidateId,
-    jobId: input.jobId,
-    fromStage: input.fromStage,
+    recruiterId: input.recruiterId,
     toStage: input.outcome,
     triggerType: input.triggerType,
     triggerId: input.triggerId,
+    overrideReason: input.reason,
+    metadata: {
+      outcome: input.outcome,
+      from: input.fromStage,
+      ...(input.reason ? { reason: input.reason.slice(0, 2000) } : {}),
+    },
   });
-  if (!created && event.status === 'completed') return { deduplicated: true };
-
-  try {
-    await appendTimeline(
-      input.candidateId,
-      input.outcome,
-      {
-        from: input.fromStage,
-        reason: input.reason || '',
-        trigger: input.triggerType,
-      },
-      { jobId: input.jobId ?? null, recruiterId: input.recruiterId ?? null },
-    );
-    await setCandidateStatus(input.candidateId, input.outcome);
-    await markEvent(event.id, 'completed');
-    return { deduplicated: false };
-  } catch (err) {
-    await markEvent(event.id, 'failed', err instanceof Error ? err.message.slice(0, 500) : String(err));
-    throw err;
-  }
+  return { deduplicated: result.deduplicated };
 }
 
 /**

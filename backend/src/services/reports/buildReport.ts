@@ -1,4 +1,5 @@
 import { getSupabaseClient } from '@/services/supabase/client';
+import { aggregateSkillBreakdown } from '@/services/assessments/snapshot';
 
 export type ReportType = 'internal' | 'candidate';
 
@@ -42,8 +43,34 @@ export interface HiringReport {
     percentage: number | null;
     passed: boolean | null;
     isMockExecution: boolean;
+    /** Questions in the exact graded set. Not the answer-row count. */
     questionCount: number;
+    /** Questions with a persisted numeric score. */
     answeredCount: number;
+    /** Questions in the set with no answer row at all. */
+    unansweredCount: number;
+    /** Subjective questions persisted with score = NULL, awaiting a human. */
+    needsManualReview: number;
+    /** Wall-clock seconds between start and submit, when both were recorded. */
+    durationSeconds: number | null;
+    /**
+     * Published question version this result was graded against. Null means the
+     * attempt predates snapshotting and reproducibility is not guaranteed.
+     */
+    snapshotVersion: number | null;
+    snapshotSource: 'snapshot' | 'live';
+    /** Present only when the original question set is not recoverable. */
+    gradingLimitation: string | null;
+    /** Per-skill strengths / gaps derived from persisted scores only. */
+    skillBreakdown: Array<{
+      skill: string;
+      questions: number;
+      scored: number;
+      earned: number | null;
+      available: number;
+      percentage: number | null;
+      verdict: 'strength' | 'gap' | 'neutral' | 'needs_review';
+    }>;
     // Internal-only fields (stripped for candidate-safe):
     answers?: Array<Record<string, unknown>>;
     questions?: Array<Record<string, unknown>>;
@@ -158,10 +185,27 @@ export async function buildInternalReport(input: {
   // Assessment: latest submitted/evaluated attempt + sanitized rollup.
   let assessment: HiringReport['assessment'] = null;
   {
-    const { data: attempts } = await supabase
+    // JOB-SCOPED: when a job is supplied, only attempts for that job's
+    // assessments are considered. Previously the query looked at every attempt
+    // the candidate had EVER taken, so a report for a Backend role could show
+    // the score from a completely unrelated Frontend assessment.
+    let attemptQuery = supabase
       .from('assessment_attempts')
       .select('*')
-      .eq('candidate_id', candidateId)
+      .eq('candidate_id', candidateId);
+    if (jobId) {
+      const { data: jobAssessments } = await supabase
+        .from('assessments')
+        .select('id')
+        .eq('job_id', jobId);
+      const jobAssessmentIds = ((jobAssessments || []) as Array<{ id: string }>).map((a) => a.id);
+      // Empty list means "this job has no assessments" — match nothing rather
+      // than falling back to an unscoped query.
+      attemptQuery = jobAssessmentIds.length
+        ? attemptQuery.in('assessment_id', jobAssessmentIds)
+        : attemptQuery.eq('assessment_id', '__no_assessments_for_job__');
+    }
+    const { data: attempts } = await attemptQuery
       .order('created_at', { ascending: false })
       .limit(1);
     const att = ((attempts || []) as Array<Record<string, unknown>>)[0];
@@ -169,10 +213,68 @@ export async function buildInternalReport(input: {
       const { data: answers } = await supabase.from('assessment_answers').select('*').eq('attempt_id', att.id);
       const ans = ((answers || []) as Array<Record<string, unknown>>);
       let assessmentName: string | null = null;
+      let gradingQuestions: Array<{ id: string; skill_tag: string; marks: number }> = [];
       if (att.assessment_id) {
-        const { data: a } = await supabase.from('assessments').select('name').eq('id', att.assessment_id as string).maybeSingle();
-        assessmentName = ((a as { name?: string } | null)?.name || null) as string | null;
+        const { data: a } = await supabase
+          .from('assessments')
+          .select('name, published_snapshot, snapshot_version')
+          .eq('id', att.assessment_id as string)
+          .maybeSingle();
+        const aRow = a as
+          | { name?: string; published_snapshot?: { questions?: Array<{ id: string; skill_tag?: string; marks?: number }> } | null }
+          | null;
+        assessmentName = (aRow?.name || null) as string | null;
+
+        // Resolve the EXACT question set the attempt was graded against. For a
+        // pinned attempt this is the snapshot; for a pre-migration attempt it is
+        // the live rows, and `snapshotVersion` stays null so the report can say
+        // reproducibility is not guaranteed rather than implying it is.
+        const attemptVersion = (att.snapshot_version as number | null) ?? null;
+        const snapshot = aRow?.published_snapshot ?? null;
+        if (
+          attemptVersion != null &&
+          snapshot &&
+          Array.isArray(snapshot.questions) &&
+          (snapshot as { version?: number }).version === attemptVersion
+        ) {
+          gradingQuestions = snapshot.questions.map((q) => ({
+            id: String(q.id),
+            skill_tag: String(q.skill_tag ?? ''),
+            marks: Number(q.marks ?? 0),
+          }));
+        } else {
+          const { data: liveQ } = await supabase
+            .from('assessment_questions')
+            .select('id, skill_tag, marks')
+            .eq('assessment_id', att.assessment_id as string);
+          gradingQuestions = ((liveQ || []) as Array<{ id: string; skill_tag: string; marks: number }>).map((q) => ({
+            id: String(q.id),
+            skill_tag: String(q.skill_tag ?? ''),
+            marks: Number(q.marks ?? 0),
+          }));
+        }
       }
+
+      // Skill-wise strengths and gaps, computed from REAL persisted scores.
+      // Subjective questions carry score = NULL (manual review) and are reported
+      // as `needs_review`, never folded into a zero.
+      const skillBreakdown = aggregateSkillBreakdown(
+        gradingQuestions,
+        ans.map((a) => ({
+          question_id: a.question_id != null ? String(a.question_id) : undefined,
+          score: (a.score as number | null) ?? null,
+          max_score: (a.max_score as number | null) ?? null,
+        })),
+      );
+      const answeredCount = ans.filter((a) => a.score !== null && a.score !== undefined).length;
+      const unansweredCount = Math.max(0, gradingQuestions.length - ans.length);
+      const needsManualReview = ans.filter((a) => a.score === null || a.score === undefined).length;
+      const attemptSnapshotSource: 'snapshot' | 'live' =
+        (att.snapshot_source as string | null) === 'snapshot' ? 'snapshot' : 'live';
+      const durationMs =
+        att.started_at && att.submitted_at
+          ? new Date(String(att.submitted_at)).getTime() - new Date(String(att.started_at)).getTime()
+          : null;
       let proctoringEventCount = 0;
       try {
         const { count } = await supabase
@@ -192,8 +294,22 @@ export async function buildInternalReport(input: {
         percentage: (att.percentage as number | null) ?? null,
         passed: (att.passed as boolean | null) ?? null,
         isMockExecution: Boolean(att.is_mock_execution),
-        questionCount: ans.length,
-        answeredCount: ans.length,
+        // `questionCount` is the REAL number of questions in the graded set.
+        // It previously equalled the answer-row count, which meant a candidate
+        // who skipped half the paper was reported as having answered every
+        // question they were asked.
+        questionCount: gradingQuestions.length,
+        answeredCount,
+        unansweredCount,
+        needsManualReview,
+        durationSeconds: durationMs != null && Number.isFinite(durationMs) ? Math.round(durationMs / 1000) : null,
+        snapshotVersion: (att.snapshot_version as number | null) ?? null,
+        snapshotSource: attemptSnapshotSource,
+        gradingLimitation:
+          attemptSnapshotSource === 'live'
+            ? 'This attempt predates assessment snapshotting. Its original question set is not recoverable, so this result is reported exactly as originally scored and is not guaranteed to be reproducible.'
+            : null,
+        skillBreakdown,
         answers: ans.map((a) => ({
           question_id: a.question_id,
           score: a.score,
@@ -208,7 +324,7 @@ export async function buildInternalReport(input: {
   }
 
   // Interviews: latest per stage (Technical vs Managerial/HR).
-  async function stageInterview(stage: 'Technical Interview' | 'Managerial/HR') {
+  async function stageInterview(stage: 'Technical Round' | 'Interview') {
     const { data: invites } = await supabase
       .from('interview_invites')
       .select('interview_id, stage')
@@ -238,8 +354,8 @@ export async function buildInternalReport(input: {
     return { interview: (interview as Record<string, unknown> | null), evaluation: (evaluation as Record<string, unknown> | null), coding: (coding as Record<string, unknown> | null), problemTitle };
   }
 
-  const tech = await stageInterview('Technical Interview');
-  const hr = await stageInterview('Managerial/HR');
+  const tech = await stageInterview('Technical Round');
+  const hr = await stageInterview('Interview');
 
   /** Factual video metadata (tolerates pre-migration rows lacking columns). */
   function buildVideoMetadata(interview: Record<string, unknown>): {

@@ -18,6 +18,12 @@ import {
 } from '@/services/hiring/candidateSession';
 import { lookupInviteByToken, requireOwnedAttempt } from '@/middleware/candidateAuth';
 import { enqueueProgressionJob } from '@/services/queue/progressionQueue';
+import {
+  resolveQuestionsForAttempt,
+  loadPinnedSnapshot,
+  isValidSnapshot,
+  type SnapshotCapableAssessment,
+} from '@/services/assessments/snapshot';
 
 /**
  * Candidate-side assessment (token -> session cookie, autosave, submit).
@@ -48,7 +54,26 @@ async function getAssessmentWithQuestions(assessmentId: string) {
   return { assessment, questions: (questions || []) as Array<Record<string, unknown> & { id: string; type: string; marks: number; payload: Record<string, unknown> }> };
 }
 
-async function getOrCreateActiveAttempt(assessmentId: string, candidateId: string, inviteId: string) {
+/**
+ * Start (or resume) a candidate's attempt.
+ *
+ * The attempt is PINNED to the published question version at creation time.
+ * That pin is what makes grading reproducible: if the recruiter later edits the
+ * draft questions and republishes as v2, this attempt still grades against v1 —
+ * the exact set the candidate actually saw.
+ *
+ * `snapshot_source` records how the attempt must be graded:
+ *   'snapshot' → grade against `published_snapshot` at `snapshot_version`
+ *   'live'     → pre-migration attempt; its original question set is not
+ *                recoverable, so it is graded as it always was and the report
+ *                says so. New attempts never take this path.
+ */
+async function getOrCreateActiveAttempt(
+  assessmentId: string,
+  candidateId: string,
+  inviteId: string,
+  inviteSnapshotVersion: number | null,
+) {
   const supabase = getSupabaseClient();
   const { data: active } = await supabase
     .from('assessment_attempts')
@@ -57,6 +82,7 @@ async function getOrCreateActiveAttempt(assessmentId: string, candidateId: strin
     .eq('candidate_id', candidateId)
     .eq('status', 'in_progress')
     .maybeSingle();
+  // An in-progress attempt keeps its original pin. Resuming must never re-pin.
   if (active) return active as Record<string, unknown> & { id: string };
 
   // Next attempt_number (history preserved, correction #7).
@@ -70,14 +96,39 @@ async function getOrCreateActiveAttempt(assessmentId: string, candidateId: strin
     .maybeSingle();
   const nextNumber = ((latest as { attempt_number?: number } | null)?.attempt_number || 0) + 1;
 
-  // Expiry from assessment duration.
+  // Expiry + pin from the assessment itself. The invite's recorded version wins
+  // when present, because an invite issued against v1 must stay on v1 even if
+  // the assessment has since been republished as v2.
   const { data: assessment } = await supabase
     .from('assessments')
-    .select('duration_minutes')
+    .select('duration_minutes, snapshot_version, published_snapshot')
     .eq('id', assessmentId)
     .maybeSingle();
   const durationMin = Number((assessment as { duration_minutes?: number } | null)?.duration_minutes || 60);
   const expiresAt = new Date(Date.now() + durationMin * 60_000).toISOString();
+
+  const assessmentVersion = Number((assessment as { snapshot_version?: number } | null)?.snapshot_version ?? 0);
+  const snapshotVersion = inviteSnapshotVersion ?? (assessmentVersion > 0 ? assessmentVersion : null);
+
+  // The pinned version must be RESOLVABLE before the attempt starts. Creating an
+  // attempt that can never be graded is worse than refusing to start.
+  let hasUsableSnapshot = false;
+  if (snapshotVersion != null) {
+    const pinned = await loadPinnedSnapshot(assessmentId, snapshotVersion);
+    hasUsableSnapshot =
+      pinned !== null ||
+      (isValidSnapshot((assessment as { published_snapshot?: unknown } | null)?.published_snapshot) &&
+        ((assessment as { published_snapshot?: { version?: number } }).published_snapshot?.version ?? -1) ===
+          snapshotVersion);
+    if (!hasUsableSnapshot) {
+      throw new AppError(
+        `This assessment is published as version ${snapshotVersion} but its question set could not be loaded, so the assessment cannot be started safely. Contact your recruiter.`,
+        500,
+        ErrorCodes.DATABASE_ERROR,
+        { snapshotVersion },
+      );
+    }
+  }
 
   const { data, error } = await supabase
     .from('assessment_attempts')
@@ -88,6 +139,8 @@ async function getOrCreateActiveAttempt(assessmentId: string, candidateId: strin
       attempt_number: nextNumber,
       status: 'in_progress',
       expires_at: expiresAt,
+      snapshot_version: hasUsableSnapshot ? snapshotVersion : null,
+      snapshot_source: hasUsableSnapshot ? 'snapshot' : 'live',
     })
     .select('*')
     .single();
@@ -128,7 +181,12 @@ export const exchangeTokenHandler = asyncHandler(async (req: Request, res: Respo
     throw new AppError('Assessment window expired', 410, ErrorCodes.NOT_FOUND);
   }
 
-  const attempt = await getOrCreateActiveAttempt(invite.assessment_id, invite.candidate_id, invite.id);
+  const attempt = await getOrCreateActiveAttempt(
+    invite.assessment_id,
+    invite.candidate_id,
+    invite.id,
+    (invite as { snapshot_version?: number | null }).snapshot_version ?? null,
+  );
 
   // Mark invite opened/started (best-effort, never blocks).
   const supabase = getSupabaseClient();
@@ -342,16 +400,58 @@ export const submitAttemptHandler = asyncHandler(async (req: Request, res: Respo
   // Load assessment + questions + answers atomically (read set).
   const { data: assessment } = await supabase
     .from('assessments')
-    .select('id, job_id, recruiter_id, passing_score, name')
+    .select(
+      'id, job_id, recruiter_id, passing_score, name, duration_minutes, settings, snapshot_version, published_snapshot',
+    )
     .eq('id', attempt.assessment_id)
     .maybeSingle();
   if (!assessment) throw new AppError('Assessment not found', 404, ErrorCodes.NOT_FOUND);
 
-  const { data: questions } = await supabase
+  const { data: liveQuestions } = await supabase
     .from('assessment_questions')
-    .select('id, type, marks, payload')
+    .select('id, assessment_id, type, position, title, prompt, payload, marks, skill_tag, is_required')
     .eq('assessment_id', attempt.assessment_id)
     .order('position', { ascending: true });
+
+  // ── Grade against the question set the candidate actually saw ────────────────
+  // Scoring used to read `assessment_questions` directly, so a recruiter could
+  // unpublish, edit and republish between two candidates taking the same link
+  // and the two would be graded against different papers. `resolveQuestionsForAttempt`
+  // returns the pinned snapshot for any attempt that has one, and refuses
+  // (rather than silently falling back) when a pinned snapshot is missing.
+  const pinnedVersion = (attempt.snapshot_version as number | null) ?? null;
+  const pinnedSnapshot = await loadPinnedSnapshot(
+    String(attempt.assessment_id),
+    pinnedVersion,
+  );
+  const resolved = resolveQuestionsForAttempt(
+    {
+      snapshot_source: (attempt.snapshot_source as string | null) ?? 'live',
+      snapshot_version: pinnedVersion,
+    },
+    assessment as unknown as SnapshotCapableAssessment,
+    (liveQuestions || []) as Array<{
+      id: string;
+      assessment_id: string;
+      type: string;
+      position: number;
+      title: string;
+      prompt: string;
+      payload: Record<string, unknown>;
+      marks: number;
+      skill_tag: string;
+      is_required: boolean;
+    }>,
+    pinnedSnapshot,
+  );
+  const questions = resolved.questions;
+
+  if (resolved.limitation) {
+    logger.warn('[submit] grading a pre-snapshot attempt against live questions', {
+      attemptId,
+      assessmentId: attempt.assessment_id,
+    });
+  }
 
   const { data: answers } = await supabase
     .from('assessment_answers')
@@ -464,6 +564,10 @@ export const submitAttemptHandler = asyncHandler(async (req: Request, res: Respo
       passed,
       is_mock_execution: mode.isMock,
       updated_at: new Date().toISOString(),
+      // Re-assert the pin so the stored result can always be traced back to the
+      // exact question set it was graded against.
+      snapshot_version: resolved.version,
+      snapshot_source: resolved.source,
     })
     .eq('id', attemptId)
     .eq('status', 'in_progress') // guard: only transition from active (idempotent)
@@ -482,10 +586,31 @@ export const submitAttemptHandler = asyncHandler(async (req: Request, res: Respo
     return;
   }
 
-  // Mark invite completed (best-effort).
+  // Mark the invite completed.
+  //
+  // NOT best-effort: the return value used to be discarded, so a CHECK
+  // constraint rejecting `'completed'` failed silently. The attempt scored
+  // normally while the invite stayed `'sent'`, and the workspace then rendered a
+  // candidate who had finished the assessment as "Invited" forever.
   const inviteId = (attempt as unknown as { invite_id?: string }).invite_id;
   if (inviteId) {
-    await supabase.from('assessment_invites').update({ status: 'completed' }).eq('id', inviteId);
+    const { error: inviteError } = await supabase
+      .from('assessment_invites')
+      .update({ status: 'completed' })
+      .eq('id', inviteId);
+
+    if (inviteError) {
+      // The submission itself is already persisted, so it is NOT rolled back and
+      // the candidate is not told to retry — that would create a second attempt.
+      // Surfacing it lets the recruiter see a genuine state mismatch instead of
+      // a silently wrong pipeline, and leaves a trail to diagnose.
+      logger.error('[submit] could not mark the invitation completed', {
+        attemptId,
+        inviteId,
+        error: inviteError.message,
+        code: (inviteError as { code?: string }).code,
+      });
+    }
   }
 
   // Enqueue progression (async, retryable — correction #2).
@@ -500,7 +625,13 @@ export const submitAttemptHandler = asyncHandler(async (req: Request, res: Respo
       triggerType: 'assessment_submission',
       triggerId: attemptId,
       passed,
-      metadata: { percentage: totals.percentage, score: totals.score, maxScore: totals.maxScore },
+      metadata: {
+        percentage: totals.percentage,
+        score: totals.score,
+        maxScore: totals.maxScore,
+        snapshotVersion: resolved.version,
+        snapshotSource: resolved.source,
+      },
     });
   }
 
@@ -513,6 +644,8 @@ export const submitAttemptHandler = asyncHandler(async (req: Request, res: Respo
       maxScore: totals.maxScore,
       percentage: totals.percentage,
       passed,
+      snapshotVersion: resolved.version,
+      ...(resolved.limitation ? { gradingLimitation: resolved.limitation } : {}),
       deduplicated: false,
     },
   });

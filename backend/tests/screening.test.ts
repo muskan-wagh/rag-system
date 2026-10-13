@@ -19,6 +19,13 @@ const db: Record<string, Row[]> = {
   screening_results: [],
   candidate_status_log: [],
   hiring_stages: [],
+  // The canonical stage write path (`applicationService.setApplicationStage`)
+  // persists to `job_applications`, claims an idempotency row in
+  // `hiring_progression_events`, and mirrors `candidates.current_status`. The
+  // override endpoint used to write the global column directly and left the
+  // job application untouched, which is the bug these tables exist to catch.
+  job_applications: [],
+  hiring_progression_events: [],
 };
 
 function resetDb() {
@@ -49,6 +56,15 @@ function resetDb() {
   db.screening_results = [];
   db.candidate_status_log = [];
   db.hiring_stages = [];
+  db.hiring_progression_events = [];
+  // Every candidate under test is an applicant on job-1. The override endpoint
+  // now applies the decision to that APPLICATION; with no application row it
+  // correctly refuses with a 404.
+  db.job_applications = [
+    { id: 'app-1', job_id: 'job-1', candidate_id: 'cand-1', recruiter_id: 'rec-A', current_stage: 'Screening' },
+    { id: 'app-2', job_id: 'job-1', candidate_id: 'cand-2', recruiter_id: 'rec-A', current_stage: 'Screening' },
+    { id: 'app-9', job_id: 'job-9', candidate_id: 'cand-9', recruiter_id: 'rec-B', current_stage: 'Screening' },
+  ];
 }
 
 class FakeQuery {
@@ -58,6 +74,7 @@ class FakeQuery {
   private limitN: number | null = null;
   private countExact = false;
   private pendingUpdate: Row | null = null;
+  private pendingInsert: Row | null = null;
   constructor(private table: string) {}
 
   select(_cols?: string, opts?: { count?: string; head?: boolean }) {
@@ -94,14 +111,22 @@ class FakeQuery {
     if (this.limitN !== null) out = out.slice(0, this.limitN);
     return out;
   }
+  private flushInsert(): void {
+    if (this.pendingInsert) {
+      db[this.table].push(this.pendingInsert);
+      this.pendingInsert = null;
+    }
+  }
   async maybeSingle() {
+    this.flushInsert();
     const rows = this.rows();
     if (this.countExact) return { data: null, count: rows.length, error: null };
     return { data: rows[0] ?? null, error: null };
   }
   async single() {
+    this.flushInsert();
     const rows = this.rows();
-    if (!rows[0]) return { data: null, error: { message: 'none' } };
+    if (!rows[0]) return { data: null, error: { message: 'no rows returned' } };
     return { data: rows[0], error: null };
   }
   async upsert(obj: Row, opts?: { onConflict?: string }) {
@@ -122,19 +147,25 @@ class FakeQuery {
     this.pendingUpdate = obj;
     return this;
   }
-  async insert(obj: Row) {
-    db[this.table].push({ ...obj });
-    return { data: obj, error: null };
+  insert(obj: Row) {
+    this.pendingInsert = { ...obj };
+    return this;
   }
   // Allow `await query` for plain selects and chained updates.
-  then(resolve: (v: { data: Row[] | null; error: null }) => void) {
+  then(resolve: (v: { data: Row[] | null; count?: number | null; error: null }) => void) {
+    this.flushInsert();
     if (this.pendingUpdate) {
       for (const r of this.rows()) Object.assign(r, this.pendingUpdate);
       this.pendingUpdate = null;
       resolve({ data: null, error: null });
       return;
     }
-    resolve({ data: this.rows(), error: null });
+    const rows = this.rows();
+    // `await supabase.from(t).select('id', { count: 'exact' }).eq(...)` — the
+    // plain-await form — must still yield a count. Returning rows only made
+    // every `const { count } = await ...` destructure to `undefined`, silently
+    // taking the wrong branch.
+    resolve(this.countExact ? { data: null, count: rows.length, error: null } : { data: rows, error: null });
   }
 }
 
@@ -392,6 +423,8 @@ describe('screening override', () => {
     expect(row?.ai_status).toBe('failed');
     expect(row?.recruiter_override).toBe(true);
     expect(row?.override_reason).toBe('Strong portfolio');
+    // The decision lands on the JOB APPLICATION, and only then mirrors.
+    expect(db.job_applications.find((a) => a.candidate_id === 'cand-2')?.current_stage).toBe('Screening');
     expect(db.candidates.find((c) => c.id === 'cand-2')?.current_status).toBe('Screening');
   });
 

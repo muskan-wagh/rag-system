@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { asyncHandler } from '@/utils/asyncHandler';
 import { getSupabaseClient } from '@/services/supabase/client';
+import { normalizeStage } from '@/services/hiring/stageTypes';
 import { AppError } from '@/middleware/errorHandler';
 import { ErrorCodes } from '@/middleware/errorCodes';
 import { generateInviteToken, hashInviteToken, encryptInviteToken, decryptInviteToken } from '@/services/assessments/inviteCrypto';
@@ -59,8 +60,8 @@ export const scheduleStageInterviewHandler = asyncHandler(async (req: Request, r
   const candidateId = String((req.params as Record<string, unknown>).candidateId || (req.params as Record<string, unknown>).id || "");
   await requireOwnedCandidate(recruiter.id, candidateId);
   const { interviewerName, scheduledDate, scheduledTime, meetingLink } = req.body || {};
-  const stage = String(req.body?.stage || 'Technical Interview');
-  if (!['Technical Interview', 'Managerial/HR'].includes(stage)) {
+  const stage = normalizeStage(String(req.body?.stage || 'Technical Round')) ?? 'Technical Round';
+  if (!['Technical Round', 'Interview'].includes(stage)) {
     throw new AppError('Invalid stage', 400, ErrorCodes.VALIDATION_ERROR);
   }
   // Optional job linkage (job-centric workflow): verified ownership when given,
@@ -119,7 +120,7 @@ export const scheduleStageInterviewHandler = asyncHandler(async (req: Request, r
 
   // Candidate-safe link (raw token never stored).
   const base = (process.env.CLIENT_URL || 'http://localhost:3000').replace(/\/+$/, '');
-  const path = stage === 'Managerial/HR' ? 'hr-interview/join' : 'interview/join';
+  const path = stage === 'Interview' ? 'hr-interview/join' : 'interview/join';
   res.json({ success: true, data: { interviewId, inviteLink: `${base}/${path}/${token}` } });
 });
 
@@ -145,8 +146,8 @@ export const submitEvaluationHandler = asyncHandler(async (req: Request, res: Re
   await requireOwnedCandidate(recruiter.id, candidateId);
 
   const { data: invite } = await supabase.from('interview_invites').select('stage').eq('interview_id', interviewId).maybeSingle();
-  const stage = String((invite as { stage?: string } | null)?.stage || 'Technical Interview');
-  const fromStage = stage === 'Managerial/HR' ? 'Managerial/HR' : 'Technical Interview';
+  const stage = normalizeStage((invite as { stage?: string } | null)?.stage || 'Technical Round') ?? 'Technical Round';
+  const fromStage = stage;
 
   // Idempotent per interview (UNIQUE interview_id).
   await supabase.from('interview_evaluations').upsert(
@@ -191,7 +192,7 @@ export const submitEvaluationHandler = asyncHandler(async (req: Request, res: Re
     jobId = ((a as { job_id?: string | null } | null)?.job_id || null) as string | null;
   }
 
-  const triggerType = fromStage === 'Managerial/HR' ? 'hr_evaluation' : 'technical_evaluation';
+  const triggerType = fromStage === 'Interview' ? 'hr_evaluation' : 'technical_evaluation';
   await enqueueProgressionJob({
     candidateId,
     jobId,
@@ -234,7 +235,7 @@ async function loadOwnedInterview(recruiterId: string, interviewId: string) {
 
 function interviewLinkFor(token: string, stage: string): string {
   const base = (process.env.CLIENT_URL || 'http://localhost:3000').replace(/\/+$/, '');
-  const path = stage === 'Managerial/HR' ? 'hr-interview/join' : 'interview/join';
+  const path = stage === 'Interview' ? 'hr-interview/join' : 'interview/join';
   return `${base}/${path}/${token}`;
 }
 
@@ -278,12 +279,12 @@ export const rescheduleInterviewHandler = asyncHandler(async (req: Request, res:
   // Any prior candidate sessions for the old invite are revoked implicitly:
   // exchange looks up by token_hash, so the old link now 404s.
 
-  const stage = invite?.stage || 'Technical Interview';
+  const stage = normalizeStage(invite?.stage || 'Technical Round') ?? 'Technical Round';
   const link = interviewLinkFor(token, stage);
   const { data: cand } = await supabase.from('candidates').select('email, full_name').eq('id', interview.candidate_id).maybeSingle();
   const to = ((cand as { email?: string } | null)?.email || '') as string;
   const name = ((cand as { full_name?: string } | null)?.full_name || 'Candidate') as string;
-  if (to && stage === 'Technical Interview') {
+  if (to && stage === 'Technical Round') {
     const key = technicalInterviewEmailKey(interviewId, 'rescheduled', nextVersion);
     const subject = technicalInterviewSubject('rescheduled');
     const html = buildTechnicalInterviewEmail({
@@ -318,11 +319,11 @@ export const cancelInterviewHandler = asyncHandler(async (req: Request, res: Res
   // Video audit end stamp — separate best-effort write, never blocks cancellation.
   await stampVideoEnd(interviewId);
 
-  const stage = invite?.stage || 'Technical Interview';
+  const stage = normalizeStage(invite?.stage || 'Technical Round') ?? 'Technical Round';
   const { data: cand } = await supabase.from('candidates').select('email, full_name').eq('id', interview.candidate_id).maybeSingle();
   const to = ((cand as { email?: string } | null)?.email || '') as string;
   const name = ((cand as { full_name?: string } | null)?.full_name || 'Candidate') as string;
-  if (to && stage === 'Technical Interview') {
+  if (to && stage === 'Technical Round') {
     const key = technicalInterviewEmailKey(interviewId, 'cancelled', invite?.version || 1);
     const subject = technicalInterviewSubject('cancelled');
     const html = buildTechnicalInterviewEmail({ candidateName: name, interviewLink: '', event: 'cancelled' });
@@ -354,13 +355,13 @@ export const resendInterviewInviteHandler = asyncHandler(async (req: Request, re
     throw new AppError('Invite token unavailable — reschedule instead', 500, ErrorCodes.INTERNAL_ERROR);
   }
   const supabase = getSupabaseClient();
-  const stage = invite.stage || 'Technical Interview';
+  const stage = normalizeStage(invite.stage || 'Technical Round') ?? 'Technical Round';
   const link = interviewLinkFor(token, stage);
   await supabase.from('interview_invites').update({ status: 'sent', last_sent_at: new Date().toISOString() }).eq('id', invite.id);
   const { data: cand } = await supabase.from('candidates').select('email, full_name').eq('id', interview.candidate_id).maybeSingle();
   const to = ((cand as { email?: string } | null)?.email || '') as string;
   const name = ((cand as { full_name?: string } | null)?.full_name || 'Candidate') as string;
-  if (to && stage === 'Technical Interview') {
+  if (to && stage === 'Technical Round') {
     const key = technicalInterviewEmailKey(interviewId, 'scheduled', invite.version || 1);
     const subject = technicalInterviewSubject('scheduled');
     const html = buildTechnicalInterviewEmail({ candidateName: name, interviewLink: link, event: 'scheduled' });

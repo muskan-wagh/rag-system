@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { asyncHandler } from '@/utils/asyncHandler';
 import { getSupabaseClient } from '@/services/supabase/client';
+import { normalizeStage } from '@/services/hiring/stageTypes';
 import { AppError } from '@/middleware/errorHandler';
 import { ErrorCodes } from '@/middleware/errorCodes';
 import { listJobPipeline } from '@/services/hiring/jobApplicationService';
@@ -27,6 +28,15 @@ export const DEFAULT_PROGRESSION_CONFIG = {
   hr_to_offer: false,
   assessment_auto_invite: false,
   interview_auto_invite: false,
+  /**
+   * Explicit, authorized override that lets a recruiter keep issuing
+   * assessment invitations for a job they have closed. Fail-closed: absent,
+   * non-boolean, or `false` all mean a closed job refuses invitations.
+   *
+   * Added by migration 20261008_job_lifecycle.sql, which backfills it to
+   * `false` on every existing job.
+   */
+  allow_invites_when_closed: false,
 } as const;
 
 export type ProgressionConfig = typeof DEFAULT_PROGRESSION_CONFIG;
@@ -141,7 +151,7 @@ async function countInterviewsForJob(
     .select('candidate_id, to_stage, status')
     .eq('job_id', jobId);
   const impliedCandidates = ((progEvents || []) as Array<{ candidate_id: string; to_stage: string; status: string }>)
-    .filter((e) => ['Technical Interview', 'Managerial/HR', 'Interview'].includes(e.to_stage))
+    .filter((e) => ['Technical Round', 'Interview'].includes(normalizeStage(e.to_stage) ?? e.to_stage))
     .filter((e) => memberIds.has(e.candidate_id) && (e.status === 'completed' || e.status === 'pending'))
     .map((e) => e.candidate_id);
 
@@ -157,7 +167,7 @@ async function countInterviewsForJob(
     for (const inv of (invites || []) as Array<{ candidate_id: string; stage: string }>) {
       if (!memberIds.has(inv.candidate_id)) continue;
       invitedCandidates.add(inv.candidate_id);
-      if (inv.stage === 'Managerial/HR') hrCount += 1;
+      if (normalizeStage(inv.stage) === 'Interview') hrCount += 1;
       else technicalCount += 1;
     }
   }
@@ -187,18 +197,23 @@ async function countInterviewsForJob(
 }
 
 /** Map a progression to_stage to the canonical pipeline bucket. */
-function bucketForStage(stage: string): string {
-  switch (stage) {
+function bucketForStage(rawStage: string): string {
+  // Normalized first so a pre-migration row still lands in the right bucket.
+  // `Interview` previously meant "technical"; the 20261009 migration rewrote
+  // those rows to `Technical Round`, and `normalizeStage` keeps the canonical
+  // value distinct.
+  switch (normalizeStage(rawStage)) {
     case 'Screening':
       return 'screening';
+    case 'Shortlisted':
+      return 'shortlisted';
     case 'Assessment':
       return 'assessment';
-    case 'Technical Interview':
-    case 'Interview':
+    case 'Technical Round':
       return 'technical';
-    case 'Managerial/HR':
+    case 'Interview':
       return 'hr';
-    case 'Offer':
+    case 'Final Decision':
       return 'finalDecision';
     case 'Hired':
       return 'hired';
@@ -335,6 +350,10 @@ export const jobHiringSummaryHandler = asyncHandler(async (req: Request, res: Re
   const buckets: Record<string, StageBucket> = {
     applied: { count: 0, candidateIds: [] },
     screening: { count: 0, candidateIds: [] },
+    // Shortlisted is its own bucket: it is a real recruiter decision between
+    // screening and assessment, and folding it into 'applied' made the
+    // shortlisting stage invisible in the job summary.
+    shortlisted: { count: 0, candidateIds: [] },
     assessment: { count: 0, candidateIds: [] },
     technical: { count: 0, candidateIds: [] },
     hr: { count: 0, candidateIds: [] },

@@ -1,7 +1,7 @@
 import { getSupabaseClient } from '@/services/supabase/client';
 import { AppError } from '@/middleware/errorHandler';
 import { ErrorCodes } from '@/middleware/errorCodes';
-import { isValidTransition } from '@/services/hiring/stageTypes';
+import { assertJobAccepts, JobClosedError } from '@/services/hiring/jobLifecycleService';
 
 /**
  * The candidate↔job relationship — the single source of truth for "who is in
@@ -67,6 +67,11 @@ export async function enrollCandidate(input: EnrollInput): Promise<JobApplicatio
   const supabase = getSupabaseClient();
   await requireOwnedJobAndCandidate(input.recruiterId, input.jobId, input.candidateId);
 
+  // A closed job accepts no new applications. Existing applications, candidates,
+  // assessments and interviews are untouched — closing a job stops intake, it
+  // does not erase history.
+  await assertJobAccepts(input.recruiterId, input.jobId, 'enrol');
+
   const { data, error } = await supabase
     .from('job_applications')
     .upsert(
@@ -122,6 +127,9 @@ export async function enrollCandidates(input: {
       });
       if (!before) created += 1;
     } catch (err) {
+      // A closed job blocks the WHOLE batch, not individual candidates, so the
+      // caller must hear about it rather than see a silently short count.
+      if (err instanceof JobClosedError) throw err;
       // Skip candidates this recruiter does not own rather than aborting the batch.
       if (!(err instanceof AppError)) throw err;
     }
@@ -198,37 +206,25 @@ export async function getJobStageCounts(
 }
 
 /**
- * Move a candidate's job-scoped stage, enforcing the same transition matrix
- * as the central progression service. Returns false when the transition is
- * not legal so callers can surface a clear error.
+ * Stage moves now live in `applicationService.setApplicationStage`, which adds
+ * the idempotency claim, the attributable audit row, shortlist attribution and
+ * the `candidates.current_status` compatibility mirror that this function
+ * lacked. It was exported here but never called from production code.
  */
-export async function setApplicationStage(
+
+/**
+ * Remove a candidate from one job's pipeline.
+ *
+ * `recruiterId` is REQUIRED. This previously accepted no recruiter argument at
+ * all, so any caller holding a jobId and candidateId could delete an
+ * application belonging to another recruiter.
+ */
+export async function removeApplication(
+  recruiterId: string,
   jobId: string,
   candidateId: string,
-  toStage: string,
-): Promise<{ updated: boolean; reason?: string }> {
-  const supabase = getSupabaseClient();
-  const existing = await getApplication(jobId, candidateId);
-  if (!existing) {
-    throw new AppError('Candidate is not in this job', 404, ErrorCodes.NOT_FOUND);
-  }
-  const fromStage = existing.current_stage;
-  if (fromStage === toStage) return { updated: false, reason: 'Already at that stage' };
-
-  const check = isValidTransition(fromStage, toStage);
-  if (!check.valid) return { updated: false, reason: check.reason };
-
-  const { error } = await supabase
-    .from('job_applications')
-    .update({ current_stage: toStage, updated_at: new Date().toISOString() })
-    .eq('id', existing.id);
-  if (error) {
-    throw new AppError(`Failed to update stage: ${error.message}`, 500, ErrorCodes.DATABASE_ERROR);
-  }
-  return { updated: true };
-}
-
-export async function removeApplication(jobId: string, candidateId: string): Promise<void> {
+): Promise<void> {
+  await requireOwnedJobAndCandidate(recruiterId, jobId, candidateId);
   const supabase = getSupabaseClient();
   const { error } = await supabase
     .from('job_applications')

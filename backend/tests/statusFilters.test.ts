@@ -47,13 +47,24 @@ describe('Status filter map covers the canonical pipeline', () => {
     expect(STATUS_FILTER_MAP.technical).not.toContain(PIPELINE_STAGE_STATUS.HR);
     expect(STATUS_FILTER_MAP.hr).toContain(PIPELINE_STAGE_STATUS.HR);
     expect(STATUS_FILTER_MAP.hr).not.toContain(PIPELINE_STAGE_STATUS.TECHNICAL);
-    expect(STATUS_FILTER_MAP.interview).toContain(PIPELINE_STAGE_STATUS.TECHNICAL);
+    // `interview` and `hr` are now the SAME stage (Managerial/HR was renamed
+    // to Interview), so the `interview` alias points at the same bucket rather
+    // than unioning both interview stages.
     expect(STATUS_FILTER_MAP.interview).toContain(PIPELINE_STAGE_STATUS.HR);
+    expect(STATUS_FILTER_MAP.interview).not.toContain(PIPELINE_STAGE_STATUS.TECHNICAL);
   });
 
   it('includes every in-flight stage in the "open" bucket', () => {
     const open = STATUS_FILTER_MAP.open as string[];
-    for (const stage of ['Applied', 'Screening', 'Assessment', 'Technical Interview', 'Managerial/HR', 'Offer']) {
+    for (const stage of [
+      'Applied',
+      'Screening',
+      'Shortlisted',
+      'Assessment',
+      'Technical Round',
+      'Interview',
+      'Final Decision',
+    ]) {
       expect(open).toContain(stage);
     }
     // Terminal outcomes are NOT open.
@@ -97,10 +108,10 @@ describe('buildStatusFilterParam reaches the database', () => {
   });
 
   it('unions multiple comma-separated filters', () => {
-    const calls = capturedFilter('hired,offer');
+    const calls = capturedFilter('hired,final');
     expect(calls).toHaveLength(1);
     expect(calls[0].op).toBe('in');
-    expect(calls[0].value).toEqual(expect.arrayContaining(['Hired', 'Offer']));
+    expect(calls[0].value).toEqual(expect.arrayContaining(['Hired', 'Final Decision']));
   });
 
   it('covers every pipeline stage through a working filter key', () => {
@@ -141,3 +152,44 @@ describe('Stage buckets are mutually exclusive', () => {
     }
   });
 });
+/**
+ * The global `/api/candidates?status=` filters are a COMPATIBILITY surface: the
+ * candidate list page and its controller were deliberately left unchanged, so
+ * these maps are what keep that screen working after the stage rename.
+ *
+ * They must therefore match BOTH the canonical names the code now writes and
+ * the legacy names that may still exist on rows the 20261009 rewrite skipped.
+ */
+describe('global filters survive the stage rename', () => {
+  it('matches legacy rows that predate the canonical rename', () => {
+    const technical = STATUS_FILTER_MAP.technical as string[]
+    const interview = STATUS_FILTER_MAP.interview as string[]
+    const finalDecision = STATUS_FILTER_MAP.final as string[]
+
+    expect(technical).toContain('Technical Interview')
+    expect(interview).toContain('Managerial/HR')
+    expect(interview).toContain('HR Round')
+    expect(finalDecision).toContain('Final Decision')
+  })
+
+  it('does NOT let the technical filter match the interview/HR stage', () => {
+    // Regression: the old map listed bare `'Interview'` under `technical`,
+    // because `Interview` used to be a legacy alias for Technical Interview.
+    // It is now its own stage (rank 5), so leaving it there would make the
+    // technical filter also return HR-stage candidates.
+    expect(STATUS_FILTER_MAP.technical).not.toContain(PIPELINE_STAGE_STATUS.HR)
+    expect(STATUS_FILTER_MAP.technical).toContain(PIPELINE_STAGE_STATUS.TECHNICAL)
+  })
+
+  it('treats `interview` and `hr` as the same stage after the rename', () => {
+    expect(STATUS_FILTER_MAP.interview).toEqual(STATUS_FILTER_MAP.hr)
+  })
+
+  it('exposes Shortlisted separately from Applied and Screening', () => {
+    expect(STATUS_FILTER_MAP.shortlisted).toBe(PIPELINE_STAGE_STATUS.SHORTLISTED)
+    const open = STATUS_FILTER_MAP.open as string[]
+    expect(open).toContain(PIPELINE_STAGE_STATUS.SHORTLISTED)
+    expect(open).toContain(PIPELINE_STAGE_STATUS.APPLIED)
+    expect(open).toContain(PIPELINE_STAGE_STATUS.SCREENING)
+  })
+})

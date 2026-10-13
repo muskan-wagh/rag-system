@@ -1,6 +1,9 @@
 import { Request, Response } from 'express';
 import { asyncHandler } from '@/utils/asyncHandler';
 import { getSupabaseClient } from '@/services/supabase/client';
+import { getApplicationRecord, setApplicationStage } from '@/services/hiring/applicationService';
+import { normalizeStage, stageRank } from '@/services/hiring/stageTypes';
+import { assertJobAccepts } from '@/services/hiring/jobLifecycleService';
 import { AppError } from '@/middleware/errorHandler';
 import { ErrorCodes } from '@/middleware/errorCodes';
 import { enqueueScreeningJob, getScreeningQueue, screeningJobId } from '@/services/queue/screeningQueue';
@@ -189,6 +192,10 @@ export const runScreeningHandler = asyncHandler(async (req: Request, res: Respon
   if (!job || (job as { recruiter_id: string }).recruiter_id !== recruiter.id) {
     throw new AppError('Job not found', 404, ErrorCodes.NOT_FOUND);
   }
+  // A closed job accepts no new recruitment activity. Existing screening
+  // results remain readable; only a fresh run is refused.
+  await assertJobAccepts(recruiter.id, jobId, 'screen');
+
   const jd = String(jdText || (job as { description?: string }).description || (job as { title?: string }).title || '');
   if (!jd.trim()) throw new AppError('jdText or job description is required', 400, ErrorCodes.VALIDATION_ERROR);
 
@@ -335,7 +342,69 @@ async function overrideScreening(req: Request, res: Response, advance: boolean) 
     .eq('candidate_id', candidateId);
   if (error) throw new AppError(`Override failed: ${error.message}`, 500, ErrorCodes.DATABASE_ERROR);
 
-  // Timeline audit (AI result preserved in details).
+  // ── Apply the decision to the JOB APPLICATION, not the global candidate ─────
+  // This wrote `candidates.current_status` inline, which rejected the candidate
+  // in EVERY job they were in and left `job_applications.current_stage`
+  // untouched — so the job pipeline kept showing them as Applied. The write now
+  // goes through the central application service, which owns the transition
+  // matrix, the idempotency row and the attributable audit trail. The AI
+  // screening result is preserved verbatim in the override record above.
+  const application = await getApplicationRecord(jobId, candidateId);
+  if (!application) {
+    throw new AppError(
+      'This candidate has no application for this job, so the screening decision cannot be applied.',
+      404,
+      ErrorCodes.NOT_FOUND,
+    );
+  }
+
+  const currentStage = normalizeStage(application.current_stage) ?? 'Applied';
+  let stageChanged = false;
+  let fromStage = currentStage;
+
+  if (advance) {
+    if (stageRank(currentStage) <= stageRank('Screening')) {
+      // Also taken when the application is ALREADY at Screening: the service
+      // repairs a stale `candidates.current_status` mirror in that case, which
+      // is what keeps the two records from disagreeing.
+      const result = await setApplicationStage({
+        jobId,
+        candidateId,
+        recruiterId: recruiter.id,
+        toStage: 'Screening',
+        triggerType: 'screening',
+        triggerId: `screening-override:${application.id}:advance`,
+        overrideReason: String(reason || 'Recruiter advanced candidate'),
+        metadata: {
+          action: 'screening_override_advance',
+          ai_overall: (current as { ai_overall: number }).ai_overall,
+          ai_status: (current as { ai_status: string }).ai_status,
+        },
+      });
+      fromStage = result.fromStage;
+      stageChanged = result.changed;
+    }
+  } else {
+    const result = await setApplicationStage({
+      jobId,
+      candidateId,
+      recruiterId: recruiter.id,
+      toStage: 'Rejected',
+      triggerType: 'screening',
+      triggerId: `screening-override:${application.id}:reject`,
+      overrideReason: String(reason || 'Recruiter rejected candidate'),
+      metadata: {
+        action: 'screening_override_reject',
+        ai_overall: (current as { ai_overall: number }).ai_overall,
+        ai_status: (current as { ai_status: string }).ai_status,
+      },
+    });
+    fromStage = result.fromStage;
+    stageChanged = result.changed;
+  }
+
+  // Non-stage audit detail: the AI's own verdict, kept separate from the
+  // recruiter's decision so neither can be mistaken for the other.
   await supabase.from('candidate_status_log').insert({
     candidate_id: candidateId,
     status: advance ? 'Screening' : 'Rejected',
@@ -345,14 +414,18 @@ async function overrideScreening(req: Request, res: Response, advance: boolean) 
       ai_status: (current as { ai_status: string }).ai_status,
       reason: String(reason || ''),
       by: recruiter.id,
+      application_id: application.id,
+      stage_changed: stageChanged,
+      from_stage: fromStage,
     },
+    job_id: jobId,
+    recruiter_id: recruiter.id,
   });
-  if (advance) {
-    await supabase.from('candidates').update({ current_status: 'Screening' }).eq('id', candidateId);
-  } else {
-    await supabase.from('candidates').update({ current_status: 'Rejected' }).eq('id', candidateId);
-  }
-  res.json({ success: true, data: { overridden: true, advanced: advance } });
+
+  res.json({
+    success: true,
+    data: { overridden: true, advanced: advance, applicationId: application.id, stageChanged },
+  });
 }
 
 export const advanceScreeningHandler = asyncHandler(async (req: Request, res: Response) => {

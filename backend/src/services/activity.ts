@@ -1,24 +1,43 @@
 import { getSupabaseClient } from './supabase/client';
 import { logger } from '@/utils/logger';
 
-export type ActionType =
-  | 'resume_uploaded'
-  | 'resume_processed'
-  | 'search_executed'
-  | 'candidate_viewed'
-  | 'candidate_compared'
-  | 'status_changed'
-  | 'interview_scheduled'
-  | 'email_sent'
-  | 'offer_generated'
-  | 'note_added'
-  | 'saved_search_created'
-  | 'talent_pool_created'
-  | 'candidate_added_to_pool'
-  | 'assessment_created'
-  | 'assessment_published'
-  | 'assessment_generated'
-  | 'assessment_invite_sent';
+/**
+ * Every action type written to `recruiter_activity`.
+ *
+ * `recruiter_activity.action_type` has no CHECK constraint, but
+ * `historyController.VALID_ACTION_TYPES` gates the `/api/history` filter and
+ * returns 400 for anything it does not recognise. `ACTION_TYPE_VALUES` below is
+ * the single source of truth — historyController imports it rather than keeping
+ * its own hand-maintained copy, which previously drifted and started rejecting
+ * the four assessment types.
+ */
+export const ACTION_TYPE_VALUES = [
+  'resume_uploaded',
+  'resume_processed',
+  'search_executed',
+  'candidate_viewed',
+  'candidate_compared',
+  'status_changed',
+  'interview_scheduled',
+  'email_sent',
+  'offer_generated',
+  'note_added',
+  'saved_search_created',
+  'talent_pool_created',
+  'candidate_added_to_pool',
+  'assessment_created',
+  'assessment_published',
+  'assessment_generated',
+  'assessment_invite_sent',
+  // Recruitment workspace (shortlist / job lifecycle / stage decisions)
+  'candidate_shortlisted',
+  'candidate_shortlist_reversed',
+  'job_status_changed',
+  'candidate_advanced',
+  'candidate_report_viewed',
+] as const;
+
+export type ActionType = (typeof ACTION_TYPE_VALUES)[number];
 
 export async function logActivity(params: {
   recruiterId: string;

@@ -49,7 +49,7 @@ const REC = 'rec-1';
 const JOB = 'job-1';
 const CAND = 'cand-1';
 
-function seed(opts: { config?: Record<string, unknown>; status?: string } = {}) {
+function seed(opts: { config?: Record<string, unknown>; status?: string; stage?: string } = {}) {
   db.seed('recruiters', [{ id: REC, clerk_id: 'user_1' }]);
   db.seed('jobs', [
     {
@@ -62,12 +62,31 @@ function seed(opts: { config?: Record<string, unknown>; status?: string } = {}) 
   db.seed('candidates', [
     { id: CAND, recruiter_id: REC, current_status: opts.status ?? 'Applied', full_name: 'Ada' },
   ]);
+  // Membership is authoritative: `job_applications` is now the source of truth
+  // for a candidate's stage in a job, and `candidates.current_status` is only a
+  // mirror. A candidate with no application row cannot be advanced at all.
+  db.seed('job_applications', [
+    {
+      id: 'app-1',
+      job_id: JOB,
+      candidate_id: CAND,
+      recruiter_id: REC,
+      current_stage: opts.stage ?? opts.status ?? 'Applied',
+      source: 'recruiter_upload',
+      applied_at: '2026-10-01T00:00:00.000Z',
+      updated_at: '2026-10-01T00:00:00.000Z',
+    },
+  ]);
   db.seed('hiring_progression_events', []);
   db.seed('candidate_status_log', []);
   db.seed('hiring_stages', []);
   db.seed('interviews', []);
   db.seed('interview_invites', []);
   db.seed('email_logs', []);
+  // Simulated UNIQUE constraint. The progression service catches 23505 and
+  // re-reads the winning row; without this the retried-trigger assertion below
+  // would be testing a path that never executes.
+  db.addUniqueConstraint('hiring_progression_events', ['trigger_type', 'trigger_id']);
   enqueuedEmails.length = 0;
   enqueuedProgressions.length = 0;
 }
@@ -228,7 +247,7 @@ describe('hiring lifecycle — hiring is never automatic', () => {
         jobId: JOB,
         recruiterId: REC,
         fromStage: 'Applied',
-        toStage: 'Technical Interview',
+        toStage: 'Technical Round',
         triggerType: 'manual',
         triggerId: 'manual-1',
       }),

@@ -89,12 +89,12 @@ describe('hiring workflow — security + scoring + idempotency', () => {
     expect(evalResult.provider).toBe('mock');
   });
 
-  it('evaluateStage routes Assessment->Technical, Technical->HR, bad->Rejected/Hold', () => {
-    expect(evaluateStage({ fromStage: 'Assessment', passed: true }).toStage).toBe('Technical Interview');
+  it('evaluateStage routes Assessment->Technical, Technical->Interview, bad->Rejected/Hold', () => {
+    expect(evaluateStage({ fromStage: 'Assessment', passed: true }).toStage).toBe('Technical Round');
     expect(evaluateStage({ fromStage: 'Assessment', passed: false }).outcome).toBe('Rejected');
-    expect(evaluateStage({ fromStage: 'Technical Interview', recommendation: 'hire' }).toStage).toBe('Managerial/HR');
-    expect(evaluateStage({ fromStage: 'Technical Interview', recommendation: 'no_hire' }).outcome).toBe('Rejected');
-    expect(evaluateStage({ fromStage: 'Managerial/HR', recommendation: 'hold' }).outcome).toBe('Hold');
+    expect(evaluateStage({ fromStage: 'Technical Round', recommendation: 'hire' }).toStage).toBe('Interview');
+    expect(evaluateStage({ fromStage: 'Technical Round', recommendation: 'no_hire' }).outcome).toBe('Rejected');
+    expect(evaluateStage({ fromStage: 'Interview', recommendation: 'hold' }).outcome).toBe('Hold');
   });
 
   it('progression job ids are stable per trigger (double-submit collapses)', () => {

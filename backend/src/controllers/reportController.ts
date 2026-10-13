@@ -9,6 +9,7 @@ import type { HiringReport } from '@/services/reports/buildReport';
 import { generateReportPdf } from '@/services/reports/generatePdf';
 import { uploadReportPdf, downloadReportPdf, reportStoragePath } from '@/services/reports/storage';
 import { enqueueReportJob } from '@/services/queue/reportQueue';
+import { setApplicationStage } from '@/services/hiring/applicationService';
 import { enqueueEmail } from '@/services/queue/emailQueue';
 import { buildCandidateReportEmail, candidateReportEmailKey, candidateReportSubject } from '@/services/email/candidateReport';
 import { logEmail } from '@/services/supabase/database';
@@ -217,8 +218,42 @@ export const finalDecisionHandler = asyncHandler(async (req: Request, res: Respo
   }
   const jobId = (req.body?.jobId as string | null) || null;
   const supabase = getSupabaseClient();
-  await supabase.from('candidates').update({ current_status: decision }).eq('id', candidateId);
-  await supabase.from('candidate_status_log').insert({ candidate_id: candidateId, status: decision, details: { finalDecision: true } });
+
+  // ── Route the decision through the canonical application write path ─────────
+  // This handler used to write `candidates.current_status` directly and insert a
+  // bare timeline row. Two consequences: a hire/reject applied to EVERY job the
+  // candidate was in, and the job application kept whatever stage it had — so
+  // the job pipeline and the candidate header could disagree. Both are now
+  // resolved by `setApplicationStage`, which writes the job application, records
+  // an attributable audit row, and mirrors the global column only when the
+  // candidate has a single application.
+  let applicationId: string | null = null;
+  if (jobId) {
+    const result = await setApplicationStage({
+      jobId,
+      candidateId,
+      recruiterId: recruiter.id,
+      toStage: decision as 'Hired' | 'Rejected' | 'Hold',
+      triggerType: decision === 'Hired' ? 'offer' : 'manual',
+      triggerId: `final-decision:${jobId}:${candidateId}:${decision}`,
+      metadata: {
+        action: 'final_decision',
+        // Hired is explicitly recruiter-driven; recorded so an auditor can see
+        // automation never made this call.
+        recruiter_driven: true,
+        ...(req.body?.reason ? { reason: String(req.body.reason).slice(0, 2000) } : {}),
+      },
+    });
+    applicationId = result.applicationId;
+  } else {
+    // No job supplied. Refuse rather than silently mutating a global column that
+    // cannot represent a per-job decision.
+    throw new AppError(
+      'A jobId is required to record a hiring decision — decisions apply to a specific job application, not to the candidate globally.',
+      400,
+      ErrorCodes.VALIDATION_ERROR,
+    );
+  }
 
   let report: { queued: boolean; error?: string } = { queued: false };
   try {
@@ -241,7 +276,7 @@ export const finalDecisionHandler = asyncHandler(async (req: Request, res: Respo
   } catch (err) {
     report = { queued: false, error: err instanceof Error ? err.message : String(err) };
   }
-  res.json({ success: true, data: { decision, report } });
+  res.json({ success: true, data: { decision, jobId, applicationId, report } });
 });
 
 // ---------- Candidate self-service (session auth, candidate-safe ONLY) ----------
