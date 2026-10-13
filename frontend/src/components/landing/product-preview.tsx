@@ -2,7 +2,7 @@
 
 import type { ReactNode } from "react"
 import { cn } from "@/lib/utils"
-import { PIPELINE_STAGES } from "@/lib/pipeline"
+import { PIPELINE_STAGES, stageLabel } from "@/lib/pipeline"
 import { ScoreRing } from "@/components/ui/score-ring"
 import { StageBadge } from "@/components/ui/stage-badge"
 import { ProgressBar } from "@/components/ui/progress-bar"
@@ -111,7 +111,7 @@ const PIPELINE_SAMPLES: SampleCandidate[] = [
     role: "Full-Stack Engineer",
     skills: ["TypeScript", "React", "Node"],
     score: 0.86,
-    stage: "Technical Interview",
+    stage: "Technical Round",
   },
   {
     name: "Sample candidate D",
@@ -162,7 +162,7 @@ export function PipelinePreview({ className }: { className?: string }) {
                       state === "upcoming" ? "text-muted" : "text-ink",
                     )}
                   >
-                    {stage === "Technical Interview" ? "Technical" : stage === "Managerial/HR" ? "HR" : stage}
+                    {stageLabel(stage)}
                   </span>
                   <span className="block font-data text-[11px] font-medium text-ink">{count}</span>
                 </li>

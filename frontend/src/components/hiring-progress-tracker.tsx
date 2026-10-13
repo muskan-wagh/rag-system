@@ -1,6 +1,7 @@
 "use client"
 
 import { cn } from "@/lib/utils"
+import { normalizeStage } from "@/lib/pipeline"
 import { Check, Circle, Loader2 } from "lucide-react"
 
 /**
@@ -17,8 +18,12 @@ export interface ProgressStage {
 }
 
 function shortLabel(stage: string): string {
-  if (stage === "Technical Interview") return "Technical";
-  if (stage === "Managerial/HR") return "HR";
+  // Legacy values are normalized first, so a pre-migration row renders with the
+  // current label instead of raw text.
+  const canonical = normalizeStage(stage) ?? stage
+  if (canonical === "Technical Round") return "Technical"
+  if (canonical === "Interview") return "HR"
+  if (canonical === "Final Decision") return "Decision"
   return stage;
 }
 
@@ -67,7 +72,7 @@ export function HiringProgressTracker({
               ) : (
                 <Circle className="h-3.5 w-3.5" aria-label="upcoming" />
               )}
-              {variant === "candidate" && s.stage === "Managerial/HR" ? "HR Interview" : shortLabel(s.stage)}
+              {variant === "candidate" && normalizeStage(s.stage) === "Interview" ? "HR Interview" : shortLabel(s.stage)}
               {showScore ? <span className="tabular-nums opacity-80">({Math.round(s.score as number)}%)</span> : null}
             </span>
           </li>

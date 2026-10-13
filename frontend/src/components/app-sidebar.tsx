@@ -10,13 +10,11 @@ import {
   Search,
   GitCompareArrows,
   Layers,
-  CalendarDays,
   Bookmark,
   History,
   Settings,
   LogOut,
   ClipboardList,
-  Briefcase,
 } from "lucide-react"
 import { BrandLogo } from "@/components/brand"
 import { Tooltip } from "@/components/ui/tooltip"
@@ -29,22 +27,33 @@ interface NavItem {
   tone: string
 }
 
+/**
+ * Sidebar navigation.
+ *
+ * Deliberately SHORT. Recruitment stages do not get their own entries: the
+ * recruiter must be able to manage a candidate from shortlisting through to the
+ * hiring decision without hopping between disconnected sections, so the whole
+ * pipeline lives in the single Assessments workspace.
+ *
+ * The `/jobs` and `/interview` entries were removed because job management and
+ * the technical/interview stages are now tabs inside that workspace. Neither
+ * route was deleted from the backend — they are simply no longer separate
+ * navigation destinations.
+ */
 const navSections: Array<{ label: string; items: NavItem[] }> = [
   {
     label: "Overview",
     items: [
       { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, tone: "text-accent" },
-      { href: "/interview", label: "Interviews", icon: CalendarDays, tone: "text-success" },
     ],
   },
   {
     label: "Hiring",
     items: [
-      { href: "/jobs", label: "Jobs", icon: Briefcase, tone: "text-ink" },
+      { href: "/assessments", label: "Assessments", icon: ClipboardList, tone: "text-accent" },
       { href: "/candidates", label: "Candidates", icon: Users, tone: "text-ink" },
       { href: "/candidates/search", label: "AI search", icon: Search, tone: "text-accent" },
       { href: "/compare", label: "Compare", icon: GitCompareArrows, tone: "text-ink" },
-      { href: "/assessments", label: "Assessments", icon: ClipboardList, tone: "text-ink" },
     ],
   },
   {

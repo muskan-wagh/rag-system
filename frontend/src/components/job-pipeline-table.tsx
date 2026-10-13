@@ -41,8 +41,8 @@ interface PipelineRow {
 
 /** Canonical stages in pipeline order. Mirrors the backend transition matrix. */
 const STAGE_ORDER = [
-  "Applied", "Screening", "Assessment", "Technical Interview",
-  "Managerial/HR", "Offer", "Hired", "Hold", "Rejected", "Withdrawn",
+  "Applied", "Screening", "Shortlisted", "Assessment", "Technical Round",
+  "Interview", "Final Decision", "Hired", "Hold", "Rejected", "Withdrawn",
 ] as const
 
 /** Stage → badge tone. Keeps status colour consistent with the rest of the app. */

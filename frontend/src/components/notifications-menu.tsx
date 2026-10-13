@@ -83,7 +83,7 @@ function NotificationsContent({ onNavigated }: { onNavigated: () => void }) {
         </div>
         {count > 0 && (
           <Link
-            href={ROUTES.interview}
+            href={ROUTES.workspace(undefined, "technical")}
             onClick={onNavigated}
             className="text-[11px] font-medium text-muted transition-colors duration-120 hover:text-ink"
           >
@@ -108,7 +108,7 @@ function NotificationsContent({ onNavigated }: { onNavigated: () => void }) {
             {interviewsToday.length > 0 && (
               <li className="px-4 py-3">
                 <button
-                  onClick={() => go(ROUTES.interview)}
+                  onClick={() => go(ROUTES.workspace(undefined, "technical"))}
                   className="flex w-full items-center gap-3 rounded-md text-left transition-colors duration-120"
                 >
                   <div className="flex size-7 shrink-0 items-center justify-center rounded-md bg-soft text-muted">

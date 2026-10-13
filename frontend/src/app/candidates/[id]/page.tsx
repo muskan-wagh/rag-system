@@ -38,6 +38,7 @@ import { useApi } from "@/hooks/use-api"
 import { ROUTES, getInitials } from "@/lib/constants"
 import { formatDate } from "@/lib/helpers"
 import { StageBadge } from "@/components/ui/stage-badge"
+import { CandidateApplicationPanel } from "@/components/workspace/candidate-application-panel"
 import { stageRank, isTerminalStage } from "@/lib/pipeline"
 import { Button } from "@/components/ui/button"
 import type { CandidateBrief, ApiResponse } from "@/lib/types"
@@ -407,6 +408,14 @@ export default function CandidateDetailPage() {
           )}
           <CandidateHeaderProgress candidateId={candidateId} />
         </div>
+      </div>
+
+      {/* Per-job application: authoritative stage, shortlist decision,
+          assessment status and the full journey. A stage belongs to a JOB
+          APPLICATION, not to the person, so every action here is scoped to the
+          selected job. */}
+      <div className="px-4 pb-4">
+        <CandidateApplicationPanel candidateId={candidateId} />
       </div>
 
       {/* Tabs */}

@@ -347,7 +347,7 @@ export default function DashboardPage() {
       label: "Interviews",
       value: stats?.interviewsToday ?? 0,
       icon: CalendarDays,
-      href: ROUTES.interview,
+      href: ROUTES.workspace(undefined, "technical"),
       caption: stats?.interviewsToday ? "Scheduled for today" : "Nothing booked today",
       tone: "info" as const,
       fill: Math.min(1, (stats?.interviewsToday ?? 0) / 8),

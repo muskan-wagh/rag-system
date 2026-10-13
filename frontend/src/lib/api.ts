@@ -704,6 +704,126 @@ export function createApiClient(getToken: () => Promise<string | null>) {
         }>(`/candidates/${candidateId}/hiring-progress${qs}`, { method: "GET" }, a);
       }),
 
+    // === Recruitment workspace (job-scoped) ===
+    //
+    // One call per selected job. The backend resolves ownership from the job,
+    // so a recruiter who does not own the job gets a 404 rather than another
+    // tenant's pipeline.
+
+    getWorkspace: (jobId: string) =>
+      withAuth((a) =>
+        request<import("./types").WorkspacePayload>(`/jobs/${jobId}/workspace`, { method: "GET" }, a),
+      ),
+
+    /** Candidates shortlisted for THIS job — the assessment eligibility list. */
+    listShortlisted: (jobId: string) =>
+      withAuth((a) =>
+        request<{ jobId: string; candidates: import("./types").WorkspaceCandidate[]; total: number }>(
+          `/jobs/${jobId}/shortlisted`,
+          { method: "GET" },
+          a,
+        ),
+      ),
+
+    /** Unified per-application journey for one candidate on one job. */
+    getJourney: (jobId: string, candidateId: string) =>
+      withAuth((a) =>
+        request<import("./types").CandidateJourney>(`/jobs/${jobId}/applications/${candidateId}/journey`, {
+          method: "GET",
+        }, a),
+      ),
+
+    /** Everything the candidate-profile panel needs for one application. */
+    getApplicationContext: (jobId: string, candidateId: string) =>
+      withAuth((a) =>
+        request<import("./types").ApplicationContext>(`/jobs/${jobId}/applications/${candidateId}/context`, {
+          method: "GET",
+        }, a),
+      ),
+
+    getShortlistEligibility: (jobId: string, candidateId: string) =>
+      withAuth((a) =>
+        request<import("./types").ShortlistEligibility>(
+          `/jobs/${jobId}/applications/${candidateId}/shortlist-eligibility`,
+          { method: "GET" },
+          a,
+        ),
+      ),
+
+    /**
+     * Shortlist for one job. Idempotent server-side: a double click resolves to
+     * a single event, and the response reports whether anything actually changed.
+     */
+    shortlist: (jobId: string, candidateId: string, note?: string) =>
+      withAuth((a) =>
+        request<import("./types").ShortlistResult>(
+          `/jobs/${jobId}/applications/${candidateId}/shortlist`,
+          { method: "POST", body: JSON.stringify({ note: note ?? "" }) },
+          a,
+        ),
+      ),
+
+    /** Reverse a shortlist. Audited, not erased. */
+    unshortlist: (jobId: string, candidateId: string, reason?: string, toStage?: "Screening" | "Applied") =>
+      withAuth((a) =>
+        request<{ applicationId: string; stage: string; changed: boolean; message: string }>(
+          `/jobs/${jobId}/applications/${candidateId}/shortlist`,
+          { method: "DELETE", body: JSON.stringify({ reason: reason ?? "", toStage }) },
+          a,
+        ),
+      ),
+
+    /**
+     * Explicit recruiter decision: advance, hold or reject. A passing score is
+     * recorded as context only — it never chooses the destination.
+     */
+    decide: (
+      jobId: string,
+      candidateId: string,
+      data: {
+        decision: "Technical Round" | "Interview" | "Final Decision" | "Hold" | "Rejected";
+        reason?: string;
+        interviewerName?: string;
+        percentage?: number;
+        passed?: boolean;
+        assessmentId?: string;
+      },
+    ) =>
+      withAuth((a) =>
+        request<import("./types").DecisionResult>(`/jobs/${jobId}/applications/${candidateId}/decision`, {
+          method: "POST",
+          body: JSON.stringify(data),
+        }, a),
+      ),
+
+    getAssessmentPermission: (jobId: string, candidateId: string) =>
+      withAuth((a) =>
+        request<{ allowed: boolean; reason: string | null; applicationId: string | null }>(
+          `/jobs/${jobId}/applications/${candidateId}/assessment-permission`,
+          { method: "GET" },
+          a,
+        ),
+      ),
+
+    /** Open or close a job. Closing preserves every record. */
+    setJobStatus: (jobId: string, status: "open" | "closed", reason?: string) =>
+      withAuth((a) =>
+        request<{ jobId: string; title: string; status: string; changed: boolean; message: string }>(
+          `/jobs/${jobId}/status`,
+          { method: "PATCH", body: JSON.stringify({ status, reason }) },
+          a,
+        ),
+      ),
+
+    updateJobAutomation: (jobId: string, progressionConfig: Record<string, boolean>) =>
+      withAuth((a) =>
+        request<{ jobId: string; progression_config: Record<string, boolean> }>(
+          `/jobs/${jobId}/automation`,
+          { method: "PATCH", body: JSON.stringify({ progression_config: progressionConfig }) },
+          a,
+        ),
+      ),
+
     getInterviewStage: (candidateId: string) =>
       withAuth((a) =>
         request<{ interviews: unknown[]; invites: unknown[]; evaluations: unknown[] }>(
