@@ -1,5 +1,6 @@
 import { API_BASE, CANDIDATE_STATUS } from "./constants"
 import { apiFetch } from "./api-fetch"
+import { readApiResponse } from "./http"
 import type {
   ApiResponse,
   ParsedJD,
@@ -61,7 +62,7 @@ async function request<T>(
     ...options,
     headers: { ...headers, ...(options?.headers as Record<string, string> || {}) },
   })
-  return res.json() as Promise<ApiResponse<T>>
+  return readApiResponse<T>(res, endpoint)
 }
 
 export function createApiClient(getToken: () => Promise<string | null>) {

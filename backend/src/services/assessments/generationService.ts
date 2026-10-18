@@ -48,32 +48,76 @@ export interface NormalizedGeneratedQuestion {
 
 // ---------- AI JSON contract (Zod) ----------
 
+/**
+ * The model mirrors the schema template in the prompt, which lists every field
+ * for every type. In practice it emits `"correctOption": null` on a
+ * coding/SQL/subjective question rather than omitting the key.
+ * `z.number().optional()` accepts `undefined` but REJECTS `null`, so one stray
+ * null anywhere in the batch failed the ENTIRE generation:
+ *
+ *   AI assessment JSON failed contract validation
+ *   [{"path":["questions",3,"correctOption"],"message":"expected number, received null"}]
+ *
+ * `null` therefore means "not applicable for this question type" and is
+ * normalised to "absent" before validation. Required fields stay strict, so a
+ * genuinely malformed response is still rejected.
+ */
+const optionalNumber = z.number().int().min(0).nullable().optional();
+const optionalMarks = z.number().int().min(0).max(100).nullable().optional();
+const optionalString = z.string().nullable().optional();
+
 const aiTestCaseSchema = z.object({
-  input: z.string().optional().default(''),
-  expected_output: z.string(),
+  input: optionalString.default(''),
+  expected_output: optionalString,
 });
 
 const aiQuestionSchema = z.object({
   type: z.enum(GENERATION_QUESTION_TYPES),
   prompt: z.string().min(1),
-  title: z.string().optional().default(''),
-  skill: z.string().optional().default(''),
-  difficulty: z.string().optional().default(''),
-  marks: z.number().int().min(0).max(100).optional(),
+  title: optionalString.default(''),
+  skill: optionalString.default(''),
+  difficulty: optionalString.default(''),
+  marks: optionalMarks,
   // mcq
-  options: z.array(z.string()).optional().default([]),
-  correctOption: z.number().int().min(0).optional(),
+  options: z.array(z.string()).nullable().optional().default([]),
+  correctOption: optionalNumber,
   // coding
-  language: z.string().optional().default(''),
-  starter_code: z.string().optional().default(''),
-  test_cases: z.array(aiTestCaseSchema).optional().default([]),
+  language: optionalString.default(''),
+  starter_code: optionalString.default(''),
+  test_cases: z.array(aiTestCaseSchema).nullable().optional().default([]),
   // sql
-  schema_ddl: z.string().optional().default(''),
-  expected_query: z.string().optional().default(''),
+  schema_ddl: optionalString.default(''),
+  expected_query: optionalString.default(''),
   expected_result: z.unknown().optional(),
   // subjective
-  rubric: z.string().optional().default(''),
+  rubric: optionalString.default(''),
 });
+
+/**
+ * Drop `null` from optional keys before validation. Deliberately narrow: it
+ * removes keys the model filled with "not applicable", and never invents
+ * content.
+ */
+function normalizeAiQuestions(parsed: unknown): unknown {
+  if (!parsed || typeof parsed !== 'object') return parsed;
+  const obj = parsed as Record<string, unknown>;
+  if (!Array.isArray(obj.questions)) return parsed;
+
+  const stripNulls = (value: unknown): unknown => {
+    if (Array.isArray(value)) return value.map(stripNulls);
+    if (value && typeof value === 'object') {
+      const out: Record<string, unknown> = {};
+      for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+        if (v === null || v === undefined) continue;
+        out[k] = stripNulls(v);
+      }
+      return out;
+    }
+    return value;
+  };
+
+  return { ...obj, questions: obj.questions.map(stripNulls) };
+}
 
 const aiResponseSchema = z.object({
   questions: z.array(aiQuestionSchema).min(1),
@@ -165,7 +209,7 @@ export function normalizeGeneratedQuestion(
       payload: {
         language: (q.language || 'javascript').trim() || 'javascript',
         starter_code: q.starter_code,
-        test_cases: q.test_cases.map((tc) => ({
+        test_cases: (q.test_cases ?? []).map((tc) => ({
           input: tc.input || '',
           expected_output: tc.expected_output,
         })),
@@ -225,6 +269,7 @@ export async function generateAssessmentQuestions(
     throw new Error('Cannot generate more than 50 questions in one request.');
   }
   const defaultMarks = request.defaultMarks ?? 2;
+  let validated: { questions: AiQuestion[] };
 
   const { system, user } = buildGenerationPrompt(request);
   const response = await llm(
@@ -239,17 +284,51 @@ export async function generateAssessmentQuestions(
   if (!parsed) {
     throw new Error('AI did not return parseable JSON. Please try again.');
   }
-  const contract = aiResponseSchema.safeParse(parsed);
+
+  const normalized = normalizeAiQuestions(parsed);
+  const contract = aiResponseSchema.safeParse(normalized);
   if (!contract.success) {
-    logger.warn('AI assessment JSON failed contract validation', {
-      issues: contract.error.issues.slice(0, 5),
+    // Salvage per question rather than discarding the whole batch: a single
+    // unusable question must not cost the recruiter the other eight. Each
+    // question is validated on its own; the batch only fails when NOTHING
+    // survives, which is the honest signal to report "try again".
+    const rawQuestions =
+      normalized && typeof normalized === 'object'
+        ? (normalized as { questions?: unknown[] }).questions
+        : undefined;
+    if (!Array.isArray(rawQuestions) || rawQuestions.length === 0) {
+      logger.warn('AI assessment JSON failed contract validation', {
+        issues: contract.error.issues.slice(0, 5),
+      });
+      throw new Error('AI returned an unexpected question format. Please try again.');
+    }
+
+    const accepted: AiQuestion[] = [];
+    const rejected: string[] = [];
+    rawQuestions.forEach((q, index) => {
+      const one = aiQuestionSchema.safeParse(q);
+      if (one.success) accepted.push(one.data);
+      else rejected.push(`#${index} ${one.error.issues[0]?.message ?? 'invalid'}`);
     });
-    throw new Error('AI returned an unexpected question format. Please try again.');
+
+    if (accepted.length === 0) {
+      logger.warn('AI assessment JSON failed contract validation', { issues: rejected.slice(0, 5) });
+      throw new Error('AI returned an unexpected question format. Please try again.');
+    }
+
+    logger.warn('AI assessment JSON partially invalid; keeping usable questions', {
+      kept: accepted.length,
+      dropped: rejected.length,
+      issues: rejected.slice(0, 5),
+    });
+    validated = { questions: accepted };
+  } else {
+    validated = contract.data;
   }
 
   const questions: NormalizedGeneratedQuestion[] = [];
   let dropped = 0;
-  for (const ai of contract.data.questions) {
+  for (const ai of validated.questions) {
     const normalized = normalizeGeneratedQuestion(ai, defaultMarks);
     const errors = validateQuestion({
       type: normalized.type,

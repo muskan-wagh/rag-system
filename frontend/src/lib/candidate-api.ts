@@ -1,5 +1,6 @@
 import { API_BASE } from "./constants"
 import { apiFetch } from "./api-fetch"
+import { readApiResponse } from "./http"
 
 /**
  * Candidate API — session-cookie based (HttpOnly hs_candidate cookie).
@@ -14,9 +15,13 @@ async function candidateRequest<T>(endpoint: string, options?: RequestInit): Pro
     credentials: "include",
     headers: { "Content-Type": "application/json", ...((options?.headers as Record<string, string>) || {}) },
   })
-  const body = (await res.json()) as { success: boolean; data?: T; error?: string };
+  // Never `res.json()` blindly: a non-JSON body (HTML 404 from an unbuilt
+  // route, proxy error page) must surface as a readable message, not a
+  // `SyntaxError` that leaves the candidate stuck on a loading screen.
+  const body = await readApiResponse<T>(res, endpoint);
   if (!body.success) throw new Error(body.error || "Request failed");
-  return body.data as T;
+  if (body.data === undefined) throw new Error("The server returned an empty response");
+  return body.data;
 }
 
 export interface SafeQuestion {

@@ -43,7 +43,7 @@ import {
   resolveQuestionsForAttempt,
   type SnapshotCapableAssessment,
 } from '@/services/assessments/snapshot';
-import { assertJobAccepts } from '@/services/hiring/jobLifecycleService';
+import { assertJobAccepts, JOB_STATUS } from '@/services/hiring/jobLifecycleService';
 import { getApplicationRecord, setApplicationStage } from '@/services/hiring/applicationService';
 import { canSendAssessmentTo } from '@/services/hiring/decisionService';
 import { mergeProgressionConfig } from '@/controllers/jobWorkflowController';
@@ -295,6 +295,12 @@ export const createJobHandler = asyncHandler(async (req: Request, res: Response)
       title: String(title).trim(),
       description: toText(description),
       upload_session_id: uploadSessionId || null,
+      // Written explicitly rather than relying on the column default: a
+      // database whose `jobs.status` column pre-dates this repository still
+      // carries the legacy default ('draft'), which `jobs_status_check`
+      // rejects — so an insert that omits `status` fails with a 23514 and job
+      // creation is dead. See migrations/20261013_job_status_default.sql.
+      status: JOB_STATUS.OPEN,
     })
     .select('id, title, description, upload_session_id, created_at')
     .single();
@@ -366,6 +372,7 @@ export const createAssessmentHandler = asyncHandler(async (req: Request, res: Re
         recruiter_id: recruiterId,
         title: newJob.title.trim(),
         description: toText(newJob.description),
+        status: JOB_STATUS.OPEN,
       })
       .select('id')
       .single();
@@ -487,6 +494,7 @@ export const updateAssessmentHandler = asyncHandler(async (req: Request, res: Re
         recruiter_id: recruiterId,
         title: newJob.title.trim(),
         description: toText(newJob.description),
+        status: JOB_STATUS.OPEN,
       })
       .select('id')
       .single();

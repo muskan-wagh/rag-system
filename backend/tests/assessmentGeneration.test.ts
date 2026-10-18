@@ -59,6 +59,106 @@ describe('assessment generation service', () => {
     await expect(generateAssessmentQuestions(baseRequest, badLlm)).rejects.toThrow();
   });
 
+  /**
+   * Regression: real Qwen output mirrors the prompt's schema template, which
+   * lists every field for every question type. On a coding/SQL/subjective
+   * question it therefore emits `"correctOption": null` instead of omitting
+   * the key. `z.number().optional()` rejects `null`, so one stray null failed
+   * the ENTIRE batch with:
+   *
+   *   AI returned an unexpected question format. Please try again.
+   *
+   * Every other question in that response was perfectly usable.
+   */
+  it('treats null optional fields as "not applicable" instead of failing the batch', async () => {
+    const nullHeavyLlm = async () => ({
+      content: JSON.stringify({
+        questions: [
+          {
+            type: 'mcq',
+            prompt: 'Which Redis type supports rank queries?',
+            title: 'Redis leaderboard',
+            skill: 'Redis',
+            difficulty: 'medium',
+            marks: 2,
+            options: ['Hash', 'Sorted Set', 'List', 'Set'],
+            correctOption: 1,
+          },
+          {
+            type: 'coding',
+            prompt: 'Implement paginate() with a Redis cache.',
+            title: 'Paginate with Redis',
+            skill: 'Redis',
+            difficulty: 'medium',
+            marks: null,
+            language: 'javascript',
+            starter_code: 'function paginate() {}',
+            test_cases: [{ input: '[1,2,3],1,2', expected_output: '[1,2]' }],
+            options: null,
+            correctOption: null,
+            rubric: null,
+          },
+          {
+            type: 'sql',
+            prompt: 'Find the top 3 customers by revenue.',
+            schema_ddl: 'CREATE TABLE orders (id int, total numeric);',
+            expected_query: 'SELECT id FROM orders ORDER BY total DESC LIMIT 3;',
+            correctOption: null,
+            expected_result: null,
+          },
+        ],
+      }),
+      model: 'test-model',
+    });
+
+    const result = await generateAssessmentQuestions(
+      { ...baseRequest, questionTypes: { mcq: 1, coding: 1, sql: 1 } },
+      nullHeavyLlm,
+    );
+
+    expect(result.questions).toHaveLength(3);
+    expect(result.questions.map((q) => q.type)).toEqual(['mcq', 'coding', 'sql']);
+    const coding = result.questions.find((q) => q.type === 'coding');
+    expect((coding!.payload as { test_cases: unknown[] }).test_cases).toHaveLength(1);
+  });
+
+  it('keeps the usable questions when only some are malformed', async () => {
+    const partiallyBadLlm = async () => ({
+      content: JSON.stringify({
+        questions: [
+          { type: 'mcq', prompt: 'Valid?', options: ['a', 'b'], correctOption: 0 },
+          { type: 'not-a-type', prompt: 'Invalid type' },
+          { type: 'mcq', prompt: '' },
+        ],
+      }),
+      model: 'test-model',
+    });
+
+    const result = await generateAssessmentQuestions(
+      { ...baseRequest, questionTypes: { mcq: 3 } },
+      partiallyBadLlm,
+    );
+
+    expect(result.questions).toHaveLength(1);
+    expect(result.questions[0].prompt).toBe('Valid?');
+  });
+
+  it('still fails when every question is unusable', async () => {
+    const allBadLlm = async () => ({
+      content: JSON.stringify({
+        questions: [
+          { type: 'nope', prompt: 'x' },
+          { type: 'mcq', prompt: '' },
+        ],
+      }),
+      model: 'test-model',
+    });
+
+    await expect(
+      generateAssessmentQuestions({ ...baseRequest, questionTypes: { mcq: 2 } }, allBadLlm),
+    ).rejects.toThrow(/unexpected question format/i);
+  });
+
   it('rejects unparseable AI output', async () => {
     const garbage = async () => ({ content: 'not json at all {{{', model: 'test-model' });
     await expect(generateAssessmentQuestions(baseRequest, garbage)).rejects.toThrow();
