@@ -5,6 +5,7 @@ import { useParams } from "next/navigation"
 import { motion } from "framer-motion"
 import { Upload, FileText, CheckCircle, AlertCircle, Loader2 } from "lucide-react"
 import { UploadZone } from "@/components/upload-zone"
+import { readApiResponse, toReadableError } from "@/lib/http"
 
 export default function UploadPage() {
   const params = useParams()
@@ -31,7 +32,7 @@ export default function UploadPage() {
         body: formData,
       })
 
-      const data = await res.json()
+      const data = await readApiResponse<{ name?: string }>(res, `/api/upload/${uuid}`);
 
       if (data.success) {
         setUploaded(true)
@@ -39,8 +40,8 @@ export default function UploadPage() {
       } else {
         setError(data.error || "Upload failed. Please try again.")
       }
-    } catch {
-      setError("Failed to connect to server. Please try again.")
+    } catch (err) {
+      setError(toReadableError(err, "Failed to connect to server. Please try again."))
     } finally {
       setUploading(false)
     }

@@ -8,9 +8,9 @@ import { EmptyState } from "@/components/ui/empty-state"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsList, TabsTab, TabsPanel } from "@/components/ui/tabs"
-import { Briefcase } from "lucide-react"
+import { Briefcase, RefreshCw, TriangleAlert } from "lucide-react"
 import { JobSwitcher } from "@/components/workspace/job-switcher"
-import { ShortlistingStage } from "@/components/workspace/shortlisting-stage"
+import { ShortlistingStage, StageSkeleton } from "@/components/workspace/shortlisting-stage"
 import { AssessmentSetupStage } from "@/components/workspace/assessment-setup-stage"
 import { InvitationsStage } from "@/components/workspace/invitations-stage"
 import { ResultsStage, ClosedJobBanner } from "@/components/workspace/results-stage"
@@ -18,6 +18,7 @@ import { TechnicalRoundStage } from "@/components/workspace/technical-round-stag
 import { InterviewDecisionStage } from "@/components/workspace/interview-decision-stage"
 import { JobsTab } from "@/components/workspace/jobs-tab"
 import { useApi } from "@/hooks/use-api"
+import { toReadableError } from "@/lib/http"
 import { WORKSPACE_STAGES, WORKSPACE_STAGE_META, type WorkspaceStage } from "@/lib/constants"
 import type { MinimalJob, WorkspacePayload } from "@/lib/types"
 
@@ -101,7 +102,16 @@ export default function AssessmentsWorkspacePage() {
   }, [mutateJobs, mutateWorkspace])
 
   const error = jobsError ?? workspaceError
-  const errorMessage = error instanceof Error ? error.message : null
+  const errorMessage = error ? toReadableError(error, "Could not load this workspace.") : null
+
+  /**
+   * Skeletons are for work in flight only. On failure `isLoading` is false and
+   * `workspace` is undefined, so keying the skeleton on `!workspace` alone left
+   * the panel spinning forever under the error text. A failed load must resolve
+   * to an error card with a retry, never a perpetual skeleton.
+   */
+  const showWorkspaceSkeleton = loadingWorkspace && !workspace && !error
+  const showWorkspaceError = Boolean(workspaceError) && !workspace
 
   const tiles = useMemo(() => {
     if (!workspace) return []
@@ -146,8 +156,22 @@ export default function AssessmentsWorkspacePage() {
       {workspace?.readOnly && <ClosedJobBanner title={workspace.job.title} />}
 
       {errorMessage && (
-        <div className="rounded-[8px] border border-danger/25 bg-danger/10 px-3 py-2 text-[12.5px] text-danger">
-          {errorMessage}
+        <div
+          role="alert"
+          className="flex flex-wrap items-start justify-between gap-3 rounded-[8px] border border-danger/25 bg-danger/10 px-3 py-2 text-[12.5px] text-danger"
+        >
+          <span className="flex items-start gap-2">
+            <TriangleAlert className="mt-px size-4 shrink-0" aria-hidden />
+            <span>{errorMessage}</span>
+          </span>
+          <button
+            type="button"
+            onClick={refresh}
+            className="inline-flex items-center gap-1.5 rounded-[6px] border border-danger/30 px-2 py-1 font-medium transition-colors duration-120 hover:bg-danger/15"
+          >
+            <RefreshCw className="size-3.5" aria-hidden />
+            Retry
+          </button>
         </div>
       )}
 
@@ -188,13 +212,32 @@ export default function AssessmentsWorkspacePage() {
 
           {WORKSPACE_STAGES.filter((s) => s !== "jobs").map((s) => (
             <TabsPanel key={s} value={s}>
-              {loadingWorkspace || !workspace ? (
-                <div className="space-y-2">
-                  <Skeleton className="h-10 w-full" />
-                  <Skeleton className="h-10 w-full" />
-                  <Skeleton className="h-10 w-full" />
+              {showWorkspaceSkeleton ? (
+                <div aria-busy="true" aria-live="polite">
+                  <StageSkeleton />
                 </div>
-              ) : (
+              ) : showWorkspaceError ? (
+                <div
+                  role="alert"
+                  className="flex flex-col items-start gap-3 rounded-[8px] border border-danger/25 bg-danger/5 px-4 py-6 text-[12.5px] text-danger"
+                >
+                  <span className="flex items-start gap-2">
+                    <TriangleAlert className="mt-px size-4 shrink-0" aria-hidden />
+                    <span>
+                      Could not load this role&apos;s pipeline.
+                      <span className="mt-1 block text-muted">{errorMessage}</span>
+                    </span>
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => void mutateWorkspace()}
+                    className="inline-flex items-center gap-1.5 rounded-[6px] border border-danger/30 px-2.5 py-1 font-medium transition-colors duration-120 hover:bg-danger/15"
+                  >
+                    <RefreshCw className="size-3.5" aria-hidden />
+                    Try again
+                  </button>
+                </div>
+              ) : workspace ? (
                 <>
                   {s === "shortlisting" && (
                     <ShortlistingStage workspace={workspace} onChanged={refresh} />
@@ -213,6 +256,12 @@ export default function AssessmentsWorkspacePage() {
                     <InterviewDecisionStage workspace={workspace} onChanged={refresh} />
                   )}
                 </>
+              ) : (
+                <EmptyState
+                  icon={Briefcase}
+                  title="No role selected"
+                  description="Pick a role from the switcher above to see its pipeline."
+                />
               )}
             </TabsPanel>
           ))}

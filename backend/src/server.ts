@@ -1,4 +1,4 @@
-import express from 'express';
+import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import multer from 'multer';
 import fs from 'fs';
@@ -7,6 +7,7 @@ import { logger } from '@/utils/logger';
 import { requestLogger } from '@/middleware/logger';
 import { errorHandler } from '@/middleware/errorHandler';
 import { ErrorCodes } from '@/middleware/errorCodes';
+import { apiNotFoundHandler, notFoundHandler } from '@/middleware/notFound';
 import { createCollection } from '@/services/qdrant/createCollection';
 import { ensureResumeBucket } from '@/services/supabase/storage';
 import { authMiddleware } from '@/middleware/auth';
@@ -81,6 +82,8 @@ app.use(rateLimiter);
 app.use(authMiddleware);
 app.use('/api', routes);
 
+// Error handlers run BEFORE the 404 catch-alls so a failure raised inside
+// routing is classified correctly instead of being swallowed as "not found".
 app.use((err: Error, _req: express.Request, res: express.Response, next: express.NextFunction) => {
   if (err instanceof multer.MulterError) {
     if (err.code === 'LIMIT_FILE_SIZE') {
@@ -102,6 +105,13 @@ app.use((err: Error, _req: express.Request, res: express.Response, next: express
 });
 
 app.use(errorHandler);
+
+// JSON 404s — never HTML. See `middleware/notFound` for why this exists: an
+// HTML "Cannot GET /api/…" page makes a client throw
+// `Unexpected token '<', "<!DOCTYPE "... is not valid JSON` and leaves the UI
+// stuck, instead of returning a diagnosable API error.
+app.use('/api', apiNotFoundHandler);
+app.use(notFoundHandler);
 
 const server = app.listen(config.port, () => {
   logger.info(`Server running on port ${config.port} in ${config.nodeEnv} mode`);
